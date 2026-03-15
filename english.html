@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lofi Dental | English</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Inter", "Noto Sans KR", "Helvetica Neue", Arial, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #f6f7f9;
+        color: #1c1f26;
+        display: grid;
+        place-items: center;
+      }
+
+      main {
+        width: min(920px, 92vw);
+        text-align: center;
+        padding: 56px 20px 84px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(3.2rem, 12vw, 7.2rem);
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: lowercase;
+      }
+
+      p {
+        margin: 20px 0 0;
+        color: #3a4050;
+        font-size: clamp(1rem, 2.5vw, 1.3rem);
+      }
+
+      .language-switcher {
+        margin-top: 56px;
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+      }
+
+      .language-switcher a {
+        text-decoration: none;
+        border: 1px solid #d1d5df;
+        background: #ffffff;
+        color: #3a4050;
+        font-size: 1.1rem;
+        font-weight: 500;
+        padding: 12px 24px;
+        border-radius: 999px;
+      }
+
+      .language-switcher .active {
+        border-color: #1c1f26;
+        color: #1c1f26;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>lofi dental</h1>
+      <p>English page is now live. Korean page will be added next.</p>
+      <nav class="language-switcher" aria-label="Language options">
+        <a href="#" aria-disabled="true">Korean</a>
+        <a href="english.html" class="active" aria-current="page">English</a>
+      </nav>
+    </main>
+  </body>
+</html>
