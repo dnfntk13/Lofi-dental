@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Concourse App | lofi dental</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Nunito+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: light;
+        --bg-cream: #fbf8ef;
+        --bg-mist: #edf2ea;
+        --ink: #1b2723;
+        --soft-ink: #31443d;
+        --line: rgba(27, 39, 35, 0.22);
+        --card: rgba(255, 255, 255, 0.9);
+        --mint: #d7ead9;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Nunito Sans", "Segoe UI", "Helvetica Neue", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 14% 10%, rgba(215, 234, 217, 0.7), transparent 36%),
+          radial-gradient(circle at 82% 16%, rgba(255, 255, 255, 0.55), transparent 38%),
+          linear-gradient(170deg, var(--bg-cream) 0%, var(--bg-mist) 100%);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      .shell {
+        width: min(860px, 100%);
+        border: 1px solid var(--line);
+        border-radius: 32px;
+        background: var(--card);
+        backdrop-filter: blur(8px);
+        box-shadow: 0 24px 56px rgba(27, 39, 35, 0.08);
+        padding: 32px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .logo {
+        margin: 0;
+        font-size: 1.02rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: lowercase;
+      }
+
+      .back-link {
+        color: var(--soft-ink);
+        text-decoration: none;
+        font-size: 0.96rem;
+        font-weight: 600;
+      }
+
+      .content {
+        margin-top: 28px;
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 28px;
+        align-items: center;
+      }
+
+      .eyebrow {
+        margin: 0;
+        color: var(--soft-ink);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-size: 0.82rem;
+        font-weight: 700;
+      }
+
+      h1 {
+        margin: 12px 0 0;
+        font-family: "Cormorant Garamond", serif;
+        font-size: clamp(2.4rem, 6vw, 4.4rem);
+        line-height: 0.98;
+      }
+
+      .description {
+        margin: 18px 0 0;
+        color: var(--soft-ink);
+        font-size: 1.08rem;
+        line-height: 1.82;
+        max-width: 42ch;
+      }
+
+      .steps {
+        margin-top: 22px;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 10px;
+      }
+
+      .steps li {
+        padding: 14px 16px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #ffffff;
+        color: var(--soft-ink);
+        line-height: 1.65;
+      }
+
+      .qr-card {
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: #ffffff;
+        padding: 22px;
+        text-align: center;
+        box-shadow: 0 14px 30px rgba(27, 39, 35, 0.06);
+      }
+
+      .qr-frame {
+        width: min(100%, 260px);
+        aspect-ratio: 1;
+        margin: 0 auto;
+        border-radius: 24px;
+        background:
+          linear-gradient(90deg, #1b2723 10%, transparent 10%) 0 0 / 20% 20%,
+          linear-gradient(#1b2723 10%, transparent 10%) 0 0 / 20% 20%,
+          linear-gradient(90deg, transparent 90%, #1b2723 90%) 0 0 / 20% 20%,
+          linear-gradient(transparent 90%, #1b2723 90%) 0 0 / 20% 20%,
+          #ffffff;
+        border: 14px solid #ffffff;
+        outline: 1px solid rgba(27, 39, 35, 0.1);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .qr-frame::before,
+      .qr-frame::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+          radial-gradient(circle, rgba(27, 39, 35, 0.95) 28%, transparent 30%),
+          radial-gradient(circle, rgba(27, 39, 35, 0.95) 28%, transparent 30%);
+        background-size: 18px 18px, 22px 22px;
+        background-position: 4px 6px, 11px 13px;
+        opacity: 0.85;
+        mix-blend-mode: multiply;
+      }
+
+      .qr-frame::after {
+        inset: 22px;
+        border: 14px solid #ffffff;
+        border-radius: 16px;
+        background: transparent;
+        box-shadow:
+          inset 0 0 0 12px rgba(255, 255, 255, 0.96),
+          0 0 0 1px rgba(27, 39, 35, 0.08);
+      }
+
+      .qr-title {
+        margin: 18px 0 0;
+        font-size: 1.02rem;
+        font-weight: 700;
+      }
+
+      .qr-note {
+        margin: 8px 0 0;
+        color: var(--soft-ink);
+        font-size: 0.96rem;
+        line-height: 1.65;
+      }
+
+      .btn-row {
+        margin-top: 24px;
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        display: inline-block;
+        text-decoration: none;
+        border-radius: 999px;
+        padding: 14px 22px;
+        font-size: 1rem;
+        font-weight: 600;
+        border: 1px solid var(--line);
+      }
+
+      .btn-primary {
+        background: var(--mint);
+        color: var(--ink);
+      }
+
+      .btn-secondary {
+        background: #ffffff;
+        color: var(--ink);
+      }
+
+      @media (max-width: 760px) {
+        .shell {
+          padding: 22px;
+          border-radius: 24px;
+        }
+
+        .content {
+          grid-template-columns: 1fr;
+        }
+
+        .qr-card {
+          order: -1;
+        }
+
+        .btn-row {
+          flex-direction: column;
+        }
+
+        .btn {
+          text-align: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <p class="logo">lofi dental</p>
+        <a class="back-link" href="english.html">← Back to main</a>
+      </header>
+
+      <section class="content">
+        <div>
+          <p class="eyebrow">Concourse App Access</p>
+          <h1>Scan to continue your journey.</h1>
+          <p class="description">
+            Use the Concourse app QR page to move from consultation to scheduling,
+            coordination, and next-step communication in one place.
+          </p>
+          <ol class="steps">
+            <li>Open your phone camera and scan the QR code.</li>
+            <li>Download the Concourse app or open it directly on your device.</li>
+            <li>Continue your consultation workflow from the app.</li>
+          </ol>
+          <div class="btn-row">
+            <a class="btn btn-primary" href="english.html">Return to Homepage</a>
+            <a class="btn btn-secondary" href="dr-kim-story.html">Read Dr. Kim's Story</a>
+          </div>
+        </div>
+
+        <aside class="qr-card">
+          <div class="qr-frame" aria-hidden="true"></div>
+          <p class="qr-title">Concourse App QR</p>
+          <p class="qr-note">
+            This page is ready for the final QR asset or live app link when you have it.
+          </p>
+        </aside>
+      </section>
+    </main>
+  </body>
+</html>
