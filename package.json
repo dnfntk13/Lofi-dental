@@ -1,0 +1,10 @@
+{
+  "name": "lofi-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "preview": "PORT=4173 node server.mjs"
+  }
+}
