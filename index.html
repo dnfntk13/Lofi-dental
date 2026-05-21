@@ -60,6 +60,23 @@
         font-weight: 700;
       }
 
+      .lang-toggle {
+        text-decoration: none;
+        color: var(--soft-ink);
+        font-size: 0.95rem;
+        font-weight: 600;
+        padding: 8px 14px;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+        transition: 180ms ease;
+        white-space: nowrap;
+      }
+
+      .lang-toggle:hover {
+        background: var(--mint);
+        transform: translateY(-1px);
+      }
+
       .hero {
         margin-top: 44px;
         display: grid;
@@ -353,6 +370,7 @@
     <div class="page">
       <header class="topbar">
         <strong class="logo">lofi dental</strong>
+        <a class="lang-toggle" href="english.html">English</a>
       </header>
 
       <p class="contact">
