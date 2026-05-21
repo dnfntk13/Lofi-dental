@@ -27,15 +27,18 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Build deploy artifact
+      - name: Copy all site files to deploy directory
         run: |
           mkdir -p _site
           cp index.html english.html dr-kim-story.html concourse-app.html CNAME _site/
+          if [ -d "assets" ]; then cp -r assets _site/; fi
+          if [ -d "public" ]; then cp -r public/* _site/ 2>/dev/null || true; fi
+          ls -la _site/
 
-      - name: Upload artifact
+      - name: Upload artifact to GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: _site/
 
       - name: Deploy to GitHub Pages
         id: deployment
