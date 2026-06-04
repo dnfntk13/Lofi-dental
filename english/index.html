@@ -1,35 +1,16 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>lofi dental | Korean</title>
+    <base href="/" />
+    <title>Lofi Web | English</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Nunito+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <style>
-      @font-face {
-        font-family: 'Paperlogy';
-        src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-4Regular.woff2') format('woff2');
-        font-weight: 400;
-        font-style: normal;
-      }
-      @font-face {
-        font-family: 'Paperlogy';
-        src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-5Medium.woff2') format('woff2');
-        font-weight: 500;
-        font-style: normal;
-      }
-      @font-face {
-        font-family: 'Paperlogy';
-        src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-7Bold.woff2') format('woff2');
-        font-weight: 700;
-        font-style: normal;
-      }
-    </style>
     <style>
       :root {
         color-scheme: light;
@@ -51,7 +32,7 @@
       body {
         margin: 0;
         min-height: 100vh;
-        font-family: "Paperlogy", "Noto Sans KR", sans-serif;
+        font-family: "Nunito Sans", "Segoe UI", "Helvetica Neue", sans-serif;
         color: var(--ink);
         background:
           radial-gradient(circle at 12% 8%, rgba(220, 200, 237, 0.66), transparent 42%),
@@ -133,10 +114,10 @@
 
       h1 {
         margin: 14px 0 0;
-        font-family: "Paperlogy", "Noto Sans KR", sans-serif;
-        font-size: clamp(1.54rem, 3.85vw, 3.22rem);
+        font-family: "Cormorant Garamond", serif;
+        font-size: clamp(2.2rem, 5.5vw, 4.6rem);
         line-height: 0.98;
-        font-weight: 400;
+        font-weight: 600;
       }
 
       .hero-main p {
@@ -197,7 +178,7 @@
 
       .stat-value {
         font-size: 2.25rem;
-        font-family: "Paperlogy", "Noto Sans KR", sans-serif;
+        font-family: "Cormorant Garamond", serif;
         margin: 0;
       }
 
@@ -221,7 +202,7 @@
 
       .section h2 {
         margin: 0;
-        font-family: "Paperlogy", "Noto Sans KR", sans-serif;
+        font-family: "Cormorant Garamond", serif;
         font-size: clamp(1.7rem, 3vw, 2.5rem);
       }
 
@@ -279,7 +260,7 @@
 
       .career-year {
         margin: 0;
-        font-family: "Paperlogy", "Noto Sans KR", sans-serif;
+        font-family: "Cormorant Garamond", serif;
         font-size: 1.24rem;
         font-weight: 700;
       }
@@ -329,11 +310,9 @@
       .contact {
         margin: 12px 0 0;
         color: var(--soft-ink);
-        font-size: 0.85rem;
-        line-height: 2;
-        letter-spacing: 0.08em;
-        font-family: 'Paperlogy', 'Noto Sans KR', sans-serif;
-        font-weight: 500;
+        font-size: 1rem;
+        line-height: 1.8;
+        text-align: right;
       }
 
       @keyframes rise {
@@ -401,89 +380,121 @@
     <div class="page">
       <header class="topbar">
         <img src="assets/logo.png" alt="lofi dental" class="logo-img" />
-        <a class="lang-toggle" href="/english">English</a>
+          <a class="lang-toggle" href="index.html">Korean</a>
       </header>
 
-      <p class="contact" style="text-align:right;">
-        서울시 강남구 압구정로 28길 49 3층 로우파이 치과<br />
-        070-7755-8823
+      <p class="contact">
+        49, Apgujeong-ro 28-gil, Gangnam, Seoul, Republic of Korea<br />
+        Reservation +82-70-7755-8823 | Kakao @lofidental
       </p>
 
       <main>
         <section class="hero">
           <article class="hero-main">
-            <h1>의도된 불완전함을 통해,<br />자연스러운 아름다움을 추구합니다.</h1>
+            <p class="eyebrow">Dental Tourism Specialist</p>
+            <h1>Quality-oriented dental care,<br />Made more affordable.</h1>
             <p>
-              단기간에 과하게 하얗고<br />
-              완벽해 보이기 위해 애쓴 라미네이트보다는,<br />
-              오랫동안 은은하게 지속되는 아름다움을 추구합니다.
+              lofi dental is primarily designed for international patients visiting Seoul.<br />
+              Full-mouth restoration, smile makeover, and seamless continuity of care when you return home.
             </p>
             <div class="cta-row">
-              <a class="btn btn-primary" href="https://instagram.com/lofi_esthetic_dentistry">예약하기</a>
-              <a class="btn btn-secondary" href="dr-kim-story.html">로우파이 이야기</a>
+              <a class="btn btn-primary" href="https://wa.me/821029848823">Start Your Journey</a>
+              <a class="btn btn-secondary" href="dr-kim-story.html">Meet Dr. Kim</a>
             </div>
           </article>
 
           <aside class="hero-side">
             <article class="stat">
-              <p class="stat-value">서울-뉴욕</p>
-              <p class="stat-label">8년동안 서울과 뉴욕을 오가며 치과의사로 활동한 경험을 바탕으로, 트렌디하면서도 오래가는 아름다움을 추구합니다.</p>
+              <p class="stat-value">New York& Seoul</p>
+              <p class="stat-label">US & Korea clinical experience bridging two standards</p>
             </article>
           </aside>
         </section>
 
         <section class="section" id="services">
-          <h2>lofi lab</h2>
-          <div class="service-grid" style="display:flex; flex-direction:column; align-items:flex-start; gap:1.2rem;">
-            <p>대표원장과 세라미스트가<br />협업하여 만들어내는,<br />공장식 라미네이트에 반하는,<br />가내수공업 같은,<br />시간을 들인 라미네이트를 지향합니다.</p>
-            <a class="btn btn-secondary" href="#" style="font-size:1.05rem; padding:0.7rem 1.6rem;">lofi lab 구경하기</a>
+          <h2>Why lofi</h2>
+          <div class="service-grid">
+            <article class="service">
+              <h3>Bilingual &amp; Bicultural</h3>
+              <p>Clear communication shaped by real experience across both U.S. and Korean dental cultures.</p>
+            </article>
+            <article class="service">
+              <h3>International Coordination</h3>
+              <p>We help connect your treatment in Seoul with follow-up care after you return home.</p>
+            </article>
+            <article class="service">
+              <h3>Accelerated Care</h3>
+              <p>Focused scheduling and in-house systems help complete treatment efficiently during your stay.</p>
+            </article>
+            <article class="service">
+              <h3>Quality-Oriented Dentistry</h3>
+              <p>Every step is designed to balance efficiency with thoughtful, high-standard clinical results.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" aria-labelledby="process-title">
+          <h2 id="process-title">Your Journey</h2>
+          <div class="timeline">
+            <article class="step">
+              <div class="step-badge">1</div>
+              <p>Download concourse app on your mobile, and schedule your appointment.</p>
+            </article>
+            <article class="step">
+              <div class="step-badge">2</div>
+              <p>Your arrival in Seoul.</p>
+            </article>
+            <article class="step">
+              <div class="step-badge">3</div>
+              <p>Your first lofi dental experience.</p>
+            </article>
           </div>
         </section>
 
         <section class="section" aria-labelledby="career-title">
-          <h2 id="career-title">커리어 하이라이트</h2>
+          <h2 id="career-title">Career Snapshot</h2>
           <div class="career-list">
             <article class="career-item">
               <p class="career-year">2018</p>
-              <p class="career-text">뉴욕대학교 치과대학 졸업</p>
+              <p class="career-text">NYU College of Dentistry graduation</p>
             </article>
             <article class="career-item">
               <p class="career-year">2018-2020</p>
-              <p class="career-text">대한민국 육군 치무병 복무</p>
+              <p class="career-text">Army Dental Corpsman (Korea)</p>
             </article>
             <article class="career-item">
               <p class="career-year">2021</p>
-              <p class="career-text">서울나은치과 진료의</p>
+              <p class="career-text">Associate Dentist at Seoul Naeun Dental</p>
             </article>
             <article class="career-item">
               <p class="career-year">2022</p>
-              <p class="career-text">미시간치과 진료의</p>
+              <p class="career-text">Associate Dentist at Michigan Dental</p>
             </article>
             <article class="career-item">
               <p class="career-year">2023</p>
-              <p class="career-text">Brookdale Hospital GPR 수련</p>
+              <p class="career-text">General Practice Residency at Brookdale Hospital</p>
             </article>
             <article class="career-item">
               <p class="career-year">2024</p>
-              <p class="career-text">Interfaith Hospital GPR 2년차</p>
+              <p class="career-text">GPR 2nd year at Interfaith Hospital</p>
             </article>
             <article class="career-item">
               <p class="career-year">2025</p>
-              <p class="career-text">캐슬부부치과·스마일스튜디오치과 진료의</p>
+              <p class="career-text">Associate Dentist at Castle Bubu Dental and Smile Studios Dental</p>
             </article>
             <article class="career-item">
               <p class="career-year">2026</p>
-              <p class="career-text">로우파이 치과 대표원장</p>
+              <p class="career-text">Founded lofi dental</p>
             </article>
           </div>
           <div class="cta-row" style="margin-top: 20px;">
-            <a class="btn btn-secondary" href="dr-kim-story.html">김대웅 대표원장 이야기</a>
+            <a class="btn btn-secondary" href="dr-kim-story.html">Read Dr. Kim's Full Story</a>
           </div>
         </section>
       </main>
 
       <footer id="contact">
-        <a class="btn btn-primary" href="https://instagram.com/lofi_esthetic_dentistry">예약하기</a>
+        <a class="btn btn-primary" href="https://wa.me/821029848823">Start Your Journey</a>
       </footer>
     </div>
   </body>

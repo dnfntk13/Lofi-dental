@@ -19,7 +19,19 @@ const mimeTypes = {
 
 function resolvePath(urlPath) {
   const pathname = decodeURIComponent((urlPath || "/").split("?")[0]);
-  return pathname === "/" ? "/index.html" : pathname;
+  if (pathname === "/") {
+    return "/index.html";
+  }
+
+  if (pathname.endsWith("/")) {
+    return `${pathname}index.html`;
+  }
+
+  if (!path.extname(pathname)) {
+    return `${pathname}/index.html`;
+  }
+
+  return pathname;
 }
 
 createServer(async (request, response) => {
