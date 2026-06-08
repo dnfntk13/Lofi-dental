@@ -273,7 +273,7 @@
 
       .step {
         display: grid;
-        grid-template-columns: 46px 1fr;
+        grid-template-columns: 1fr;
         gap: 12px;
         align-items: start;
       }
@@ -295,6 +295,25 @@
         color: var(--soft-ink);
         font-size: 1.04rem;
         line-height: 1.76;
+      }
+
+      .step-main {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+
+      .step-link {
+        text-decoration: none;
+        border-radius: 999px;
+        padding: 8px 14px;
+        border: 1px solid var(--line);
+        color: var(--ink);
+        background: #ffffff;
+        font-size: 0.9rem;
+        font-weight: 700;
+        white-space: nowrap;
       }
 
       footer {
@@ -372,6 +391,11 @@
         .btn {
           text-align: center;
         }
+
+        .step-main {
+          flex-direction: column;
+          align-items: flex-start;
+        }
       }
     </style>
   </head>
@@ -397,7 +421,7 @@
               Full-mouth restoration, smile makeover, and seamless continuity of care when you return home.
             </p>
             <div class="cta-row">
-              <a class="btn btn-primary" href="https://wa.me/821029848823">Start Your Journey</a>
+              <a class="btn btn-primary" href="https://wa.me/821029848823">Tell us about your dental/esthetic concerns</a>
               <a class="btn btn-secondary" href="dr-kim-story.html">Meet Dr. Kim</a>
             </div>
           </article>
@@ -410,41 +434,18 @@
           </aside>
         </section>
 
-        <section class="section" id="services">
-          <h2>Why lofi</h2>
-          <div class="service-grid">
-            <article class="service">
-              <h3>Bilingual &amp; Bicultural</h3>
-              <p>Clear communication shaped by real experience across both U.S. and Korean dental cultures.</p>
-            </article>
-            <article class="service">
-              <h3>International Coordination</h3>
-              <p>We help connect your treatment in Seoul with follow-up care after you return home.</p>
-            </article>
-            <article class="service">
-              <h3>Accelerated Care</h3>
-              <p>Focused scheduling and in-house systems help complete treatment efficiently during your stay.</p>
-            </article>
-            <article class="service">
-              <h3>Quality-Oriented Dentistry</h3>
-              <p>Every step is designed to balance efficiency with thoughtful, high-standard clinical results.</p>
-            </article>
-          </div>
-        </section>
-
         <section class="section" aria-labelledby="process-title">
           <h2 id="process-title">Your Journey</h2>
           <div class="timeline">
             <article class="step">
-              <div class="step-badge">1</div>
-              <p>Download concourse app on your mobile, and schedule your appointment.</p>
+              <div class="step-main">
+                <p><a class="step-link" href="/contact-options.html">Tell us</a> about your dental/esthetic concerns.</p>
+              </div>
             </article>
             <article class="step">
-              <div class="step-badge">2</div>
               <p>Your arrival in Seoul.</p>
             </article>
             <article class="step">
-              <div class="step-badge">3</div>
               <p>Your first lofi dental experience.</p>
             </article>
           </div>
@@ -493,7 +494,7 @@
       </main>
 
       <footer id="contact">
-        <a class="btn btn-primary" href="https://wa.me/821029848823">Start Your Journey</a>
+        <a class="btn btn-primary" href="https://wa.me/821029848823">Tell us about your dental/esthetic concerns</a>
       </footer>
     </div>
   </body>
