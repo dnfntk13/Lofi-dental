@@ -64,7 +64,7 @@
       }
 
       .card {
-        width: min(680px, 100%);
+        width: min(1100px, 96vw);
         border: 1px solid var(--line);
         border-radius: 28px;
         background: var(--card);
@@ -73,24 +73,27 @@
       }
 
       .options {
-        margin-top: 4px;
+        margin-top: 8px;
         display: grid;
-        gap: 12px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
       }
 
       .option-link {
         text-decoration: none;
         border: 1px solid var(--line);
-        border-radius: 14px;
+        border-radius: 18px;
         background: #ffffff;
-        padding: 16px 18px;
+        padding: 22px 24px;
         color: var(--ink);
-        font-size: 1rem;
+        font-size: 1.24rem;
         font-weight: 700;
         transition: 180ms ease;
         display: flex;
         align-items: center;
-        gap: 10px;
+        justify-content: center;
+        gap: 14px;
+        min-height: 180px;
       }
 
       .option-link:hover {
@@ -99,9 +102,24 @@
       }
 
       .logo-icon {
-        width: 20px;
-        height: 20px;
-        flex: 0 0 20px;
+        width: 28px;
+        height: 28px;
+        flex: 0 0 28px;
+      }
+
+      @media (max-width: 900px) {
+        .card {
+          width: min(680px, 96vw);
+          padding: 24px;
+        }
+
+        .options {
+          grid-template-columns: 1fr;
+        }
+
+        .option-link {
+          min-height: 120px;
+        }
       }
 
     </style>
