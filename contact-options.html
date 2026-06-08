@@ -3,12 +3,35 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-ZKDLXLXDRE"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-XXXXXXXXXX');
+      gtag('config', 'G-ZKDLXLXDRE');
+
+      function trackAndGo(event, channel, url) {
+        event.preventDefault();
+
+        const navigate = () => {
+          window.location.href = url;
+        };
+
+        if (typeof gtag !== 'function') {
+          navigate();
+          return;
+        }
+
+        gtag('event', channel + '_click', {
+          event_category: 'outbound',
+          event_label: channel,
+          transport_type: 'beacon',
+          event_callback: navigate,
+        });
+
+        // Fallback in case callback is delayed.
+        setTimeout(navigate, 900);
+      }
     </script>
     <title>Choose Contact Method | lofi dental</title>
     <style>
@@ -86,7 +109,7 @@
   <body>
     <main class="card">
       <div class="options">
-        <a class="option-link" href="/instagram" aria-label="Consult via Instagram">
+        <a class="option-link" href="https://instagram.com/lofi_esthetic_dentistry" aria-label="Consult via Instagram" onclick="trackAndGo(event, 'instagram', 'https://instagram.com/lofi_esthetic_dentistry')">
           <svg class="logo-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" stroke-width="1.8" />
             <circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.8" />
@@ -94,7 +117,7 @@
           </svg>
           <span>Consult via Instagram</span>
         </a>
-        <a class="option-link" href="/whatsapp" aria-label="Consult via WhatsApp">
+        <a class="option-link" href="https://wa.me/821029848823" aria-label="Consult via WhatsApp" onclick="trackAndGo(event, 'whatsapp', 'https://wa.me/821029848823')">
           <svg class="logo-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M20.2 11.8c0 4.6-3.7 8.3-8.3 8.3-1.5 0-3-.4-4.2-1.1L3.8 20l1.1-3.6a8.2 8.2 0 0 1-1.4-4.6c0-4.6 3.7-8.3 8.3-8.3s8.4 3.7 8.4 8.3Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M9.2 8.9c.2-.4.4-.4.7-.4h.5c.2 0 .4 0 .6.5.2.6.7 2 .8 2.2.1.3 0 .4-.2.6l-.4.5c-.1.1-.2.3 0 .5.2.4 1 1.6 2.4 2.2.3.1.5.1.7-.1l.6-.7c.2-.2.3-.2.6-.1l2 .9c.3.1.5.2.5.4v.4c-.1.4-.6.8-1 1-.3.1-.8.3-1.9.1-1-.2-2.2-.9-3-1.6-.7-.6-1.3-1.4-1.8-2.2-.4-.7-.9-1.8-.8-2.8.1-.9.6-1.3.7-1.5Z" fill="currentColor"/>
