@@ -93,26 +93,122 @@
         margin-left: auto;
       }
 
-      .date-field-wrap {
+      .calendar-wrap {
         margin-top: 8px;
-      }
-
-      .date-input {
-        width: 100%;
-        padding: 16px 18px;
+        border: 1px solid rgba(42, 31, 24, 0.1);
         border-radius: 20px;
-        border: 1px solid rgba(255, 47, 18, 0.22);
         background: rgba(255, 255, 255, 0.96);
-        color: var(--ink);
-        font: inherit;
-        font-size: 1rem;
-        box-shadow: 0 10px 24px rgba(49, 34, 21, 0.06);
+        padding: 14px;
       }
 
-      .date-input:focus {
-        outline: none;
-        border-color: rgba(255, 47, 18, 0.5);
-        box-shadow: 0 0 0 4px rgba(255, 47, 18, 0.12);
+      .calendar-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+
+      .calendar-month {
+        margin: 0;
+        font-size: 1rem;
+        color: var(--ink);
+        font-weight: 700;
+      }
+
+      .calendar-nav {
+        border: 1px solid rgba(42, 31, 24, 0.14);
+        background: #fff;
+        color: var(--ink);
+        border-radius: 10px;
+        width: 34px;
+        height: 34px;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+
+      .calendar-nav:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
+
+      .calendar-weekdays,
+      .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .calendar-weekday {
+        text-align: center;
+        color: var(--soft);
+        font-size: 0.82rem;
+        font-weight: 700;
+        padding: 4px 0;
+      }
+
+      .calendar-day,
+      .calendar-day-empty {
+        min-height: 42px;
+        border-radius: 12px;
+      }
+
+      .calendar-day {
+        border: 1px solid rgba(220, 200, 237, 0.8);
+        background: #fff;
+        color: #4a2a6b;
+        font: inherit;
+        cursor: pointer;
+      }
+
+      .calendar-day:hover {
+        border-color: rgba(106, 75, 142, 0.55);
+      }
+
+      .calendar-day.is-selected {
+        background: #dcc8ed;
+        border-color: #dcc8ed;
+        color: #4a2a6b;
+        font-weight: 700;
+      }
+
+      .calendar-day.is-closed {
+        color: #d32020;
+        border-color: rgba(211, 32, 32, 0.28);
+        background: rgba(255, 245, 245, 0.9);
+        cursor: not-allowed;
+      }
+
+      .calendar-day.is-out {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
+
+      .cursor-tooltip {
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 9999;
+        pointer-events: none;
+        transform: translate(12px, 14px);
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(42, 31, 24, 0.14);
+        background: rgba(255, 255, 255, 0.96);
+        color: var(--soft);
+        font-size: 0.86rem;
+        line-height: 1;
+        white-space: nowrap;
+        opacity: 0;
+        visibility: hidden;
+      }
+
+      .cursor-tooltip.is-visible {
+        opacity: 1;
+        visibility: visible;
+      }
+
+      .calendar-day-empty {
+        background: transparent;
       }
 
       .note {
@@ -137,6 +233,17 @@
         font-size: 1.02rem;
         font-weight: 700;
         color: var(--ink);
+      }
+
+      .closed-banner {
+        grid-column: 1 / -1;
+        padding: 16px;
+        border-radius: 16px;
+        border: 1px solid rgba(42, 31, 24, 0.12);
+        background: rgba(255, 255, 255, 0.9);
+        color: var(--soft);
+        text-align: center;
+        font-size: 0.95rem;
       }
 
       .time-grid {
@@ -186,7 +293,7 @@
         .page { padding: 64px 14px 14px; }
         .back-link { top: 12px; left: 12px; width: 32px; height: 32px; }
         .board { padding: 16px; border-radius: 24px; }
-        .date-input { padding: 14px 16px; }
+        .calendar-wrap { padding: 12px; }
         .time-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
     </style>
@@ -203,23 +310,64 @@
           <span class="caret" aria-hidden="true"></span>
         </div>
 
-        <div class="date-field-wrap">
-          <input id="dateInput" class="date-input" type="date" aria-label="Reservation date" />
+        <div class="calendar-wrap" aria-label="Reservation calendar">
+          <div class="calendar-head">
+            <button id="prevMonth" class="calendar-nav" type="button" aria-label="Previous month">&lt;</button>
+            <p id="calendarMonth" class="calendar-month">Month</p>
+            <button id="nextMonth" class="calendar-nav" type="button" aria-label="Next month">&gt;</button>
+          </div>
+          <div class="calendar-weekdays">
+            <div class="calendar-weekday">Sun</div>
+            <div class="calendar-weekday">Mon</div>
+            <div class="calendar-weekday">Tue</div>
+            <div class="calendar-weekday">Wed</div>
+            <div class="calendar-weekday">Thu</div>
+            <div class="calendar-weekday">Fri</div>
+            <div class="calendar-weekday">Sat</div>
+          </div>
+          <div id="calendarGrid" class="calendar-grid"></div>
         </div>
 
         <div class="time-panel is-hidden" id="timePanel" aria-label="Available times">
-          <p class="time-title">Available times</p>
+          <p class="time-title" id="timeTitle">Available times</p>
           <div class="time-grid" id="timeGrid"></div>
         </div>
       </section>
     </div>
 
+    <div id="cursorTooltip" class="cursor-tooltip" aria-hidden="true"></div>
+
     <script>
       const selectedDayText = document.getElementById("selectedDayText");
+      const cursorTooltip = document.getElementById("cursorTooltip");
 
-      const dateInput = document.getElementById("dateInput");
+      const calendarMonth = document.getElementById("calendarMonth");
+      const calendarGrid = document.getElementById("calendarGrid");
+      const prevMonthButton = document.getElementById("prevMonth");
+      const nextMonthButton = document.getElementById("nextMonth");
       const timePanel = document.getElementById("timePanel");
+      const timeTitle = document.getElementById("timeTitle");
       const timeGrid = document.getElementById("timeGrid");
+
+      const koreanHolidays = new Set([
+        "2026-01-01",
+        "2026-02-16", "2026-02-17", "2026-02-18",
+        "2026-03-01", "2026-03-02",
+        "2026-05-05", "2026-05-24", "2026-05-25",
+        "2026-06-06",
+        "2026-08-15", "2026-08-17",
+        "2026-10-03", "2026-10-05", "2026-10-06", "2026-10-07", "2026-10-09",
+        "2026-12-25",
+        "2027-01-01",
+        "2027-02-06", "2027-02-07", "2027-02-08",
+        "2027-03-01",
+        "2027-05-05", "2027-05-13",
+        "2027-06-06", "2027-06-07",
+        "2027-08-15", "2027-08-16",
+        "2027-09-14", "2027-09-15", "2027-09-16",
+        "2027-10-03", "2027-10-04", "2027-10-09",
+        "2027-12-25",
+      ]);
 
       function parseLocalDate(value) {
         const [year, month, day] = value.split("-").map(Number);
@@ -251,12 +399,50 @@
         return `${displayHour}:${String(mins).padStart(2, "0")} ${period}`;
       }
 
+      function isWeekend(dateValue) {
+        const day = parseLocalDate(dateValue).getDay();
+        return day === 0 || day === 6;
+      }
+
+      function isKoreanHoliday(dateValue) {
+        return koreanHolidays.has(dateValue);
+      }
+
+      function getClosedType(dateValue) {
+        if (isKoreanHoliday(dateValue)) return "holiday";
+        if (isWeekend(dateValue)) return "weekend";
+        return null;
+      }
+
+      function isOutOfRange(dateObj, minDate, maxDate) {
+        return dateObj < minDate || dateObj > maxDate;
+      }
+
+      function isSameDate(a, b) {
+        return (
+          a.getFullYear() === b.getFullYear() &&
+          a.getMonth() === b.getMonth() &&
+          a.getDate() === b.getDate()
+        );
+      }
+
       function buildTimeSlots() {
         timeGrid.innerHTML = "";
 
+        if (isWeekend(selectedDateISO) || isKoreanHoliday(selectedDateISO)) {
+          timeTitle.textContent = "Closed";
+          const closedBanner = document.createElement("div");
+          closedBanner.className = "closed-banner";
+          closedBanner.textContent = "Closed on weekends and Korean public holidays.";
+          timeGrid.appendChild(closedBanner);
+          return;
+        }
+
+        timeTitle.textContent = "Available times";
+
         const now = new Date();
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
-        const isToday = dateInput.value === formatISODate(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+        const isToday = selectedDateISO === formatISODate(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
 
         const ranges = [
           [10 * 60, 13 * 60],
@@ -281,7 +467,7 @@
 
             button.addEventListener("click", () => {
               const params = new URLSearchParams({
-                date: dateInput.value,
+                date: selectedDateISO,
                 time: startTime,
               });
               window.location.href = `concerns.html?${params.toString()}`;
@@ -296,20 +482,141 @@
       const maxDate = new Date(minDate);
       maxDate.setMonth(maxDate.getMonth() + 3);
 
-      dateInput.min = formatISODate(minDate);
-      dateInput.max = formatISODate(maxDate);
-      dateInput.value = dateInput.min;
-      selectedDayText.textContent = formatLongDate(dateInput.value);
-      timePanel.classList.remove("is-hidden");
-      buildTimeSlots();
+      let selectedDateISO = formatISODate(minDate);
+      let viewYear = minDate.getFullYear();
+      let viewMonth = minDate.getMonth();
 
-      dateInput.addEventListener("change", () => {
-        if (dateInput.value) {
-          selectedDayText.textContent = formatLongDate(dateInput.value);
-          timePanel.classList.remove("is-hidden");
-          buildTimeSlots();
+      function canGoPrevMonth() {
+        const currentMonthStart = new Date(viewYear, viewMonth, 1);
+        const minMonthStart = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+        return currentMonthStart > minMonthStart;
+      }
+
+      function canGoNextMonth() {
+        const currentMonthStart = new Date(viewYear, viewMonth, 1);
+        const maxMonthStart = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+        return currentMonthStart < maxMonthStart;
+      }
+
+      function renderCalendar() {
+        calendarGrid.innerHTML = "";
+        cursorTooltip.classList.remove("is-visible");
+        const monthStart = new Date(viewYear, viewMonth, 1);
+        const monthEnd = new Date(viewYear, viewMonth + 1, 0);
+
+        calendarMonth.textContent = new Intl.DateTimeFormat("en-US", {
+          year: "numeric",
+          month: "long",
+        }).format(monthStart);
+
+        prevMonthButton.disabled = !canGoPrevMonth();
+        nextMonthButton.disabled = !canGoNextMonth();
+
+        const startOffset = monthStart.getDay();
+        for (let i = 0; i < startOffset; i += 1) {
+          const empty = document.createElement("div");
+          empty.className = "calendar-day-empty";
+          calendarGrid.appendChild(empty);
         }
+
+        for (let day = 1; day <= monthEnd.getDate(); day += 1) {
+          const dateObj = new Date(viewYear, viewMonth, day);
+          const iso = formatISODate(dateObj);
+          const closedType = getClosedType(iso);
+          const isClosed = Boolean(closedType);
+          const isDisabledRange = isOutOfRange(dateObj, minDate, maxDate);
+
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "calendar-day";
+          button.textContent = String(day);
+
+          if (iso === selectedDateISO) {
+            button.classList.add("is-selected");
+          }
+
+          if (isClosed) {
+            button.classList.add("is-closed");
+            button.setAttribute("aria-disabled", "true");
+          }
+
+          if (isDisabledRange) {
+            button.classList.add("is-out");
+            button.disabled = true;
+          }
+
+          if (!isClosed && !isDisabledRange) {
+            button.addEventListener("click", () => {
+              selectedDateISO = iso;
+              selectedDayText.textContent = formatLongDate(selectedDateISO);
+              renderCalendar();
+              buildTimeSlots();
+            });
+          }
+
+          if (isClosed && !isDisabledRange) {
+            const hintText = closedType === "holiday" ? "Korean holiday" : "Closed";
+            button.addEventListener("mouseenter", (event) => {
+              cursorTooltip.textContent = hintText;
+              cursorTooltip.style.left = `${event.clientX}px`;
+              cursorTooltip.style.top = `${event.clientY}px`;
+              cursorTooltip.classList.add("is-visible");
+            });
+
+            button.addEventListener("mousemove", (event) => {
+              cursorTooltip.style.left = `${event.clientX}px`;
+              cursorTooltip.style.top = `${event.clientY}px`;
+            });
+
+            button.addEventListener("mouseleave", () => {
+              cursorTooltip.classList.remove("is-visible");
+            });
+
+            button.addEventListener("focus", () => {
+              const rect = button.getBoundingClientRect();
+              cursorTooltip.textContent = hintText;
+              cursorTooltip.style.left = `${rect.left + rect.width / 2}px`;
+              cursorTooltip.style.top = `${rect.bottom}px`;
+              cursorTooltip.classList.add("is-visible");
+            });
+
+            button.addEventListener("blur", () => {
+              cursorTooltip.classList.remove("is-visible");
+            });
+
+            button.addEventListener("click", (event) => {
+              event.preventDefault();
+            });
+          }
+
+          calendarGrid.appendChild(button);
+        }
+      }
+
+      prevMonthButton.addEventListener("click", () => {
+        if (!canGoPrevMonth()) return;
+        viewMonth -= 1;
+        if (viewMonth < 0) {
+          viewMonth = 11;
+          viewYear -= 1;
+        }
+        renderCalendar();
       });
+
+      nextMonthButton.addEventListener("click", () => {
+        if (!canGoNextMonth()) return;
+        viewMonth += 1;
+        if (viewMonth > 11) {
+          viewMonth = 0;
+          viewYear += 1;
+        }
+        renderCalendar();
+      });
+
+      selectedDayText.textContent = formatLongDate(selectedDateISO);
+      timePanel.classList.remove("is-hidden");
+      renderCalendar();
+      buildTimeSlots();
     </script>
   </body>
 </html>
