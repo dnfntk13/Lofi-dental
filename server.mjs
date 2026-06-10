@@ -179,7 +179,7 @@ createServer(async (request, response) => {
     return;
   }
 
-  if (pathname.startsWith("/admin/")) {
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
     if (!adminAuthorized) {
       requestAuth(response);
       return;
@@ -213,5 +213,5 @@ createServer(async (request, response) => {
   }
 }).listen(port, () => {
   console.log(`Lofi Web running on http://localhost:${port}`);
-  console.log(`Admin inbox: http://localhost:${port}/admin/messages.html`);
+  console.log(`Admin page: http://localhost:${port}/admin`);
 });
