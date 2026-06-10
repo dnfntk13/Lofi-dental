@@ -3,12 +3,50 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-ZKDLXLXDRE"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-538289407"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-ZKDLXLXDRE');
+      gtag('config', 'G-538289407');
+      gtag('config', 'AW-18173901982');
+
+      const ADS_SEND_TO = 'AW-18173901982/LOpPCJ0a_LQcEJ75_tID';
+
+      function handleWhatsAppClick(event) {
+        event.preventDefault();
+
+        const url = 'https://wa.me/821029848823';
+        let didNavigate = false;
+        const navigate = () => {
+          if (didNavigate) {
+            return;
+          }
+          didNavigate = true;
+          window.location.href = url;
+        };
+
+        if (typeof gtag !== 'function') {
+          navigate();
+          return;
+        }
+
+        gtag('event', 'whatsapp_click', {
+          event_category: 'outbound',
+          event_label: '821029848823',
+          transport_type: 'beacon',
+        });
+
+        gtag('event', 'conversion', {
+          send_to: ADS_SEND_TO,
+          event_category: 'Contact',
+          event_label: 'whatsapp',
+          transport_type: 'beacon',
+          event_callback: navigate,
+        });
+
+        setTimeout(navigate, 900);
+      }
     </script>
     <title>WhatsApp | lofi dental</title>
     <style>
@@ -65,7 +103,7 @@
     <main class="card">
       <h1>WhatsApp</h1>
       <p>Continue to our WhatsApp when you are ready.</p>
-      <a href="https://wa.me/821029848823">Go to WhatsApp</a>
+      <a href="https://wa.me/821029848823" onclick="handleWhatsAppClick(event)">Go to WhatsApp</a>
     </main>
   </body>
 </html>

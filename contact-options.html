@@ -3,17 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-ZKDLXLXDRE"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-538289407"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-ZKDLXLXDRE');
+      gtag('config', 'G-538289407');
+      gtag('config', 'AW-18173901982');
+
+      const ADS_SEND_TO = 'AW-18173901982/LOpPCJ0a_LQcEJ75_tID';
 
       function trackAndGo(event, channel, url) {
         event.preventDefault();
 
+        let didNavigate = false;
+
         const navigate = () => {
+          if (didNavigate) {
+            return;
+          }
+          didNavigate = true;
           window.location.href = url;
         };
 
@@ -24,6 +33,13 @@
 
         gtag('event', channel + '_click', {
           event_category: 'outbound',
+          event_label: channel,
+          transport_type: 'beacon',
+        });
+
+        gtag('event', 'conversion', {
+          send_to: ADS_SEND_TO,
+          event_category: 'Contact',
           event_label: channel,
           transport_type: 'beacon',
           event_callback: navigate,
