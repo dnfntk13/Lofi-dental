@@ -10,6 +10,18 @@ npm run dev
 
 Default URL: `http://localhost:5173`
 
+## Admin Inbox
+
+- URL: `http://localhost:5173/admin/messages.html`
+- Reservation submissions are stored in `.data/reservation-inbox.json`.
+- Protected with HTTP Basic Auth.
+- Defaults: `lofidental` / `Lofidental1!`
+- Override credentials with environment variables:
+
+```bash
+ADMIN_USER=your_user ADMIN_PASS=your_pass npm run dev
+```
+
 ## Notes
 
 - Static multipage site.

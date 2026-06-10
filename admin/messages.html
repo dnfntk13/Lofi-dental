@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Inbox | lofi dental</title>
+    <style>
+      :root {
+        --bg: #f4eefb;
+        --ink: #201a17;
+        --soft: #6d6157;
+        --line: rgba(42, 31, 24, 0.12);
+        --card: rgba(255, 255, 255, 0.93);
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Georgia, "Times New Roman", serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(139, 92, 180, 0.14), transparent 28%),
+          radial-gradient(circle at top right, rgba(165, 137, 219, 0.18), transparent 30%),
+          linear-gradient(180deg, #fcf9ff 0%, var(--bg) 48%, #f7f0fd 100%);
+      }
+
+      .wrap {
+        width: min(1000px, 100%);
+        margin: 0 auto;
+        padding: 28px 18px 40px;
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.6rem, 2.4vw, 2.1rem);
+      }
+
+      .muted {
+        margin: 0;
+        color: var(--soft);
+      }
+
+      .btn {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 10px 16px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .list {
+        display: grid;
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .item {
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: var(--card);
+        padding: 16px;
+      }
+
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .chip {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 6px 10px;
+        background: #fff;
+        color: var(--soft);
+        font-size: 0.9rem;
+      }
+
+      .body {
+        margin: 0;
+        white-space: pre-wrap;
+        line-height: 1.6;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <div class="header">
+        <h1>Reservation Inbox</h1>
+        <button type="button" class="btn" id="refreshButton">Refresh</button>
+      </div>
+      <p class="muted">Admin only</p>
+      <section id="inbox" class="list" aria-live="polite"></section>
+    </main>
+
+    <script>
+      const inbox = document.getElementById("inbox");
+      const refreshButton = document.getElementById("refreshButton");
+
+      function formatDateTime(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+          return value;
+        }
+
+        return new Intl.DateTimeFormat("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(date);
+      }
+
+      function render(messages) {
+        if (!messages.length) {
+          inbox.innerHTML = '<article class="item"><p class="body">No messages yet.</p></article>';
+          return;
+        }
+
+        inbox.innerHTML = messages
+          .map((message) => {
+            const safeConcerns = message.concerns
+              .replaceAll("&", "&amp;")
+              .replaceAll("<", "&lt;")
+              .replaceAll(">", "&gt;");
+
+            return `
+              <article class="item">
+                <div class="meta">
+                  <span class="chip">Date: ${message.date}</span>
+                  <span class="chip">Time: ${message.time}</span>
+                  <span class="chip">Received: ${formatDateTime(message.createdAt)}</span>
+                </div>
+                <p class="body">${safeConcerns}</p>
+              </article>
+            `;
+          })
+          .join("");
+      }
+
+      async function loadMessages() {
+        inbox.innerHTML = '<article class="item"><p class="body">Loading...</p></article>';
+
+        try {
+          const apiUrl = new URL("/api/admin/messages", window.location.origin);
+          const authHeaders = { Accept: "application/json" };
+          const authUser = window.location.username || "";
+          const authPass = window.location.password || "";
+
+          if (authUser || authPass) {
+            authHeaders.Authorization = `Basic ${btoa(`${decodeURIComponent(authUser)}:${decodeURIComponent(authPass)}`)}`;
+          }
+
+          const response = await fetch(apiUrl.toString(), {
+            headers: authHeaders,
+          });
+
+          if (!response.ok) {
+            inbox.innerHTML = '<article class="item"><p class="body">Failed to load messages.</p></article>';
+            return;
+          }
+
+          const data = await response.json();
+          render(Array.isArray(data.messages) ? data.messages : []);
+        } catch {
+          inbox.innerHTML = '<article class="item"><p class="body">Failed to load messages.</p></article>';
+        }
+      }
+
+      refreshButton.addEventListener("click", loadMessages);
+      loadMessages();
+    </script>
+  </body>
+</html>

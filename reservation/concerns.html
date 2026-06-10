@@ -162,7 +162,7 @@
           <textarea id="concerns" class="concern-input" placeholder="Example: I want to fix dark front teeth and discuss veneers. I also have sensitivity on the upper left side." required></textarea>
 
           <div class="btn-row">
-            <button class="btn btn-primary" type="submit">Save and continue</button>
+            <button class="btn btn-primary" type="submit">Send</button>
           </div>
         </form>
       </section>
@@ -177,8 +177,30 @@
       document.getElementById("timeChip").textContent = `Time: ${time}`;
 
       const concernForm = document.getElementById("concernForm");
-      concernForm.addEventListener("submit", (event) => {
+      concernForm.addEventListener("submit", async (event) => {
         event.preventDefault();
+        const concerns = document.getElementById("concerns").value.trim();
+
+        if (!concerns) {
+          return;
+        }
+
+        try {
+          await fetch("/api/reservations", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              date,
+              time,
+              concerns,
+            }),
+          });
+        } catch {
+          // Keep the flow moving even if local API call fails.
+        }
+
         const next = new URL("received.html", window.location.href);
         next.searchParams.set("date", date);
         next.searchParams.set("time", time);
