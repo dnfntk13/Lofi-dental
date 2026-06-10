@@ -169,6 +169,12 @@
         border-color: #dcc8ed;
       }
 
+      .time-slot.is-disabled {
+        opacity: 0.42;
+        cursor: not-allowed;
+        transform: none;
+      }
+
       .time-note {
         margin: 12px 0 0;
         color: var(--soft);
@@ -248,6 +254,10 @@
       function buildTimeSlots() {
         timeGrid.innerHTML = "";
 
+        const now = new Date();
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const isToday = dateInput.value === formatISODate(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+
         const ranges = [
           [10 * 60, 13 * 60],
           [14 * 60, 19 * 60],
@@ -260,6 +270,15 @@
             button.className = "time-slot";
             const startTime = formatTime(minutes);
             button.textContent = startTime;
+
+            const isPastTime = isToday && minutes < nowMinutes;
+            if (isPastTime) {
+              button.classList.add("is-disabled");
+              button.disabled = true;
+              timeGrid.appendChild(button);
+              continue;
+            }
+
             button.addEventListener("click", () => {
               const params = new URLSearchParams({
                 date: dateInput.value,
@@ -288,6 +307,7 @@
         if (dateInput.value) {
           selectedDayText.textContent = formatLongDate(dateInput.value);
           timePanel.classList.remove("is-hidden");
+          buildTimeSlots();
         }
       });
     </script>
