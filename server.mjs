@@ -10,6 +10,11 @@ const adminSessionCookie = "admin_session";
 const adminSessionValue = Buffer.from(`${adminUser}:${adminPass}`, "utf-8").toString("base64url");
 const dataDir = path.join(rootDir, ".data");
 const inboxPath = path.join(dataDir, "reservation-inbox.json");
+const reservationCorsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Accept",
+};
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -129,6 +134,12 @@ createServer(async (request, response) => {
   const adminAuthorized = basicAuthorized || sessionAuthorized;
   let setCookieHeader;
 
+  if (pathname === "/api/reservations" && request.method === "OPTIONS") {
+    response.writeHead(204, reservationCorsHeaders);
+    response.end();
+    return;
+  }
+
   if (pathname === "/api/reservations" && request.method === "POST") {
     try {
       const payload = await getJsonBody(request);
@@ -137,7 +148,10 @@ createServer(async (request, response) => {
       const concerns = String(payload.concerns || "").trim();
 
       if (!date || !time || !concerns) {
-        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.writeHead(400, {
+          "Content-Type": "application/json; charset=utf-8",
+          ...reservationCorsHeaders,
+        });
         response.end(JSON.stringify({ message: "date, time, and concerns are required" }));
         return;
       }
@@ -154,13 +168,17 @@ createServer(async (request, response) => {
       inbox.unshift(record);
       await writeInbox(inbox);
 
-      response.writeHead(201, { "Content-Type": "application/json; charset=utf-8" });
+      response.writeHead(201, {
+        "Content-Type": "application/json; charset=utf-8",
+        ...reservationCorsHeaders,
+      });
       response.end(JSON.stringify({ ok: true }));
       return;
     } catch (error) {
       const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
       response.writeHead(isPayloadError ? 400 : 500, {
         "Content-Type": "application/json; charset=utf-8",
+        ...reservationCorsHeaders,
       });
       response.end(JSON.stringify({ message: "Failed to save reservation" }));
       return;
