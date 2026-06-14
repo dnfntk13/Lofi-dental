@@ -132,7 +132,9 @@ createServer(async (request, response) => {
   const requestUrl = new URL(request.url || "/", `http://${request.headers.host || `localhost:${port}`}`);
   const pathname = requestUrl.pathname;
 
-  if (requestHost === "lofidental.cc" || requestHost === "www.lofidental.cc") {
+  const isAcmeChallengePath = pathname.startsWith("/.well-known/acme-challenge/");
+
+  if ((requestHost === "lofidental.cc" || requestHost === "www.lofidental.cc") && !isAcmeChallengePath) {
     const redirectTarget = `https://lofiesthetic.com${requestUrl.pathname}${requestUrl.search}`;
     response.writeHead(301, {
       Location: redirectTarget,
