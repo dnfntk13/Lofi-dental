@@ -128,7 +128,9 @@ function requestAuth(response) {
 }
 
 createServer(async (request, response) => {
-  const requestHost = String(request.headers.host || "").split(":")[0].toLowerCase();
+  const forwardedHostHeader = String(request.headers["x-forwarded-host"] || "").split(",")[0].trim();
+  const rawHost = forwardedHostHeader || String(request.headers.host || "");
+  const requestHost = rawHost.split(":")[0].toLowerCase();
   const requestUrl = new URL(request.url || "/", `http://${request.headers.host || `localhost:${port}`}`);
   const pathname = requestUrl.pathname;
 
