@@ -128,7 +128,20 @@ function requestAuth(response) {
 }
 
 createServer(async (request, response) => {
-  const pathname = parsePathname(request.url);
+  const requestHost = String(request.headers.host || "").split(":")[0].toLowerCase();
+  const requestUrl = new URL(request.url || "/", `http://${request.headers.host || `localhost:${port}`}`);
+  const pathname = requestUrl.pathname;
+
+  if (requestHost === "lofidental.cc" || requestHost === "www.lofidental.cc") {
+    const redirectTarget = `https://lofiesthetic.com${requestUrl.pathname}${requestUrl.search}`;
+    response.writeHead(301, {
+      Location: redirectTarget,
+      "Cache-Control": "public, max-age=300",
+    });
+    response.end();
+    return;
+  }
+
   const basicAuthorized = isAuthorized(request);
   const sessionAuthorized = hasAdminSession(request);
   const adminAuthorized = basicAuthorized || sessionAuthorized;
