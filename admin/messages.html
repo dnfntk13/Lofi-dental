@@ -39,6 +39,28 @@
         padding: 28px 18px 40px;
       }
 
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        margin-bottom: 22px;
+      }
+
+      .logo-link {
+        display: inline-block;
+        color: inherit;
+        text-decoration: none;
+        line-height: 0;
+      }
+
+      .logo-img {
+        max-width: 300px;
+        width: min(300px, 56vw);
+        height: auto;
+        display: block;
+        margin-left: -10px;
+      }
+
       .header {
         display: flex;
         align-items: center;
@@ -106,6 +128,11 @@
   </head>
   <body>
     <main class="wrap">
+      <header class="topbar">
+        <a class="logo-link" href="/english" aria-label="Lofi Dental English home">
+          <img src="../assets/logo.png?v=20260615" alt="lofi dental" class="logo-img" />
+        </a>
+      </header>
       <div class="header">
         <h1>Reservation Inbox</h1>
         <button type="button" class="btn" id="refreshButton">Refresh</button>

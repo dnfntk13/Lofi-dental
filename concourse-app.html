@@ -49,13 +49,12 @@
 
       .shell {
         width: min(860px, 100%);
-        --bg-cream: #f5f7ff;
-        --bg-mist: #e7edff;
-        --ink: #1f2d66;
-        --soft-ink: #5a6fda;
+        border: 1px solid var(--line);
+        border-radius: 32px;
+        background: var(--card);
         box-shadow: 0 24px 56px rgba(27, 39, 35, 0.08);
         padding: 32px;
-        --mint: #dde5ff;
+      }
 
       .topbar {
         display: flex;
@@ -63,14 +62,6 @@
         justify-content: flex-start;
         gap: 16px;
         flex-wrap: wrap;
-      }
-          radial-gradient(circle at 12% 8%, rgba(90, 111, 218, 0.18), transparent 42%),
-          radial-gradient(circle at 88% 14%, rgba(103, 128, 245, 0.2), transparent 46%),
-        margin: 0;
-        font-size: 1.02rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: lowercase;
       }
 
       .logo-img {
@@ -81,12 +72,30 @@
         margin-left: -10px;
       }
 
+      .logo-link {
+        display: inline-block;
+        color: inherit;
+        text-decoration: none;
+        line-height: 0;
+      }
+
       .back-link {
         margin-left: auto;
-        color: var(--soft-ink);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        color: var(--ink);
         text-decoration: none;
-        font-size: 0.96rem;
-        font-weight: 600;
+        line-height: 1;
+      }
+
+      .back-link svg {
+        width: 22px;
+        height: 22px;
+        display: block;
+        stroke-width: 1.9;
       }
 
       .content {
@@ -255,8 +264,14 @@
   <body>
     <main class="shell">
       <header class="topbar">
-        <img src="assets/logo.png?v=20260615" alt="lofi dental" class="logo-img" />
-        <a class="back-link" href="index.html">← Back to main</a>
+        <a class="logo-link" href="/english" aria-label="Lofi Dental English home">
+          <img src="assets/logo.png?v=20260615" alt="lofi dental" class="logo-img" />
+        </a>
+        <a class="back-link" href="/english" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M15 18 9 12l6-6" />
+          </svg>
+        </a>
       </header>
 
       <section class="content">

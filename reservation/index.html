@@ -38,24 +38,47 @@
         min-height: 100vh;
         display: grid;
         place-items: start center;
-        padding: 28px 18px 40px;
+        padding: 112px 18px 40px;
         position: relative;
+      }
+
+      .site-logo {
+        position: absolute;
+        top: 22px;
+        left: 22px;
+        z-index: 3;
+        display: inline-block;
+        line-height: 0;
+      }
+
+      .site-logo img {
+        width: min(180px, 50vw);
+        max-height: 72px;
+        height: auto;
+        display: block;
+        object-fit: contain;
       }
 
       .back-link {
         position: absolute;
-        top: 18px;
-        left: 18px;
+        top: 24px;
+        right: 18px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         width: 36px;
         height: 36px;
         color: var(--ink);
-        font-size: 1.6rem;
         line-height: 1;
         text-decoration: none;
         z-index: 2;
+      }
+
+      .back-link svg {
+        width: 22px;
+        height: 22px;
+        display: block;
+        stroke-width: 1.9;
       }
 
       .board {
@@ -297,8 +320,10 @@
       }
 
       @media (max-width: 760px) {
-        .page { padding: 64px 14px 14px; }
-        .back-link { top: 12px; left: 12px; width: 32px; height: 32px; }
+        .page { padding: 96px 14px 14px; }
+        .site-logo { top: 18px; left: 14px; }
+        .site-logo img { width: min(160px, 52vw); max-height: 62px; }
+        .back-link { top: 18px; right: 12px; width: 32px; height: 32px; }
         .board { padding: 16px; border-radius: 24px; }
         .calendar-wrap { padding: 12px; }
         .time-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -307,7 +332,14 @@
   </head>
   <body>
     <div class="page">
-      <a class="back-link" href="#" aria-label="Back" onclick="history.back(); return false;">←</a>
+      <a class="site-logo" href="/english" aria-label="Lofi Dental English home">
+        <img src="../assets/logo.png?v=20260615" alt="lofi dental" />
+      </a>
+      <a class="back-link" href="#" aria-label="Back" onclick="history.back(); return false;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M15 18 9 12l6-6" />
+        </svg>
+      </a>
       <section class="board" aria-label="Date selection window">
         <div class="board-head">
           <div>

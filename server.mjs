@@ -61,7 +61,10 @@ async function getInboxCollection() {
 
   if (!inboxCollectionPromise) {
     inboxCollectionPromise = (async () => {
-      const client = new MongoClient(mongoUri);
+      const client = new MongoClient(mongoUri, {
+        connectTimeoutMS: 8000,
+        serverSelectionTimeoutMS: 8000,
+      });
       await client.connect();
       const collection = client.db(mongoDatabaseName).collection(mongoCollectionName);
       await collection.createIndex({ id: 1 }, { unique: true });
@@ -234,6 +237,7 @@ createServer(async (request, response) => {
       response.end(JSON.stringify({ ok: true }));
       return;
     } catch (error) {
+      console.error("Failed to save reservation", error);
       const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
       response.writeHead(isPayloadError ? 400 : 500, {
         "Content-Type": "application/json; charset=utf-8",
@@ -254,7 +258,8 @@ createServer(async (request, response) => {
       const inbox = await readInbox();
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ messages: inbox }));
-    } catch {
+    } catch (error) {
+      console.error("Failed to load admin messages", error);
       response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ message: "Failed to load messages" }));
     }

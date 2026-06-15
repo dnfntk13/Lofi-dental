@@ -66,14 +66,30 @@
         min-height: 100vh;
         display: grid;
         place-items: center;
-        padding: 24px;
-          --bg-cream: #f5f7ff;
-          --bg-mist: #e7edff;
-          --ink: #1f2d66;
-          --soft-ink: #5a6fda;
-          --line: rgba(90, 111, 218, 0.24);
-          linear-gradient(170deg, var(--bg-cream) 0%, var(--bg-mist) 100%);
-          --accent: #cdd7ff;
+        padding: 112px 24px 24px;
+        font-family: "Nunito Sans", "Segoe UI", "Helvetica Neue", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(90, 111, 218, 0.14), transparent 28%),
+          radial-gradient(circle at top right, rgba(103, 128, 245, 0.18), transparent 30%),
+          linear-gradient(180deg, #f8faff 0%, var(--bg-cream) 48%, var(--bg-mist) 100%);
+      }
+
+      .site-logo {
+        position: absolute;
+        top: 22px;
+        left: 22px;
+        display: inline-block;
+        line-height: 0;
+      }
+
+      .site-logo img {
+        width: min(180px, 50vw);
+        max-height: 72px;
+        height: auto;
+        display: block;
+        object-fit: contain;
+      }
 
       .card {
         width: min(520px, 100%);
@@ -95,11 +111,20 @@
         text-decoration: none;
         color: var(--ink);
         font-weight: 700;
-        radial-gradient(circle at top left, rgba(90, 111, 218, 0.14), transparent 28%),
-        radial-gradient(circle at top right, rgba(103, 128, 245, 0.18), transparent 30%),
-        linear-gradient(180deg, #f8faff 0%, var(--bg) 48%, #edf2ff 100%);
+        background: #ffffff;
+      }
+
+      @media (max-width: 760px) {
+        body { padding: 96px 18px 18px; }
+        .site-logo { top: 18px; left: 14px; }
+        .site-logo img { width: min(160px, 52vw); max-height: 62px; }
+      }
+    </style>
   </head>
   <body>
+    <a class="site-logo" href="/english" aria-label="Lofi Dental English home">
+      <img src="../assets/logo.png?v=20260615" alt="lofi dental" />
+    </a>
     <main class="card">
       <h1>WhatsApp</h1>
       <p>Continue to our WhatsApp when you are ready.</p>
