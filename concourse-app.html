@@ -20,11 +20,11 @@
     <style>
       :root {
         color-scheme: light;
-        --bg-cream: #faf5ff;
-        --bg-mist: #f0e6ff;
-        --ink: #4a2a6b;
-        --soft-ink: #8b5fb8;
-        --line: rgba(138, 95, 184, 0.2);
+        --bg-cream: #f5f7ff;
+        --bg-mist: #e7edff;
+        --ink: #1f2d66;
+        --soft-ink: #5a6fda;
+        --line: rgba(90, 111, 218, 0.2);
         --card: rgba(255, 255, 255, 0.95);
         --mint: #e6d5f5;
       }
@@ -49,13 +49,13 @@
 
       .shell {
         width: min(860px, 100%);
-        border: 1px solid var(--line);
-        border-radius: 32px;
-        background: var(--card);
-        backdrop-filter: blur(8px);
+        --bg-cream: #f5f7ff;
+        --bg-mist: #e7edff;
+        --ink: #1f2d66;
+        --soft-ink: #5a6fda;
         box-shadow: 0 24px 56px rgba(27, 39, 35, 0.08);
         padding: 32px;
-      }
+        --mint: #dde5ff;
 
       .topbar {
         display: flex;
@@ -64,8 +64,8 @@
         gap: 16px;
         flex-wrap: wrap;
       }
-
-      .logo {
+          radial-gradient(circle at 12% 8%, rgba(90, 111, 218, 0.18), transparent 42%),
+          radial-gradient(circle at 88% 14%, rgba(103, 128, 245, 0.2), transparent 46%),
         margin: 0;
         font-size: 1.02rem;
         font-weight: 700;

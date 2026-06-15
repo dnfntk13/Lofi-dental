@@ -20,11 +20,11 @@
     <style>
       :root {
         color-scheme: light;
-        --bg-cream: #faf5ff;
-        --bg-mist: #f0e6ff;
-        --ink: #4a2a6b;
-        --soft-ink: #8b5fb8;
-        --line: rgba(138, 95, 184, 0.22);
+        --bg-cream: #f5f7ff;
+        --bg-mist: #e7edff;
+        --ink: #1f2d66;
+        --soft-ink: #5a6fda;
+        --line: rgba(90, 111, 218, 0.22);
         --card: rgba(255, 255, 255, 0.95);
         --mint: #e6d5f5;
         --accent: #dcc8ed;
@@ -37,15 +37,15 @@
       body {
         margin: 0;
         min-height: 100vh;
-        font-family: "Nunito Sans", "Segoe UI", "Helvetica Neue", sans-serif;
-        color: var(--ink);
-        background:
-          radial-gradient(circle at 12% 8%, rgba(220, 200, 237, 0.56), transparent 42%),
-          radial-gradient(circle at 88% 14%, rgba(230, 213, 245, 0.68), transparent 46%),
-          linear-gradient(170deg, var(--bg-cream) 0%, var(--bg-mist) 100%);
+          --bg-cream: #f5f7ff;
+          --bg-mist: #e7edff;
+          --ink: #1f2d66;
+          --soft-ink: #5a6fda;
+          --line: rgba(90, 111, 218, 0.22);
+          --line-strong: rgba(90, 111, 218, 0.36);
       }
-
-      .page {
+          --mint: #dde5ff;
+          --amber: #cdd7ff;
         width: min(1120px, 92vw);
         margin: 0 auto;
         padding: 28px 0 76px;
@@ -263,8 +263,8 @@
         }
       }
 
-      @media (max-width: 960px) {
-        .credentials {
+              radial-gradient(circle at 12% 8%, rgba(90, 111, 218, 0.18), transparent 42%),
+              radial-gradient(circle at 88% 14%, rgba(103, 128, 245, 0.2), transparent 46%),
           grid-template-columns: 1fr;
         }
 

@@ -14,12 +14,12 @@
     <meta name="description" content="Select a weekday date for your reservation." />
     <style>
       :root {
-        --bg: #f4eefb;
-        --ink: #201a17;
-        --soft: #6d6157;
-        --line: rgba(42, 31, 24, 0.12);
-        --navy: #274f86;
-        --card: rgba(255, 255, 255, 0.92);
+        --bg: #f5f7ff;
+        --ink: #1f2d66;
+        --soft: #5a6fda;
+        --line: rgba(90, 111, 218, 0.14);
+        --navy: #4d64d8;
+        --card: rgba(255, 255, 255, 0.95);
       }
 
       * { box-sizing: border-box; }
@@ -29,9 +29,9 @@
         font-family: Georgia, "Times New Roman", serif;
         color: var(--ink);
         background:
-          radial-gradient(circle at top left, rgba(139, 92, 180, 0.14), transparent 28%),
-          radial-gradient(circle at top right, rgba(165, 137, 219, 0.18), transparent 30%),
-          linear-gradient(180deg, #fcf9ff 0%, var(--bg) 48%, #f7f0fd 100%);
+          radial-gradient(circle at top left, rgba(90, 111, 218, 0.12), transparent 28%),
+          radial-gradient(circle at top right, rgba(103, 128, 245, 0.16), transparent 30%),
+          linear-gradient(180deg, #f8faff 0%, var(--bg) 48%, #edf2ff 100%);
       }
 
       .page {
@@ -62,7 +62,7 @@
         width: min(1180px, 100%);
         padding: 20px;
         border-radius: 30px;
-        border: 1px solid rgba(42, 31, 24, 0.12);
+        border: 1px solid rgba(90, 111, 218, 0.12);
         background: var(--card);
         box-shadow: 0 22px 56px rgba(49, 34, 21, 0.09);
         backdrop-filter: blur(14px);
@@ -94,15 +94,15 @@
       .caret {
         width: 16px;
         height: 16px;
-        border-right: 3px solid rgba(42, 31, 24, 0.82);
-        border-bottom: 3px solid rgba(42, 31, 24, 0.82);
+        border-right: 3px solid rgba(90, 111, 218, 0.82);
+        border-bottom: 3px solid rgba(90, 111, 218, 0.82);
         transform: rotate(45deg);
         margin-left: auto;
       }
 
       .calendar-wrap {
         margin-top: 8px;
-        border: 1px solid rgba(42, 31, 24, 0.1);
+        border: 1px solid rgba(90, 111, 218, 0.1);
         border-radius: 20px;
         background: rgba(255, 255, 255, 0.96);
         padding: 14px;
@@ -123,7 +123,7 @@
       }
 
       .calendar-nav {
-        border: 1px solid rgba(42, 31, 24, 0.14);
+        border: 1px solid rgba(90, 111, 218, 0.14);
         background: #fff;
         color: var(--ink);
         border-radius: 10px;
@@ -162,7 +162,7 @@
       .calendar-day {
         border: 1px solid rgba(220, 200, 237, 0.8);
         background: #fff;
-        color: #4a2a6b;
+        color: #1f2d66;
         font: inherit;
         cursor: pointer;
       }
@@ -174,7 +174,7 @@
       .calendar-day.is-selected {
         background: #dcc8ed;
         border-color: #dcc8ed;
-        color: #4a2a6b;
+        color: #1f2d66;
         font-weight: 700;
       }
 
@@ -199,7 +199,7 @@
         transform: translate(12px, 14px);
         padding: 8px 10px;
         border-radius: 10px;
-        border: 1px solid rgba(42, 31, 24, 0.14);
+        border: 1px solid rgba(90, 111, 218, 0.14);
         background: rgba(255, 255, 255, 0.96);
         color: var(--soft);
         font-size: 0.86rem;
@@ -228,7 +228,7 @@
       .time-panel {
         margin-top: 18px;
         padding-top: 18px;
-        border-top: 1px solid rgba(42, 31, 24, 0.08);
+        border-top: 1px solid rgba(90, 111, 218, 0.08);
       }
 
       .time-panel.is-hidden {
@@ -246,7 +246,7 @@
         grid-column: 1 / -1;
         padding: 16px;
         border-radius: 16px;
-        border: 1px solid rgba(42, 31, 24, 0.12);
+        border: 1px solid rgba(90, 111, 218, 0.12);
         background: rgba(255, 255, 255, 0.9);
         color: var(--soft);
         text-align: center;
@@ -279,7 +279,7 @@
 
       .time-slot.is-selected {
         background: #dcc8ed;
-        color: #4a2a6b;
+        color: #1f2d66;
         border-color: #dcc8ed;
       }
 
