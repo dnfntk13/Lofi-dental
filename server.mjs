@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { MongoClient } from "mongodb";
 
 const rootDir = process.cwd();
 const port = Number(process.env.PORT || 5173);
@@ -10,6 +11,10 @@ const adminSessionCookie = "admin_session";
 const adminSessionValue = Buffer.from(`${adminUser}:${adminPass}`, "utf-8").toString("base64url");
 const dataDir = path.join(rootDir, ".data");
 const inboxPath = path.join(dataDir, "reservation-inbox.json");
+const mongoUri = process.env.MONGODB_URI || "";
+const mongoDatabaseName = process.env.MONGODB_DB_NAME || "lofi-dental";
+const mongoCollectionName = process.env.MONGODB_COLLECTION || "reservationMessages";
+let inboxCollectionPromise;
 const reservationCorsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -49,7 +54,38 @@ function parsePathname(urlPath) {
   return new URL(urlPath || "/", `http://localhost:${port}`).pathname;
 }
 
+async function getInboxCollection() {
+  if (!mongoUri) {
+    return null;
+  }
+
+  if (!inboxCollectionPromise) {
+    inboxCollectionPromise = (async () => {
+      const client = new MongoClient(mongoUri);
+      await client.connect();
+      const collection = client.db(mongoDatabaseName).collection(mongoCollectionName);
+      await collection.createIndex({ id: 1 }, { unique: true });
+      await collection.createIndex({ createdAt: -1 });
+      return collection;
+    })().catch((error) => {
+      inboxCollectionPromise = undefined;
+      throw error;
+    });
+  }
+
+  return inboxCollectionPromise;
+}
+
 async function readInbox() {
+  const collection = await getInboxCollection();
+  if (collection) {
+    return collection
+      .find({}, { projection: { _id: 0 } })
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .toArray();
+  }
+
   try {
     const data = await readFile(inboxPath, "utf-8");
     const parsed = JSON.parse(data);
@@ -59,7 +95,15 @@ async function readInbox() {
   }
 }
 
-async function writeInbox(messages) {
+async function addInboxRecord(record) {
+  const collection = await getInboxCollection();
+  if (collection) {
+    await collection.insertOne(record);
+    return;
+  }
+
+  const messages = await readInbox();
+  messages.unshift(record);
   await mkdir(dataDir, { recursive: true });
   await writeFile(inboxPath, JSON.stringify(messages, null, 2), "utf-8");
 }
@@ -173,7 +217,6 @@ createServer(async (request, response) => {
         return;
       }
 
-      const inbox = await readInbox();
       const record = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         date,
@@ -182,8 +225,7 @@ createServer(async (request, response) => {
         createdAt: new Date().toISOString(),
       };
 
-      inbox.unshift(record);
-      await writeInbox(inbox);
+      await addInboxRecord(record);
 
       response.writeHead(201, {
         "Content-Type": "application/json; charset=utf-8",
@@ -208,9 +250,14 @@ createServer(async (request, response) => {
       return;
     }
 
-    const inbox = await readInbox();
-    response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-    response.end(JSON.stringify({ messages: inbox }));
+    try {
+      const inbox = await readInbox();
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ messages: inbox }));
+    } catch {
+      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Failed to load messages" }));
+    }
     return;
   }
 

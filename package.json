@@ -3,8 +3,14 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
   "scripts": {
     "dev": "node server.mjs",
     "preview": "PORT=4173 node server.mjs"
+  },
+  "dependencies": {
+    "mongodb": "^7.3.0"
   }
 }
