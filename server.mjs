@@ -54,6 +54,23 @@ function parsePathname(urlPath) {
   return new URL(urlPath || "/", `http://localhost:${port}`).pathname;
 }
 
+function isMobileRequest(request) {
+  const userAgent = String(request.headers["user-agent"] || "").toLowerCase();
+  return /android|iphone|ipod|blackberry|iemobile|opera mini|mobile/.test(userAgent);
+}
+
+function getMobileRedirectPath(pathname) {
+  if (["/", "/index.html"].includes(pathname)) {
+    return "/mobile/";
+  }
+
+  if (["/english", "/english/", "/english.html"].includes(pathname)) {
+    return "/mobile/";
+  }
+
+  return null;
+}
+
 async function getInboxCollection() {
   if (!mongoUri) {
     return null;
@@ -188,6 +205,16 @@ createServer(async (request, response) => {
     response.writeHead(301, {
       Location: redirectTarget,
       "Cache-Control": "public, max-age=300",
+    });
+    response.end();
+    return;
+  }
+
+  const mobileRedirectPath = getMobileRedirectPath(pathname);
+  if (request.method === "GET" && isMobileRequest(request) && mobileRedirectPath && !requestUrl.searchParams.has("desktop")) {
+    response.writeHead(302, {
+      Location: mobileRedirectPath,
+      "Cache-Control": "private, no-store",
     });
     response.end();
     return;

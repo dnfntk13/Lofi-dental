@@ -216,6 +216,36 @@
       document.getElementById("dateChip").textContent = `Date: ${date}`;
       document.getElementById("timeChip").textContent = `Time: ${time}`;
 
+      const goToReceivedPage = (nextUrl) => {
+        window.location.href = nextUrl.toString();
+      };
+
+      const trackReservationSubmit = (nextUrl) => {
+        if (typeof gtag !== "function") {
+          goToReceivedPage(nextUrl);
+          return;
+        }
+
+        let redirected = false;
+        const redirectOnce = () => {
+          if (redirected) {
+            return;
+          }
+          redirected = true;
+          goToReceivedPage(nextUrl);
+        };
+
+        setTimeout(redirectOnce, 900);
+        gtag("event", "reservation_submit", {
+          event_category: "reservation",
+          event_label: `${date} ${time}`,
+          reservation_date: date,
+          reservation_time: time,
+          transport_type: "beacon",
+          event_callback: redirectOnce,
+        });
+      };
+
       const concernForm = document.getElementById("concernForm");
       concernForm.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -253,7 +283,7 @@
         const next = new URL("received.html", window.location.href);
         next.searchParams.set("date", date);
         next.searchParams.set("time", time);
-        window.location.href = next.toString();
+        trackReservationSubmit(next);
       });
     </script>
   </body>
