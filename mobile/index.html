@@ -12,524 +12,420 @@
       gtag('config', 'G-ZKDLXLXDRE');
       gtag('config', 'AW-18173901982');
     </script>
-    <title>Lofi Web | English</title>
+    <title>lofi dental | Mobile</title>
+    <meta name="description" content="Mobile reservation and consultation page for international patients visiting lofi dental in Seoul." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Nunito+Sans:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Nunito+Sans:wght@400;600;700;800&display=swap"
       rel="stylesheet"
     />
     <style>
       :root {
         color-scheme: light;
-        --bg-cream: #f5f7ff;
-        --bg-mist: #e7edff;
+        --bg: #f5f7ff;
+        --panel: rgba(255, 255, 255, 0.94);
         --ink: #1f2d66;
-        --soft-ink: #5a6fda;
+        --soft: #5a6fda;
         --line: rgba(90, 111, 218, 0.22);
-        --line-strong: rgba(90, 111, 218, 0.36);
-        --card: rgba(255, 255, 255, 0.94);
-        --mint: #dde5ff;
-        --amber: #cdd7ff;
+        --primary: #274f86;
+        --accent: #cdd7ff;
+        --fresh: #dff4ee;
       }
 
-      * {
-        box-sizing: border-box;
-      }
+      * { box-sizing: border-box; }
+      html { min-height: 100%; }
 
       body {
         margin: 0;
         min-height: 100vh;
-        font-family: "Nunito Sans", "Segoe UI", "Helvetica Neue", sans-serif;
+        font-family: "Nunito Sans", "Segoe UI", system-ui, sans-serif;
         color: var(--ink);
         background:
-          radial-gradient(circle at 12% 8%, rgba(90, 111, 218, 0.18), transparent 42%),
-          radial-gradient(circle at 88% 14%, rgba(103, 128, 245, 0.2), transparent 46%),
-          linear-gradient(170deg, var(--bg-cream) 0%, var(--bg-mist) 100%);
+          radial-gradient(circle at 8% 0%, rgba(90, 111, 218, 0.16), transparent 34%),
+          radial-gradient(circle at 96% 12%, rgba(87, 160, 139, 0.16), transparent 34%),
+          linear-gradient(180deg, #f8faff 0%, var(--bg) 56%, #eef3ff 100%);
       }
 
+      a { color: inherit; }
+
       .page {
-        width: min(1120px, 92vw);
+        width: min(100%, 460px);
+        min-height: 100vh;
         margin: 0 auto;
-        padding: 28px 0 76px;
+        padding: 16px 14px 88px;
       }
 
       .topbar {
         display: flex;
         align-items: center;
-        justify-content: flex-start;
-        gap: 18px;
-        flex-wrap: wrap;
-      }
-
-      .logo {
-        letter-spacing: 0.08em;
-        text-transform: lowercase;
-        font-size: 1.08rem;
-        font-weight: 700;
-      }
-
-      .logo-img {
-        max-width: 432px;
-        height: auto;
-        display: block;
-        margin-left: -10px;
+        justify-content: space-between;
+        gap: 12px;
       }
 
       .logo-link {
         display: inline-block;
-        color: inherit;
-        text-decoration: none;
         line-height: 0;
       }
 
-      .lang-toggle {
-        margin-left: auto;
-        text-decoration: none;
-        color: var(--soft-ink);
-        font-size: 0.95rem;
-        font-weight: 600;
-        padding: 8px 14px;
-        border-radius: 6px;
-        border: 1px solid var(--line);
-        transition: 180ms ease;
-        white-space: nowrap;
+      .logo-img {
+        width: min(168px, 52vw);
+        max-height: 64px;
+        display: block;
+        object-fit: contain;
       }
 
-      .lang-toggle:hover {
-        background: var(--mint);
-        transform: translateY(-1px);
+      .lang-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 36px;
+        padding: 0 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.78);
+        color: var(--soft);
+        font-size: 0.84rem;
+        font-weight: 800;
+        text-decoration: none;
       }
 
       .hero {
-        margin-top: 44px;
-        display: grid;
-        grid-template-columns: 1.2fr 0.8fr;
-        gap: 28px;
-      }
-
-      .hero-main {
-        padding: 48px;
+        margin-top: 14px;
+        padding: 20px 18px;
         border: 1px solid var(--line);
-        border-radius: 30px;
-        background: var(--card);
-        backdrop-filter: blur(7px);
-        box-shadow: 0 18px 40px rgba(27, 39, 35, 0.08);
-        animation: rise 720ms ease both;
+        border-radius: 8px;
+        background: var(--panel);
+        box-shadow: 0 18px 42px rgba(31, 45, 102, 0.09);
       }
 
       .eyebrow {
         margin: 0;
-        letter-spacing: 0.17em;
+        color: var(--soft);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: var(--soft-ink);
-        font-size: 0.82rem;
-        font-weight: 700;
       }
 
       h1 {
-        margin: 14px 0 0;
-        font-family: "Cormorant Garamond", serif;
-        font-size: clamp(2.2rem, 5.5vw, 4.6rem);
+        margin: 10px 0 0;
+        font-family: "Cormorant Garamond", Georgia, serif;
+        font-size: 2.35rem;
         line-height: 0.98;
-        font-weight: 600;
+        letter-spacing: 0;
       }
 
-      .hero-main p {
-        margin: 18px 0 0;
-        max-width: 46ch;
-        font-size: 1.08rem;
-        line-height: 1.82;
-        color: var(--soft-ink);
+      .lead {
+        margin: 12px 0 0;
+        color: var(--soft);
+        font-size: 1rem;
+        line-height: 1.56;
       }
 
-      .cta-row {
-        margin-top: 28px;
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
+      .quick-facts {
+        margin: 16px 0 0;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .fact {
+        min-height: 72px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .fact strong {
+        display: block;
+        font-size: 0.95rem;
+        line-height: 1.25;
+      }
+
+      .fact span {
+        display: block;
+        margin-top: 4px;
+        color: var(--soft);
+        font-size: 0.82rem;
+        line-height: 1.35;
+      }
+
+      .actions {
+        margin-top: 12px;
+        display: grid;
+        gap: 9px;
       }
 
       .btn {
+        min-height: 54px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 0 15px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.92);
+        color: var(--ink);
         text-decoration: none;
-        border-radius: 999px;
-        padding: 14px 22px;
-        font-weight: 600;
-        font-size: 1rem;
-        border: 1px solid transparent;
-        transition: 180ms ease;
+        font-weight: 800;
+        line-height: 1.2;
       }
 
       .btn-primary {
-        color: #1f2d66;
-        background: var(--amber);
-        box-shadow: 0 12px 28px rgba(27, 39, 35, 0.12);
-      }
-
-      .btn-reservation {
+        border-color: transparent;
+        background: linear-gradient(135deg, #5a6fda 0%, var(--primary) 100%);
         color: #ffffff;
-        background: linear-gradient(135deg, #5a6fda 0%, #274f86 100%);
-        box-shadow: 0 12px 28px rgba(39, 79, 134, 0.22);
+        box-shadow: 0 14px 28px rgba(39, 79, 134, 0.2);
       }
 
-      .btn-meet-dr-kim {
-        border-color: var(--line);
-        color: var(--ink);
-        background: rgba(255, 255, 255, 0.9);
-      }
+      .btn-fresh { background: var(--fresh); }
 
-      .btn-secondary {
-        border-color: var(--line);
-        color: var(--ink);
-        background: rgba(255, 255, 255, 0.9);
-      }
-
-      .btn:hover {
-        transform: translateY(-2px);
-      }
-
-      .hero-side {
-        display: grid;
-        gap: 14px;
-        animation: rise 760ms ease both;
-      }
-
-      .stat,
-      .hours {
-        border: 1px solid var(--line);
-        border-radius: 24px;
-        background: rgba(255, 255, 255, 0.92);
-        padding: 24px;
-        box-shadow: 0 12px 28px rgba(27, 39, 35, 0.06);
-      }
-
-      .stat-value {
-        font-size: 2.25rem;
-        font-family: "Cormorant Garamond", serif;
-        margin: 0;
-      }
-
-      .stat-label,
-      .hours p {
-        margin: 8px 0 0;
-        color: var(--soft-ink);
-        font-size: 1rem;
-        line-height: 1.72;
+      .btn svg {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 auto;
       }
 
       .section {
-        margin-top: 24px;
+        margin-top: 12px;
+        padding: 16px;
         border: 1px solid var(--line);
-        border-radius: 28px;
-        background: rgba(255, 255, 255, 0.9);
-        padding: 34px;
-        box-shadow: 0 18px 40px rgba(27, 39, 35, 0.06);
-        animation: rise 820ms ease both;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.84);
       }
 
       .section h2 {
         margin: 0;
-        font-family: "Cormorant Garamond", serif;
-        font-size: clamp(1.7rem, 3vw, 2.5rem);
+        font-size: 1.1rem;
+        line-height: 1.25;
       }
 
-      .service-grid {
-        margin-top: 20px;
+      .journey {
+        margin: 12px 0 0;
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 14px;
-      }
-
-      .service {
-        border: 1px solid var(--line);
-        border-radius: 18px;
-        background: #ffffff;
-        padding: 20px;
-        box-shadow: 0 10px 24px rgba(27, 39, 35, 0.04);
-      }
-
-      .service h3 {
-        margin: 0;
-        font-size: 1.16rem;
-      }
-
-      .service p {
-        margin: 8px 0 0;
-        color: var(--soft-ink);
-        font-size: 1rem;
-        line-height: 1.7;
-      }
-
-      .timeline {
-        margin-top: 20px;
-        display: grid;
-        gap: 12px;
-      }
-
-      .career-list {
-        margin-top: 20px;
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 10px;
-      }
-
-      .career-item {
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        background: #ffffff;
-        padding: 12px 14px;
-        display: grid;
-        grid-template-columns: 72px 1fr;
-        gap: 10px;
-        align-items: start;
-        box-shadow: 0 10px 24px rgba(27, 39, 35, 0.04);
-      }
-
-      .career-year {
-        margin: 0;
-        font-family: "Cormorant Garamond", serif;
-        font-size: 1.24rem;
-        font-weight: 700;
-      }
-
-      .career-text {
-        margin: 0;
-        color: var(--soft-ink);
-        font-size: 1rem;
-        line-height: 1.65;
       }
 
       .step {
         display: grid;
-        grid-template-columns: 1fr;
-        gap: 12px;
+        grid-template-columns: 28px 1fr;
+        gap: 10px;
         align-items: start;
       }
 
-      .step-badge {
-        width: 46px;
-        height: 46px;
-        border-radius: 50%;
-        border: 1px solid var(--line);
+      .step-number {
+        width: 28px;
+        height: 28px;
         display: grid;
         place-items: center;
-        font-weight: 700;
-        background: #ffffff;
-        box-shadow: 0 8px 16px rgba(27, 39, 35, 0.06);
+        border-radius: 8px;
+        background: var(--accent);
+        color: var(--ink);
+        font-size: 0.86rem;
+        font-weight: 800;
       }
 
       .step p {
         margin: 0;
-        color: var(--soft-ink);
-        font-size: 1.04rem;
-        line-height: 1.76;
+        color: var(--soft);
+        font-size: 0.94rem;
+        line-height: 1.48;
       }
 
-      .step-main {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 14px;
+      .doctor {
+        display: grid;
+        gap: 10px;
       }
 
-      .step-link {
+      .doctor p,
+      .clinic p {
+        margin: 8px 0 0;
+        color: var(--soft);
+        font-size: 0.94rem;
+        line-height: 1.52;
+      }
+
+      .address-en {
+        margin-top: 4px;
+        font-size: 0.88rem;
+      }
+
+      .doctor-link {
+        justify-self: start;
+        margin-top: 2px;
+        color: var(--primary);
+        font-weight: 800;
         text-decoration: none;
-        border-radius: 999px;
-        padding: 8px 14px;
-        border: 1px solid var(--line);
-        color: var(--ink);
-        background: #ffffff;
+      }
+
+      .clinic {
+        display: grid;
+        gap: 10px;
+      }
+
+      .clinic-row {
+        padding-top: 10px;
+        border-top: 1px solid var(--line);
+      }
+
+      .clinic-row:first-child {
+        padding-top: 0;
+        border-top: 0;
+      }
+
+      .clinic-row strong {
+        display: block;
         font-size: 0.9rem;
-        font-weight: 700;
-        white-space: nowrap;
       }
 
-      footer {
-        margin-top: 30px;
-        display: flex;
-        justify-content: flex-end;
-        align-items: end;
-        gap: 16px;
-        flex-wrap: wrap;
+      .map-frame {
+        width: 100%;
+        height: 220px;
+        margin-top: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        display: block;
       }
 
-      .contact {
-        margin: 12px 0 0;
-        color: var(--soft-ink);
-        font-size: 1rem;
-        line-height: 1.8;
-        text-align: right;
+      .map-link {
+        display: inline-flex;
+        margin-top: 8px;
+        color: var(--primary);
+        font-size: 0.92rem;
+        font-weight: 800;
+        text-decoration: none;
       }
 
-      @keyframes rise {
-        from {
-          opacity: 0;
-          transform: translateY(16px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
+      .sticky-actions {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 10;
+        padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+        background: rgba(245, 247, 255, 0.92);
+        border-top: 1px solid var(--line);
+        backdrop-filter: blur(12px);
       }
 
-            radial-gradient(circle at 12% 8%, rgba(90, 111, 218, 0.18), transparent 42%),
-            radial-gradient(circle at 88% 14%, rgba(103, 128, 245, 0.2), transparent 46%),
-          grid-template-columns: 1fr;
-        }
-
-        .hero-main {
-          padding: 36px;
-        }
-
-        .service-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .career-list {
-          grid-template-columns: 1fr;
-        }
+      .sticky-inner {
+        width: min(100%, 432px);
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 9px;
       }
 
-      @media (max-width: 640px) {
-        .page {
-          width: min(560px, 92vw);
-        }
+      .sticky-actions .btn {
+        min-height: 48px;
+        justify-content: center;
+        padding: 0 12px;
+        font-size: 0.94rem;
+      }
 
-        .hero-main,
-        .section,
-        .stat,
-        .hours {
-          padding: 22px;
-          border-radius: 20px;
-        }
-
-        .service-grid {
-          grid-template-columns: 1fr;
-        }
-
-        .career-item {
-          grid-template-columns: 64px 1fr;
-        }
-
-        .cta-row {
-          flex-direction: column;
-          align-items: stretch;
-        }
-
-        .btn {
-          text-align: center;
-        }
-
-        .step-main {
-          flex-direction: column;
-          align-items: flex-start;
-        }
+      @media (max-width: 360px) {
+        .page { padding-left: 12px; padding-right: 12px; }
+        h1 { font-size: 2.08rem; }
+        .quick-facts { grid-template-columns: 1fr; }
       }
     </style>
   </head>
   <body>
-    <div class="page">
+    <main class="page">
       <header class="topbar">
         <a class="logo-link" href="/english" aria-label="Lofi Dental English home">
           <img src="assets/logo.png?v=20260615" alt="lofi dental" class="logo-img" />
         </a>
-          <a class="lang-toggle" href="/index.html?desktop=1">Korean</a>
+        <a class="lang-toggle" href="/index.html?desktop=1">Korean</a>
       </header>
 
-      <p class="contact">
-        49, Apgujeong-ro 28-gil, Gangnam, Seoul, Republic of Korea<br />
-        <a class="btn btn-secondary" href="tel:+827077558823" style="display:inline-flex; margin:10px 8px 0 0; align-items:center; padding:10px 14px; font-size:0.92rem; line-height:1; font-family:'Nunito Sans', 'Segoe UI', 'Helvetica Neue', sans-serif; font-weight:400; letter-spacing:0;">
-          +82-70-7755-8823
+      <section class="hero" aria-labelledby="mobileTitle">
+        <p class="eyebrow">Seoul dental care for visitors</p>
+        <h1 id="mobileTitle">Quality dentistry, planned around your trip.</h1>
+        <p class="lead">Consult online, book a Seoul visit, and continue care after you return home. If you're already here, just book your appointment!</p>
+
+        <div class="quick-facts" aria-label="Clinic highlights">
+          <div class="fact">
+            <strong>US & Korea trained</strong>
+            <span>New York and Seoul clinical experience</span>
+          </div>
+          <div class="fact">
+            <strong>1-2 hour reply</strong>
+            <span>Reservation confirmation window</span>
+          </div>
+        </div>
+      </section>
+
+      <nav class="actions" aria-label="Primary actions">
+        <a class="btn btn-primary" href="reservation/index.html">
+          <span>Make a reservation</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 18l6-6-6-6" />
+          </svg>
         </a>
-      </p>
+        <a class="btn btn-fresh" href="contact-options.html">
+          <span>Consult with us</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </a>
+        <a class="btn" href="tel:+827077558823">
+          <span>Call +82-70-7755-8823</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.91.32 1.8.59 2.65a2 2 0 0 1-.45 2.11L8 9.73a16 16 0 0 0 6.27 6.27l1.25-1.25a2 2 0 0 1 2.11-.45c.85.27 1.74.47 2.65.59A2 2 0 0 1 22 16.92z" />
+          </svg>
+        </a>
+      </nav>
 
-      <main>
-        <section class="hero">
-          <article class="hero-main">
-            <p class="eyebrow">Dental Tourism Specialist</p>
-            <h1>Quality-oriented dental care,<br />Made more affordable.</h1>
-            <p>
-              lofi dental is primarily designed for international patients visiting Seoul.<br />
-              Full-mouth restoration, smile makeover, and seamless continuity of care when you return home.
-            </p>
-            <div class="cta-row">
-              <a class="btn btn-primary" href="contact-options.html">Consult with us</a>
-              <a class="btn btn-reservation" href="reservation/index.html">Make a reservation</a>
-              <a class="btn btn-meet-dr-kim" href="dr-kim-story.html">Meet Dr. Kim</a>
-            </div>
+      <section class="section" aria-labelledby="journeyTitle">
+        <h2 id="journeyTitle">Your Journey</h2>
+        <div class="journey">
+          <article class="step">
+            <span class="step-number">1</span>
+            <p>Send your dental or esthetic concerns with your preferred date.</p>
           </article>
+          <article class="step">
+            <span class="step-number">2</span>
+            <p>Receive schedule confirmation before your Seoul visit.</p>
+          </article>
+          <article class="step">
+            <span class="step-number">3</span>
+            <p>Visit lofi dental for treatment planning and care.</p>
+          </article>
+        </div>
+      </section>
 
-          <aside class="hero-side">
-            <article class="stat">
-              <p class="stat-value">New York& Seoul</p>
-              <p class="stat-label">US & Korea clinical experience bridging two standards</p>
-            </article>
-          </aside>
-        </section>
+      <section class="section doctor" aria-labelledby="doctorTitle">
+        <h2 id="doctorTitle">Dr. Kim, DDS</h2>
+        <p>NYU College of Dentistry graduate with clinical experience across New York and Korea.</p>
+        <a class="doctor-link" href="dr-kim-story.html">Read Dr. Kim's story</a>
+      </section>
 
-        <section class="section" aria-labelledby="process-title">
-          <h2 id="process-title">Your Journey</h2>
-          <div class="timeline">
-            <article class="step">
-              <div class="step-main">
-                <p><a class="step-link" href="contact-options.html">Tell us</a> about your dental/esthetic concerns.</p>
-              </div>
-            </article>
-            <article class="step">
-              <p>Your arrival in Seoul.</p>
-            </article>
-            <article class="step">
-              <p>Your first lofi dental experience.</p>
-            </article>
-          </div>
-        </section>
+      <section class="section clinic" aria-label="Clinic information">
+        <div class="clinic-row">
+          <strong>Location</strong>
+          <p>서울특별시 강남구 압구정로28길 49, 3층</p>
+          <p class="address-en">3F, 49 Apgujeong-ro 28-gil, Gangnam-gu, Seoul, Republic of Korea</p>
+          <iframe
+            class="map-frame"
+            src="https://www.google.com/maps?q=%EB%A1%9C%EC%9A%B0%ED%8C%8C%EC%9D%B4%EC%B9%98%EA%B3%BC&output=embed"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+            title="Lofi Dental location on Google Maps"
+          ></iframe>
+          <a class="map-link" href="https://www.google.com/maps/search/?api=1&query=%EB%A1%9C%EC%9A%B0%ED%8C%8C%EC%9D%B4%EC%B9%98%EA%B3%BC" target="_blank" rel="noopener">Open in Google Maps</a>
+        </div>
+      </section>
+    </main>
 
-        <section class="section" aria-labelledby="career-title">
-          <h2 id="career-title">Career Snapshot</h2>
-          <div class="career-list">
-            <article class="career-item">
-              <p class="career-year">2018</p>
-              <p class="career-text">NYU College of Dentistry graduation</p>
-            </article>
-            <article class="career-item">
-              <p class="career-year">2018-2020</p>
-              <p class="career-text">Army Dental Corpsman (Korea)</p>
-            </article>
-            <article class="career-item">
-              <p class="career-year">2021</p>
-              <p class="career-text">Associate Dentist at Seoul Naeun Dental</p>
-            </article>
-            <article class="career-item">
-              <p class="career-year">2022</p>
-              <p class="career-text">Associate Dentist at Michigan Dental</p>
-            </article>
-            <article class="career-item">
-              <p class="career-year">2023</p>
-              <p class="career-text">General Practice Residency at Brookdale Hospital</p>
-            </article>
-            <article class="career-item">
-              <p class="career-year">2024</p>
-              <p class="career-text">GPR 2nd year at Interfaith Hospital</p>
-            </article>
-            <article class="career-item">
-              <p class="career-year">2025</p>
-              <p class="career-text">Associate Dentist at Castle Bubu Dental and Smile Studios Dental</p>
-            </article>
-            <article class="career-item">
-              <p class="career-year">2026</p>
-              <p class="career-text">Founded lofi dental</p>
-            </article>
-          </div>
-          <div class="cta-row" style="margin-top: 20px;">
-            <a class="btn btn-secondary" href="dr-kim-story.html">Read Dr. Kim's Full Story</a>
-          </div>
-        </section>
-      </main>
-
-      <footer id="contact">
-        <a class="btn btn-primary" href="contact-options.html">Consult with us</a>
-        <a class="btn btn-reservation" href="reservation/index.html">Make a reservation</a>
-      </footer>
-    </div>
+    <nav class="sticky-actions" aria-label="Quick actions">
+      <div class="sticky-inner">
+        <a class="btn btn-primary" href="reservation/index.html">Reserve</a>
+        <a class="btn" href="contact-options.html">Consult</a>
+      </div>
+    </nav>
   </body>
 </html>
