@@ -129,6 +129,27 @@
         color: var(--soft);
       }
 
+      .field {
+        margin-bottom: 16px;
+      }
+
+      .text-input {
+        width: 100%;
+        min-height: 48px;
+        border: 1px solid rgba(90, 111, 218, 0.22);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.96);
+        padding: 12px 16px;
+        color: var(--ink);
+        font: inherit;
+      }
+
+      .text-input:focus {
+        outline: none;
+        border-color: rgba(90, 111, 218, 0.55);
+        box-shadow: 0 0 0 4px rgba(90, 111, 218, 0.12);
+      }
+
       .concern-input {
         width: 100%;
         min-height: 210px;
@@ -198,8 +219,15 @@
         <p class="copy">Please describe your symptoms, goals, or any treatment you are considering.</p>
 
         <form id="concernForm">
-          <label class="field-label" for="concerns">Patient concerns</label>
-          <textarea id="concerns" class="concern-input" placeholder="Example: I want to fix dark front teeth and discuss veneers. I also have sensitivity on the upper left side." required></textarea>
+          <div class="field">
+            <label class="field-label" for="email">Email</label>
+            <input id="email" class="text-input" type="email" name="email" autocomplete="email" placeholder="you@example.com" required />
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="concerns">Patient concerns</label>
+            <textarea id="concerns" class="concern-input" placeholder="Example: I want to fix dark front teeth and discuss veneers. I also have sensitivity on the upper left side." required></textarea>
+          </div>
 
           <div class="btn-row">
             <button class="btn btn-primary" type="submit">Send</button>
@@ -249,9 +277,10 @@
       const concernForm = document.getElementById("concernForm");
       concernForm.addEventListener("submit", async (event) => {
         event.preventDefault();
+        const email = document.getElementById("email").value.trim();
         const concerns = document.getElementById("concerns").value.trim();
 
-        if (!concerns) {
+        if (!email || !concerns) {
           return;
         }
 
@@ -268,6 +297,7 @@
             body: JSON.stringify({
               date,
               time,
+              email,
               concerns,
             }),
           });

@@ -191,6 +191,10 @@ function requestAuth(response) {
   response.end(JSON.stringify({ message: "Unauthorized" }));
 }
 
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 createServer(async (request, response) => {
   const forwardedHostHeader = String(request.headers["x-forwarded-host"] || "").split(",")[0].trim();
   const rawHost = forwardedHostHeader || String(request.headers.host || "");
@@ -236,14 +240,24 @@ createServer(async (request, response) => {
       const payload = await getJsonBody(request);
       const date = String(payload.date || "").trim();
       const time = String(payload.time || "").trim();
+      const email = String(payload.email || "").trim();
       const concerns = String(payload.concerns || "").trim();
 
-      if (!date || !time || !concerns) {
+      if (!date || !time || !email || !concerns) {
         response.writeHead(400, {
           "Content-Type": "application/json; charset=utf-8",
           ...reservationCorsHeaders,
         });
-        response.end(JSON.stringify({ message: "date, time, and concerns are required" }));
+        response.end(JSON.stringify({ message: "date, time, email, and concerns are required" }));
+        return;
+      }
+
+      if (!isValidEmail(email)) {
+        response.writeHead(400, {
+          "Content-Type": "application/json; charset=utf-8",
+          ...reservationCorsHeaders,
+        });
+        response.end(JSON.stringify({ message: "A valid email is required" }));
         return;
       }
 
@@ -251,6 +265,7 @@ createServer(async (request, response) => {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         date,
         time,
+        email,
         concerns,
         createdAt: new Date().toISOString(),
       };

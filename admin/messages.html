@@ -161,6 +161,14 @@
         }).format(date);
       }
 
+      function escapeHtml(value) {
+        return String(value || "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;");
+      }
+
       function render(messages) {
         if (!messages.length) {
           inbox.innerHTML = '<article class="item"><p class="body">No messages yet.</p></article>';
@@ -169,17 +177,16 @@
 
         inbox.innerHTML = messages
           .map((message) => {
-            const safeConcerns = message.concerns
-              .replaceAll("&", "&amp;")
-              .replaceAll("<", "&lt;")
-              .replaceAll(">", "&gt;");
+            const safeEmail = escapeHtml(message.email);
+            const safeConcerns = escapeHtml(message.concerns);
 
             return `
               <article class="item">
                 <div class="meta">
-                  <span class="chip">Date: ${message.date}</span>
-                  <span class="chip">Time: ${message.time}</span>
-                  <span class="chip">Received: ${formatDateTime(message.createdAt)}</span>
+                  <span class="chip">Date: ${escapeHtml(message.date)}</span>
+                  <span class="chip">Time: ${escapeHtml(message.time)}</span>
+                  ${safeEmail ? `<span class="chip">Email: ${safeEmail}</span>` : ""}
+                  <span class="chip">Received: ${escapeHtml(formatDateTime(message.createdAt))}</span>
                 </div>
                 <p class="body">${safeConcerns}</p>
               </article>
