@@ -36,9 +36,11 @@ MONGODB_COLLECTION=reservationMessages
 
 Only `MONGODB_URI` is required. The database and collection names above are the defaults.
 
-### Reservation Email Auto-Reply
+### Reservation Email Verification and Auto-Reply
 
-Reservation submissions require a syntactically valid email address with an MX record. To send an automatic confirmation email to the patient, set these environment variables in Render:
+Reservation submissions require a syntactically valid email address with an MX record and a 6-digit verification code sent to that address. This confirms the patient can receive mail at the exact address before the reservation is saved.
+
+Set these environment variables in Render:
 
 ```bash
 SMTP_HOST=smtp.gmail.com
@@ -50,7 +52,7 @@ RESERVATION_NOTIFY_TO=lofidentalcs@lofiesthetic.com
 EMAIL_DNS_SERVERS=8.8.8.8,1.1.1.1
 ```
 
-If SMTP variables are not configured, reservations are still saved but no auto-reply or notification email is sent.
+`SMTP_PASS` must be a Google App Password. If SMTP variables are not configured or Gmail rejects the credentials, email verification cannot send a code and reservations will not submit.
 
 ## Notes
 

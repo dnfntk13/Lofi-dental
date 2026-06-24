@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { randomInt } from "node:crypto";
 import { Resolver } from "node:dns/promises";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -28,6 +29,8 @@ const emailDnsServers = (process.env.EMAIL_DNS_SERVERS || "8.8.8.8,1.1.1.1")
   .filter(Boolean);
 let inboxCollectionPromise;
 let mailTransporter;
+const emailVerificationCodes = new Map();
+const emailVerificationTtlMs = 10 * 60 * 1000;
 const emailResolver = new Resolver();
 emailResolver.setServers(emailDnsServers);
 const reservationCorsHeaders = {
@@ -224,6 +227,40 @@ async function hasMailExchange(email) {
   }
 }
 
+function cleanupEmailVerificationCodes() {
+  const now = Date.now();
+  for (const [email, entry] of emailVerificationCodes.entries()) {
+    if (entry.expiresAt <= now) {
+      emailVerificationCodes.delete(email);
+    }
+  }
+}
+
+function createEmailVerificationCode(email) {
+  cleanupEmailVerificationCodes();
+  const code = String(randomInt(100000, 1000000));
+  emailVerificationCodes.set(email, {
+    code,
+    expiresAt: Date.now() + emailVerificationTtlMs,
+  });
+  return code;
+}
+
+function removeEmailVerificationCode(email) {
+  emailVerificationCodes.delete(email);
+}
+
+function isValidEmailVerificationCode(email, code) {
+  cleanupEmailVerificationCodes();
+  const entry = emailVerificationCodes.get(email);
+  if (!entry || entry.code !== code) {
+    return false;
+  }
+
+  emailVerificationCodes.delete(email);
+  return true;
+}
+
 function getMailTransporter() {
   if (!smtpHost || !smtpUser || !smtpPass || !smtpFrom) {
     return null;
@@ -261,6 +298,21 @@ Email: ${record.email}
 
 Your message
 ${record.concerns}
+
+lofi dental
+49 Apgujeong-ro 28-gil, 3F, Gangnam-gu, Seoul
++82-70-7755-8823`,
+  };
+}
+
+function buildEmailVerificationMessage(code) {
+  return {
+    subject: "Your lofi dental reservation code",
+    text: `Hello,
+
+Your lofi dental reservation verification code is ${code}.
+
+This code expires in 10 minutes.
 
 lofi dental
 49 Apgujeong-ro 28-gil, 3F, Gangnam-gu, Seoul
@@ -317,6 +369,21 @@ async function sendReservationNotification(record) {
   return true;
 }
 
+async function sendEmailVerificationCode(email, code) {
+  const transporter = getMailTransporter();
+  if (!transporter) {
+    throw new Error("Email verification is not configured");
+  }
+
+  const message = buildEmailVerificationMessage(code);
+  await transporter.sendMail({
+    from: smtpFrom,
+    to: email,
+    subject: message.subject,
+    text: message.text,
+  });
+}
+
 createServer(async (request, response) => {
   const forwardedHostHeader = String(request.headers["x-forwarded-host"] || "").split(",")[0].trim();
   const rawHost = forwardedHostHeader || String(request.headers.host || "");
@@ -357,12 +424,69 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname === "/api/reservation-email-code" && request.method === "OPTIONS") {
+    response.writeHead(204, reservationCorsHeaders);
+    response.end();
+    return;
+  }
+
+  if (pathname === "/api/reservation-email-code" && request.method === "POST") {
+    try {
+      const payload = await getJsonBody(request);
+      const email = String(payload.email || "").trim().toLowerCase();
+
+      if (!isValidEmail(email)) {
+        response.writeHead(400, {
+          "Content-Type": "application/json; charset=utf-8",
+          ...reservationCorsHeaders,
+        });
+        response.end(JSON.stringify({ message: "A valid email is required" }));
+        return;
+      }
+
+      if (!(await hasMailExchange(email))) {
+        response.writeHead(400, {
+          "Content-Type": "application/json; charset=utf-8",
+          ...reservationCorsHeaders,
+        });
+        response.end(JSON.stringify({ message: "Please enter an email address that can receive mail" }));
+        return;
+      }
+
+      const code = createEmailVerificationCode(email);
+      try {
+        await sendEmailVerificationCode(email, code);
+      } catch (error) {
+        removeEmailVerificationCode(email);
+        throw error;
+      }
+
+      response.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        ...reservationCorsHeaders,
+      });
+      response.end(JSON.stringify({ ok: true }));
+      return;
+    } catch (error) {
+      console.error("Failed to send reservation email code", error);
+      const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+      const isConfigError = error instanceof Error && error.message === "Email verification is not configured";
+      response.writeHead(isPayloadError ? 400 : isConfigError ? 503 : 500, {
+        "Content-Type": "application/json; charset=utf-8",
+        ...reservationCorsHeaders,
+      });
+      response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : isConfigError ? "Email verification is not configured" : "Failed to send verification email" }));
+      return;
+    }
+  }
+
   if (pathname === "/api/reservations" && request.method === "POST") {
     try {
       const payload = await getJsonBody(request);
       const date = String(payload.date || "").trim();
       const time = String(payload.time || "").trim();
       const email = String(payload.email || "").trim().toLowerCase();
+      const emailCode = String(payload.emailCode || "").trim();
       const concerns = String(payload.concerns || "").trim();
 
       if (!date || !time || !email || !concerns) {
@@ -389,6 +513,15 @@ createServer(async (request, response) => {
           ...reservationCorsHeaders,
         });
         response.end(JSON.stringify({ message: "Please enter an email address that can receive mail" }));
+        return;
+      }
+
+      if (!isValidEmailVerificationCode(email, emailCode)) {
+        response.writeHead(400, {
+          "Content-Type": "application/json; charset=utf-8",
+          ...reservationCorsHeaders,
+        });
+        response.end(JSON.stringify({ message: "Please enter the verification code sent to your email" }));
         return;
       }
 

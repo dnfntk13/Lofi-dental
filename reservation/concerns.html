@@ -150,6 +150,20 @@
         box-shadow: 0 0 0 4px rgba(90, 111, 218, 0.12);
       }
 
+      .email-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+      }
+
+      .email-status {
+        color: var(--soft);
+        font-size: 0.92rem;
+        line-height: 1.45;
+      }
+
       .concern-input {
         width: 100%;
         min-height: 210px;
@@ -190,6 +204,17 @@
         color: #1f2d66;
       }
 
+      .btn-secondary {
+        background: rgba(255, 255, 255, 0.96);
+        border-color: rgba(90, 111, 218, 0.22);
+        color: var(--ink);
+      }
+
+      .btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
       @media (max-width: 760px) {
         .page { padding: 96px 14px 14px; }
         .site-logo { top: 18px; left: 14px; }
@@ -222,6 +247,15 @@
           <div class="field">
             <label class="field-label" for="email">Email</label>
             <input id="email" class="text-input" type="email" name="email" autocomplete="email" placeholder="you@example.com" required />
+            <div class="email-actions">
+              <button id="sendCodeButton" class="btn btn-secondary" type="button">Send code</button>
+              <span id="emailStatus" class="email-status" aria-live="polite"></span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="emailCode">Verification code</label>
+            <input id="emailCode" class="text-input" type="text" name="emailCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" required />
           </div>
 
           <div class="field">
@@ -230,7 +264,7 @@
           </div>
 
           <div class="btn-row">
-            <button class="btn btn-primary" type="submit">Send</button>
+            <button class="btn btn-primary" type="submit">Confirm reservation</button>
           </div>
         </form>
       </section>
@@ -275,16 +309,65 @@
       };
 
       const concernForm = document.getElementById("concernForm");
-      concernForm.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const email = document.getElementById("email").value.trim();
-        const concerns = document.getElementById("concerns").value.trim();
+      const emailInput = document.getElementById("email");
+      const emailCodeInput = document.getElementById("emailCode");
+      const sendCodeButton = document.getElementById("sendCodeButton");
+      const emailStatus = document.getElementById("emailStatus");
 
-        if (!email || !concerns) {
+      const apiBase = window.location.protocol === "file:" ? "http://localhost:5173" : window.location.origin;
+      const parseApiMessage = async (response, fallback) => {
+        const data = await response.json().catch(() => ({}));
+        return data.message || fallback;
+      };
+
+      sendCodeButton.addEventListener("click", async () => {
+        const email = emailInput.value.trim();
+        if (!email) {
+          emailInput.focus();
           return;
         }
 
-        const apiBase = window.location.protocol === "file:" ? "http://localhost:5173" : window.location.origin;
+        sendCodeButton.disabled = true;
+        sendCodeButton.textContent = "Sending...";
+        emailStatus.textContent = "";
+
+        try {
+          const endpoint = new URL("/api/reservation-email-code", apiBase).toString();
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            body: JSON.stringify({ email }),
+          });
+
+          if (!response.ok) {
+            throw new Error(await parseApiMessage(response, "Failed to send verification code"));
+          }
+
+          emailStatus.textContent = "Code sent. Please check your inbox.";
+          emailCodeInput.focus();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to send verification code";
+          emailStatus.textContent = message;
+          alert(message);
+        } finally {
+          sendCodeButton.disabled = false;
+          sendCodeButton.textContent = "Send code";
+        }
+      });
+
+      concernForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const email = emailInput.value.trim();
+        const emailCode = emailCodeInput.value.trim();
+        const concerns = document.getElementById("concerns").value.trim();
+
+        if (!email || !emailCode || !concerns) {
+          return;
+        }
+
         const endpoint = new URL("/api/reservations", apiBase).toString();
 
         try {
@@ -298,13 +381,13 @@
               date,
               time,
               email,
+              emailCode,
               concerns,
             }),
           });
 
           if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            throw new Error(data.message || "Failed to save reservation");
+            throw new Error(await parseApiMessage(response, "Failed to save reservation"));
           }
         } catch (error) {
           alert(error instanceof Error ? error.message : "Failed to send reservation. Please open via http://localhost:5173 and try again.");
