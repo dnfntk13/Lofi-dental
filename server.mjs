@@ -23,6 +23,8 @@ const smtpUser = process.env.SMTP_USER || "";
 const smtpPass = process.env.SMTP_PASS || "";
 const smtpFrom = process.env.SMTP_FROM || smtpUser;
 const reservationNotifyTo = process.env.RESERVATION_NOTIFY_TO || "";
+const resendApiKey = process.env.RESEND_API_KEY || "";
+const resendFrom = process.env.RESEND_FROM || smtpFrom;
 const emailDnsServers = (process.env.EMAIL_DNS_SERVERS || "8.8.8.8,1.1.1.1")
   .split(",")
   .map((server) => server.trim())
@@ -283,6 +285,14 @@ function getMailTransportConfigs() {
   return configs;
 }
 
+function hasResendConfig() {
+  return Boolean(resendApiKey && resendFrom);
+}
+
+function hasAnyMailConfig() {
+  return hasResendConfig() || getMailTransportConfigs().length > 0;
+}
+
 function createMailTransporter(config) {
   return nodemailer.createTransport({
     ...config,
@@ -310,6 +320,35 @@ function getSmtpErrorDetails(error) {
 }
 
 async function sendMailWithFallback(mailOptions) {
+  if (hasResendConfig()) {
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: resendFrom,
+          to: Array.isArray(mailOptions.to) ? mailOptions.to : [mailOptions.to],
+          reply_to: mailOptions.replyTo,
+          subject: mailOptions.subject,
+          text: mailOptions.text,
+        }),
+      });
+
+      if (!response.ok) {
+        const body = await response.text().catch(() => "");
+        throw new Error(`Resend API failed with ${response.status}: ${body}`);
+      }
+
+      return;
+    } catch (error) {
+      console.error("Resend send failed", getSmtpErrorDetails(error));
+      throw error;
+    }
+  }
+
   const configs = getMailTransportConfigs();
   if (configs.length === 0) {
     throw new Error("Email verification is not configured");
@@ -390,7 +429,7 @@ Received: ${record.createdAt}`,
 }
 
 async function sendReservationAutoReply(record) {
-  if (getMailTransportConfigs().length === 0) {
+  if (!hasAnyMailConfig()) {
     return false;
   }
 
@@ -405,7 +444,7 @@ async function sendReservationAutoReply(record) {
 }
 
 async function sendReservationNotification(record) {
-  if (getMailTransportConfigs().length === 0 || !reservationNotifyTo) {
+  if (!hasAnyMailConfig() || !reservationNotifyTo) {
     return false;
   }
 
@@ -421,7 +460,7 @@ async function sendReservationNotification(record) {
 }
 
 async function sendEmailVerificationCode(email, code) {
-  if (getMailTransportConfigs().length === 0) {
+  if (!hasAnyMailConfig()) {
     throw new Error("Email verification is not configured");
   }
 

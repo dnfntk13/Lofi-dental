@@ -40,11 +40,22 @@ Only `MONGODB_URI` is required. The database and collection names above are the 
 
 Reservation submissions require a syntactically valid email address with an MX record and a 6-digit verification code sent to that address. This confirms the patient can receive mail at the exact address before the reservation is saved.
 
-Set these environment variables in Render:
+Recommended for Render: use Resend over HTTPS. This avoids outbound SMTP port timeouts.
+
+```bash
+RESEND_API_KEY=your_resend_api_key
+RESEND_FROM=lofi dental <reservation@lofiesthetic.com>
+RESERVATION_NOTIFY_TO=lofidentalcs@lofiesthetic.com
+EMAIL_DNS_SERVERS=8.8.8.8,1.1.1.1
+```
+
+`RESEND_FROM` must use a sender domain verified in Resend. If `RESEND_API_KEY` is set, reservation email verification and auto-replies use Resend instead of Gmail SMTP.
+
+Gmail SMTP can still be used as a fallback if Resend is not configured:
 
 ```bash
 SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
+SMTP_PORT=465
 SMTP_USER=lofidentalcs@lofiesthetic.com
 SMTP_PASS=your_google_app_password
 SMTP_FROM=lofidentalcs@lofiesthetic.com
@@ -52,7 +63,7 @@ RESERVATION_NOTIFY_TO=lofidentalcs@lofiesthetic.com
 EMAIL_DNS_SERVERS=8.8.8.8,1.1.1.1
 ```
 
-`SMTP_PASS` must be a Google App Password. If SMTP variables are not configured or Gmail rejects the credentials, email verification cannot send a code and reservations will not submit.
+`SMTP_PASS` must be a Google App Password. If neither Resend nor SMTP variables are configured, email verification cannot send a code and reservations will not submit.
 
 ## Notes
 
