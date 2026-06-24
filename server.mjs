@@ -28,7 +28,6 @@ const emailDnsServers = (process.env.EMAIL_DNS_SERVERS || "8.8.8.8,1.1.1.1")
   .map((server) => server.trim())
   .filter(Boolean);
 let inboxCollectionPromise;
-let mailTransporter;
 const emailVerificationCodes = new Map();
 const emailVerificationTtlMs = 10 * 60 * 1000;
 const emailResolver = new Resolver();
@@ -261,27 +260,78 @@ function isValidEmailVerificationCode(email, code) {
   return true;
 }
 
-function getMailTransporter() {
+function getMailTransportConfigs() {
   if (!smtpHost || !smtpUser || !smtpPass || !smtpFrom) {
-    return null;
+    return [];
   }
 
-  if (!mailTransporter) {
-    mailTransporter = nodemailer.createTransport({
+  const configs = [{
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+  }];
+
+  if (smtpHost.trim().toLowerCase() === "smtp.gmail.com") {
+    const fallbackPort = smtpPort === 465 ? 587 : 465;
+    configs.push({
       host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
+      port: fallbackPort,
+      secure: fallbackPort === 465,
     });
   }
 
-  return mailTransporter;
+  return configs;
+}
+
+function createMailTransporter(config) {
+  return nodemailer.createTransport({
+    ...config,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+    auth: {
+      user: smtpUser,
+      pass: smtpPass,
+    },
+  });
+}
+
+function getSmtpErrorDetails(error) {
+  if (!(error instanceof Error)) {
+    return { message: "Unknown SMTP error" };
+  }
+
+  return {
+    code: error.code,
+    command: error.command,
+    responseCode: error.responseCode,
+    message: error.message,
+  };
+}
+
+async function sendMailWithFallback(mailOptions) {
+  const configs = getMailTransportConfigs();
+  if (configs.length === 0) {
+    throw new Error("Email verification is not configured");
+  }
+
+  let lastError;
+  for (const config of configs) {
+    try {
+      await createMailTransporter(config).sendMail(mailOptions);
+      return;
+    } catch (error) {
+      lastError = error;
+      console.error("SMTP send failed", {
+        host: config.host,
+        port: config.port,
+        secure: config.secure,
+        error: getSmtpErrorDetails(error),
+      });
+    }
+  }
+
+  throw lastError || new Error("Failed to send mail");
 }
 
 function buildReservationAutoReply(record) {
@@ -340,13 +390,12 @@ Received: ${record.createdAt}`,
 }
 
 async function sendReservationAutoReply(record) {
-  const transporter = getMailTransporter();
-  if (!transporter) {
+  if (getMailTransportConfigs().length === 0) {
     return false;
   }
 
   const message = buildReservationAutoReply(record);
-  await transporter.sendMail({
+  await sendMailWithFallback({
     from: smtpFrom,
     to: record.email,
     subject: message.subject,
@@ -356,13 +405,12 @@ async function sendReservationAutoReply(record) {
 }
 
 async function sendReservationNotification(record) {
-  const transporter = getMailTransporter();
-  if (!transporter || !reservationNotifyTo) {
+  if (getMailTransportConfigs().length === 0 || !reservationNotifyTo) {
     return false;
   }
 
   const message = buildReservationNotification(record);
-  await transporter.sendMail({
+  await sendMailWithFallback({
     from: smtpFrom,
     to: reservationNotifyTo,
     replyTo: record.email,
@@ -373,13 +421,12 @@ async function sendReservationNotification(record) {
 }
 
 async function sendEmailVerificationCode(email, code) {
-  const transporter = getMailTransporter();
-  if (!transporter) {
+  if (getMailTransportConfigs().length === 0) {
     throw new Error("Email verification is not configured");
   }
 
   const message = buildEmailVerificationMessage(code);
-  await transporter.sendMail({
+  await sendMailWithFallback({
     from: smtpFrom,
     to: email,
     subject: message.subject,
