@@ -1,7 +1,9 @@
 import { createServer } from "node:http";
+import { Resolver } from "node:dns/promises";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { MongoClient } from "mongodb";
+import nodemailer from "nodemailer";
 
 const rootDir = process.cwd();
 const port = Number(process.env.PORT || 5173);
@@ -14,7 +16,20 @@ const inboxPath = path.join(dataDir, "reservation-inbox.json");
 const mongoUri = process.env.MONGODB_URI || "";
 const mongoDatabaseName = process.env.MONGODB_DB_NAME || "lofi-dental";
 const mongoCollectionName = process.env.MONGODB_COLLECTION || "reservationMessages";
+const smtpHost = process.env.SMTP_HOST || "";
+const smtpPort = Number(process.env.SMTP_PORT || 587);
+const smtpUser = process.env.SMTP_USER || "";
+const smtpPass = process.env.SMTP_PASS || "";
+const smtpFrom = process.env.SMTP_FROM || smtpUser;
+const reservationNotifyTo = process.env.RESERVATION_NOTIFY_TO || "";
+const emailDnsServers = (process.env.EMAIL_DNS_SERVERS || "8.8.8.8,1.1.1.1")
+  .split(",")
+  .map((server) => server.trim())
+  .filter(Boolean);
 let inboxCollectionPromise;
+let mailTransporter;
+const emailResolver = new Resolver();
+emailResolver.setServers(emailDnsServers);
 const reservationCorsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -195,6 +210,113 @@ function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+async function hasMailExchange(email) {
+  const domain = email.split("@").pop();
+  if (!domain) {
+    return false;
+  }
+
+  try {
+    const records = await emailResolver.resolveMx(domain);
+    return records.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function getMailTransporter() {
+  if (!smtpHost || !smtpUser || !smtpPass || !smtpFrom) {
+    return null;
+  }
+
+  if (!mailTransporter) {
+    mailTransporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      },
+    });
+  }
+
+  return mailTransporter;
+}
+
+function buildReservationAutoReply(record) {
+  return {
+    subject: "We received your reservation request | lofi dental",
+    text: `Hello,
+
+Thank you for contacting lofi dental.
+
+We received your reservation request and will confirm your appointment as soon as possible.
+Confirmation usually takes 1-2 hours.
+
+Reservation details
+Date: ${record.date}
+Time: ${record.time}
+Email: ${record.email}
+
+Your message
+${record.concerns}
+
+lofi dental
+49 Apgujeong-ro 28-gil, 3F, Gangnam-gu, Seoul
++82-70-7755-8823`,
+  };
+}
+
+function buildReservationNotification(record) {
+  return {
+    subject: `New reservation request: ${record.date} ${record.time}`,
+    text: `New reservation request received.
+
+Date: ${record.date}
+Time: ${record.time}
+Patient email: ${record.email}
+
+Concerns:
+${record.concerns}
+
+Received: ${record.createdAt}`,
+  };
+}
+
+async function sendReservationAutoReply(record) {
+  const transporter = getMailTransporter();
+  if (!transporter) {
+    return false;
+  }
+
+  const message = buildReservationAutoReply(record);
+  await transporter.sendMail({
+    from: smtpFrom,
+    to: record.email,
+    subject: message.subject,
+    text: message.text,
+  });
+  return true;
+}
+
+async function sendReservationNotification(record) {
+  const transporter = getMailTransporter();
+  if (!transporter || !reservationNotifyTo) {
+    return false;
+  }
+
+  const message = buildReservationNotification(record);
+  await transporter.sendMail({
+    from: smtpFrom,
+    to: reservationNotifyTo,
+    replyTo: record.email,
+    subject: message.subject,
+    text: message.text,
+  });
+  return true;
+}
+
 createServer(async (request, response) => {
   const forwardedHostHeader = String(request.headers["x-forwarded-host"] || "").split(",")[0].trim();
   const rawHost = forwardedHostHeader || String(request.headers.host || "");
@@ -240,7 +362,7 @@ createServer(async (request, response) => {
       const payload = await getJsonBody(request);
       const date = String(payload.date || "").trim();
       const time = String(payload.time || "").trim();
-      const email = String(payload.email || "").trim();
+      const email = String(payload.email || "").trim().toLowerCase();
       const concerns = String(payload.concerns || "").trim();
 
       if (!date || !time || !email || !concerns) {
@@ -261,6 +383,15 @@ createServer(async (request, response) => {
         return;
       }
 
+      if (!(await hasMailExchange(email))) {
+        response.writeHead(400, {
+          "Content-Type": "application/json; charset=utf-8",
+          ...reservationCorsHeaders,
+        });
+        response.end(JSON.stringify({ message: "Please enter an email address that can receive mail" }));
+        return;
+      }
+
       const record = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         date,
@@ -272,11 +403,25 @@ createServer(async (request, response) => {
 
       await addInboxRecord(record);
 
+      let autoReplySent = false;
+      let notificationSent = false;
+      try {
+        autoReplySent = await sendReservationAutoReply(record);
+      } catch (error) {
+        console.error("Failed to send reservation auto-reply", error);
+      }
+
+      try {
+        notificationSent = await sendReservationNotification(record);
+      } catch (error) {
+        console.error("Failed to send reservation notification", error);
+      }
+
       response.writeHead(201, {
         "Content-Type": "application/json; charset=utf-8",
         ...reservationCorsHeaders,
       });
-      response.end(JSON.stringify({ ok: true }));
+      response.end(JSON.stringify({ ok: true, autoReplySent, notificationSent }));
       return;
     } catch (error) {
       console.error("Failed to save reservation", error);

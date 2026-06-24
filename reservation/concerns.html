@@ -303,10 +303,11 @@
           });
 
           if (!response.ok) {
-            throw new Error("Failed to save reservation");
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.message || "Failed to save reservation");
           }
-        } catch {
-          alert("Failed to send reservation. Please open via http://localhost:5173 and try again.");
+        } catch (error) {
+          alert(error instanceof Error ? error.message : "Failed to send reservation. Please open via http://localhost:5173 and try again.");
           return;
         }
 
