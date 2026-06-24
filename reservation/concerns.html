@@ -164,6 +164,21 @@
         line-height: 1.45;
       }
 
+      .code-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: stretch;
+      }
+
+      .code-status {
+        display: block;
+        margin-top: 8px;
+        color: var(--soft);
+        font-size: 0.92rem;
+        line-height: 1.45;
+      }
+
       .concern-input {
         width: 100%;
         min-height: 210px;
@@ -221,6 +236,7 @@
         .site-logo img { width: min(160px, 52vw); max-height: 62px; }
         .back-link { top: 18px; right: 12px; width: 32px; height: 32px; }
         .board { padding: 18px; border-radius: 24px; }
+        .code-row { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -255,7 +271,11 @@
 
           <div class="field">
             <label class="field-label" for="emailCode">Verification code</label>
-            <input id="emailCode" class="text-input" type="text" name="emailCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" required />
+            <div class="code-row">
+              <input id="emailCode" class="text-input" type="text" name="emailCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" required />
+              <button id="verifyCodeButton" class="btn btn-secondary" type="button">Verify</button>
+            </div>
+            <span id="codeStatus" class="code-status" aria-live="polite"></span>
           </div>
 
           <div class="field">
@@ -312,7 +332,15 @@
       const emailInput = document.getElementById("email");
       const emailCodeInput = document.getElementById("emailCode");
       const sendCodeButton = document.getElementById("sendCodeButton");
+      const verifyCodeButton = document.getElementById("verifyCodeButton");
       const emailStatus = document.getElementById("emailStatus");
+      const codeStatus = document.getElementById("codeStatus");
+      let emailVerified = false;
+
+      const resetVerification = () => {
+        emailVerified = false;
+        codeStatus.textContent = "";
+      };
 
       const apiBase = window.location.protocol === "file:" ? "http://localhost:5173" : window.location.origin;
       const parseApiMessage = async (response, fallback) => {
@@ -343,6 +371,7 @@
         sendCodeButton.disabled = true;
         sendCodeButton.textContent = "Sending...";
         emailStatus.textContent = "";
+  resetVerification();
 
         try {
           const endpoint = new URL("/api/reservation-email-code", apiBase).toString();
@@ -373,6 +402,57 @@
         }
       });
 
+      emailInput.addEventListener("input", resetVerification);
+      emailCodeInput.addEventListener("input", resetVerification);
+
+      verifyCodeButton.addEventListener("click", async () => {
+        const email = emailInput.value.trim();
+        const emailCode = emailCodeInput.value.trim();
+
+        if (!email) {
+          emailInput.focus();
+          return;
+        }
+
+        if (!emailCode) {
+          emailCodeInput.focus();
+          return;
+        }
+
+        verifyCodeButton.disabled = true;
+        verifyCodeButton.textContent = "Verifying...";
+        codeStatus.textContent = "";
+
+        try {
+          const endpoint = new URL("/api/reservation-email-code/verify", apiBase).toString();
+          const response = await fetchWithTimeout(endpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            body: JSON.stringify({ email, emailCode }),
+          });
+
+          if (!response.ok) {
+            throw new Error(await parseApiMessage(response, "Failed to verify code"));
+          }
+
+          emailVerified = true;
+          codeStatus.textContent = "Email verified.";
+        } catch (error) {
+          emailVerified = false;
+          const message = error instanceof Error && error.name === "AbortError"
+            ? "Verification is taking too long. Please try again."
+            : error instanceof Error ? error.message : "Failed to verify code";
+          codeStatus.textContent = message;
+          alert(message);
+        } finally {
+          verifyCodeButton.disabled = false;
+          verifyCodeButton.textContent = "Verify";
+        }
+      });
+
       concernForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         const email = emailInput.value.trim();
@@ -380,6 +460,12 @@
         const concerns = document.getElementById("concerns").value.trim();
 
         if (!email || !emailCode || !concerns) {
+          return;
+        }
+
+        if (!emailVerified) {
+          alert("Please verify your email code first.");
+          emailCodeInput.focus();
           return;
         }
 

@@ -31,6 +31,7 @@ const emailDnsServers = (process.env.EMAIL_DNS_SERVERS || "8.8.8.8,1.1.1.1")
   .filter(Boolean);
 let inboxCollectionPromise;
 const emailVerificationCodes = new Map();
+const verifiedEmails = new Map();
 const emailVerificationTtlMs = 10 * 60 * 1000;
 const emailResolver = new Resolver();
 emailResolver.setServers(emailDnsServers);
@@ -235,6 +236,12 @@ function cleanupEmailVerificationCodes() {
       emailVerificationCodes.delete(email);
     }
   }
+
+  for (const [email, expiresAt] of verifiedEmails.entries()) {
+    if (expiresAt <= now) {
+      verifiedEmails.delete(email);
+    }
+  }
 }
 
 function createEmailVerificationCode(email) {
@@ -244,6 +251,7 @@ function createEmailVerificationCode(email) {
     code,
     expiresAt: Date.now() + emailVerificationTtlMs,
   });
+  verifiedEmails.delete(email);
   return code;
 }
 
@@ -260,6 +268,25 @@ function isValidEmailVerificationCode(email, code) {
 
   emailVerificationCodes.delete(email);
   return true;
+}
+
+function verifyEmailCode(email, code) {
+  if (!isValidEmailVerificationCode(email, code)) {
+    return false;
+  }
+
+  verifiedEmails.set(email, Date.now() + emailVerificationTtlMs);
+  return true;
+}
+
+function isEmailVerified(email) {
+  cleanupEmailVerificationCodes();
+  return verifiedEmails.has(email);
+}
+
+function removeEmailVerification(email) {
+  emailVerificationCodes.delete(email);
+  verifiedEmails.delete(email);
 }
 
 function getMailTransportConfigs() {
@@ -542,6 +569,12 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname === "/api/reservation-email-code/verify" && request.method === "OPTIONS") {
+    response.writeHead(204, reservationCorsHeaders);
+    response.end();
+    return;
+  }
+
   if (pathname === "/api/reservation-email-code" && request.method === "POST") {
     try {
       const payload = await getJsonBody(request);
@@ -592,6 +625,48 @@ createServer(async (request, response) => {
     }
   }
 
+  if (pathname === "/api/reservation-email-code/verify" && request.method === "POST") {
+    try {
+      const payload = await getJsonBody(request);
+      const email = String(payload.email || "").trim().toLowerCase();
+      const emailCode = String(payload.emailCode || "").trim();
+
+      if (!isValidEmail(email)) {
+        response.writeHead(400, {
+          "Content-Type": "application/json; charset=utf-8",
+          ...reservationCorsHeaders,
+        });
+        response.end(JSON.stringify({ message: "A valid email is required" }));
+        return;
+      }
+
+      if (!verifyEmailCode(email, emailCode)) {
+        response.writeHead(400, {
+          "Content-Type": "application/json; charset=utf-8",
+          ...reservationCorsHeaders,
+        });
+        response.end(JSON.stringify({ message: "Please enter the correct verification code" }));
+        return;
+      }
+
+      response.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        ...reservationCorsHeaders,
+      });
+      response.end(JSON.stringify({ ok: true }));
+      return;
+    } catch (error) {
+      console.error("Failed to verify reservation email code", error);
+      const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+      response.writeHead(isPayloadError ? 400 : 500, {
+        "Content-Type": "application/json; charset=utf-8",
+        ...reservationCorsHeaders,
+      });
+      response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : "Failed to verify email code" }));
+      return;
+    }
+  }
+
   if (pathname === "/api/reservations" && request.method === "POST") {
     try {
       const payload = await getJsonBody(request);
@@ -628,12 +703,12 @@ createServer(async (request, response) => {
         return;
       }
 
-      if (!isValidEmailVerificationCode(email, emailCode)) {
+      if (!isEmailVerified(email) && !verifyEmailCode(email, emailCode)) {
         response.writeHead(400, {
           "Content-Type": "application/json; charset=utf-8",
           ...reservationCorsHeaders,
         });
-        response.end(JSON.stringify({ message: "Please enter the verification code sent to your email" }));
+        response.end(JSON.stringify({ message: "Please verify the code sent to your email" }));
         return;
       }
 
@@ -647,6 +722,7 @@ createServer(async (request, response) => {
       };
 
       await addInboxRecord(record);
+      removeEmailVerification(email);
 
       let autoReplySent = false;
       let notificationSent = false;
