@@ -65,6 +65,8 @@ EMAIL_DNS_SERVERS=8.8.8.8,1.1.1.1
 
 `SMTP_PASS` must be a Google App Password. If neither Resend nor SMTP variables are configured, email verification cannot send a code and reservations will not submit.
 
+To check which email provider Render is using, open `/api/admin/email-status` with admin credentials. The response shows only whether each value is set; secret values are not returned.
+
 ## Notes
 
 - Static multipage site.

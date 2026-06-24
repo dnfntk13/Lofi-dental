@@ -293,6 +293,29 @@ function hasAnyMailConfig() {
   return hasResendConfig() || getMailTransportConfigs().length > 0;
 }
 
+function getEmailProviderStatus() {
+  const smtpConfigs = getMailTransportConfigs();
+  return {
+    provider: hasResendConfig() ? "resend" : smtpConfigs.length > 0 ? "smtp" : "none",
+    resend: {
+      configured: hasResendConfig(),
+      apiKeySet: Boolean(resendApiKey),
+      fromSet: Boolean(resendFrom),
+      from: resendFrom || null,
+    },
+    smtp: {
+      configured: smtpConfigs.length > 0,
+      host: smtpHost || null,
+      port: smtpPort,
+      userSet: Boolean(smtpUser),
+      passSet: Boolean(smtpPass),
+      fromSet: Boolean(smtpFrom),
+      from: smtpFrom || null,
+    },
+    reservationNotifyToSet: Boolean(reservationNotifyTo),
+  };
+}
+
 function createMailTransporter(config) {
   return nodemailer.createTransport({
     ...config,
@@ -672,6 +695,17 @@ createServer(async (request, response) => {
       response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ message: "Failed to load messages" }));
     }
+    return;
+  }
+
+  if (pathname === "/api/admin/email-status" && request.method === "GET") {
+    if (!adminAuthorized) {
+      requestAuth(response);
+      return;
+    }
+
+    response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify(getEmailProviderStatus()));
     return;
   }
 
