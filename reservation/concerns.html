@@ -320,6 +320,19 @@
         return data.message || fallback;
       };
 
+      const fetchWithTimeout = async (url, options, timeoutMs = 20000) => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          return await fetch(url, {
+            ...options,
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timeout);
+        }
+      };
+
       sendCodeButton.addEventListener("click", async () => {
         const email = emailInput.value.trim();
         if (!email) {
@@ -333,7 +346,7 @@
 
         try {
           const endpoint = new URL("/api/reservation-email-code", apiBase).toString();
-          const response = await fetch(endpoint, {
+          const response = await fetchWithTimeout(endpoint, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -349,7 +362,9 @@
           emailStatus.textContent = "Code sent. Please check your inbox.";
           emailCodeInput.focus();
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Failed to send verification code";
+          const message = error instanceof Error && error.name === "AbortError"
+            ? "Verification email is taking too long. Please try again or contact us directly."
+            : error instanceof Error ? error.message : "Failed to send verification code";
           emailStatus.textContent = message;
           alert(message);
         } finally {
@@ -371,7 +386,7 @@
         const endpoint = new URL("/api/reservations", apiBase).toString();
 
         try {
-          const response = await fetch(endpoint, {
+          const response = await fetchWithTimeout(endpoint, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -390,7 +405,10 @@
             throw new Error(await parseApiMessage(response, "Failed to save reservation"));
           }
         } catch (error) {
-          alert(error instanceof Error ? error.message : "Failed to send reservation. Please open via http://localhost:5173 and try again.");
+          const message = error instanceof Error && error.name === "AbortError"
+            ? "Reservation submission is taking too long. Please try again."
+            : error instanceof Error ? error.message : "Failed to send reservation. Please open via http://localhost:5173 and try again.";
+          alert(message);
           return;
         }
 
