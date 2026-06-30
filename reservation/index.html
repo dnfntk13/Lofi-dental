@@ -35,6 +35,10 @@
           linear-gradient(180deg, #f8faff 0%, var(--bg) 48%, #edf2ff 100%);
       }
 
+      html:lang(ko) body {
+        font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+      }
+
       .page {
         min-height: 100vh;
         display: grid;
@@ -333,7 +337,7 @@
   </head>
   <body>
     <div class="page">
-      <a class="site-logo" href="/english" aria-label="Lofi Dental English home">
+      <a class="site-logo" id="homeLink" href="/english" aria-label="Lofi Dental home">
         <img src="../assets/logo.png?v=20260615" alt="lofi dental" />
       </a>
       <a class="back-link" href="#" aria-label="Back" onclick="history.back(); return false;">
@@ -344,7 +348,7 @@
       <section class="board" aria-label="Date selection window">
         <div class="board-head">
           <div>
-            <p class="board-label">Date</p>
+            <p class="board-label" id="dateLabel">Date</p>
             <p class="board-value" id="selectedDayText">Monday</p>
           </div>
           <span class="caret" aria-hidden="true"></span>
@@ -357,13 +361,13 @@
             <button id="nextMonth" class="calendar-nav" type="button" aria-label="Next month">&gt;</button>
           </div>
           <div class="calendar-weekdays">
-            <div class="calendar-weekday">Sun</div>
-            <div class="calendar-weekday">Mon</div>
-            <div class="calendar-weekday">Tue</div>
-            <div class="calendar-weekday">Wed</div>
-            <div class="calendar-weekday">Thu</div>
-            <div class="calendar-weekday">Fri</div>
-            <div class="calendar-weekday">Sat</div>
+            <div class="calendar-weekday" data-weekday="0">Sun</div>
+            <div class="calendar-weekday" data-weekday="1">Mon</div>
+            <div class="calendar-weekday" data-weekday="2">Tue</div>
+            <div class="calendar-weekday" data-weekday="3">Wed</div>
+            <div class="calendar-weekday" data-weekday="4">Thu</div>
+            <div class="calendar-weekday" data-weekday="5">Fri</div>
+            <div class="calendar-weekday" data-weekday="6">Sat</div>
           </div>
           <div id="calendarGrid" class="calendar-grid"></div>
         </div>
@@ -380,6 +384,26 @@
     <script>
       const selectedDayText = document.getElementById("selectedDayText");
       const cursorTooltip = document.getElementById("cursorTooltip");
+      const params = new URLSearchParams(window.location.search);
+      const isKorean = params.get("lang") === "ko";
+      const locale = isKorean ? "ko-KR" : "en-US";
+      const text = {
+        date: isKorean ? "날짜" : "Date",
+        availableTimes: isKorean ? "예약 가능 시간" : "Available times",
+        closed: isKorean ? "휴진" : "Closed",
+        closedBanner: isKorean ? "주말과 공휴일은 휴진입니다." : "Closed on weekends and Korean public holidays.",
+        holiday: isKorean ? "공휴일" : "Korean holiday",
+        closedHint: isKorean ? "휴진" : "Closed",
+        weekdays: isKorean ? ["일", "월", "화", "수", "목", "금", "토"] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+      };
+
+      document.documentElement.lang = isKorean ? "ko" : "en";
+      document.title = isKorean ? "예약 날짜 선택 | lofi dental" : "Date Selector | lofi dental";
+      document.getElementById("homeLink").href = isKorean ? "/" : "/english";
+      document.getElementById("dateLabel").textContent = text.date;
+      document.querySelectorAll("[data-weekday]").forEach((element) => {
+        element.textContent = text.weekdays[Number(element.dataset.weekday)];
+      });
 
       const calendarMonth = document.getElementById("calendarMonth");
       const calendarGrid = document.getElementById("calendarGrid");
@@ -416,7 +440,7 @@
 
       function formatLongDate(value) {
         const date = parseLocalDate(value);
-        return new Intl.DateTimeFormat("en-US", {
+        return new Intl.DateTimeFormat(locale, {
           weekday: "long",
           year: "numeric",
           month: "long",
@@ -434,6 +458,12 @@
       function formatTime(minutes) {
         const hours = Math.floor(minutes / 60);
         const mins = minutes % 60;
+        if (isKorean) {
+          const period = hours >= 12 ? "오후" : "오전";
+          const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+          return `${period} ${displayHour}:${String(mins).padStart(2, "0")}`;
+        }
+
         const period = hours >= 12 ? "PM" : "AM";
         const displayHour = hours % 12 === 0 ? 12 : hours % 12;
         return `${displayHour}:${String(mins).padStart(2, "0")} ${period}`;
@@ -470,15 +500,15 @@
         timeGrid.innerHTML = "";
 
         if (isWeekend(selectedDateISO) || isKoreanHoliday(selectedDateISO)) {
-          timeTitle.textContent = "Closed";
+          timeTitle.textContent = text.closed;
           const closedBanner = document.createElement("div");
           closedBanner.className = "closed-banner";
-          closedBanner.textContent = "Closed on weekends and Korean public holidays.";
+          closedBanner.textContent = text.closedBanner;
           timeGrid.appendChild(closedBanner);
           return;
         }
 
-        timeTitle.textContent = "Available times";
+        timeTitle.textContent = text.availableTimes;
 
         const now = new Date();
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -510,6 +540,9 @@
                 date: selectedDateISO,
                 time: startTime,
               });
+              if (isKorean) {
+                params.set("lang", "ko");
+              }
               window.location.href = `concerns.html?${params.toString()}`;
             });
             timeGrid.appendChild(button);
@@ -544,7 +577,7 @@
         const monthStart = new Date(viewYear, viewMonth, 1);
         const monthEnd = new Date(viewYear, viewMonth + 1, 0);
 
-        calendarMonth.textContent = new Intl.DateTimeFormat("en-US", {
+        calendarMonth.textContent = new Intl.DateTimeFormat(locale, {
           year: "numeric",
           month: "long",
         }).format(monthStart);
@@ -595,7 +628,7 @@
           }
 
           if (isClosed && !isDisabledRange) {
-            const hintText = closedType === "holiday" ? "Korean holiday" : "Closed";
+            const hintText = closedType === "holiday" ? text.holiday : text.closedHint;
             button.addEventListener("mouseenter", (event) => {
               cursorTooltip.textContent = hintText;
               cursorTooltip.style.left = `${event.clientX}px`;

@@ -35,6 +35,10 @@
           linear-gradient(180deg, #f8faff 0%, var(--bg) 48%, #edf2ff 100%);
       }
 
+      html:lang(ko) body {
+        font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+      }
+
       .page {
         min-height: 100vh;
         display: grid;
@@ -135,7 +139,7 @@
   </head>
   <body>
     <div class="page">
-      <a class="site-logo" href="/english" aria-label="Lofi Dental English home">
+      <a class="site-logo" id="homeLink" href="/english" aria-label="Lofi Dental home">
         <img src="../assets/logo.png?v=20260615" alt="lofi dental" />
       </a>
       <a class="back-link" href="#" aria-label="Back" onclick="history.back(); return false;">
@@ -144,8 +148,8 @@
         </svg>
       </a>
       <section class="board" aria-label="Reservation received">
-        <h1 class="title">Your reservation was received</h1>
-        <p class="message">We will confirm your appointment ASAP.<br />(Usually takes 1~2 hours for us to confirm.)</p>
+        <h1 class="title" id="pageTitle">Your reservation was received</h1>
+        <p class="message" id="pageMessage">We will confirm your appointment ASAP.<br />(Usually takes 1~2 hours for us to confirm.)</p>
 
         <div class="meta">
           <span class="chip" id="dateChip">Date: -</span>
@@ -158,8 +162,16 @@
       const params = new URLSearchParams(window.location.search);
       const date = params.get("date") || "-";
       const time = params.get("time") || "-";
-      document.getElementById("dateChip").textContent = `Date: ${date}`;
-      document.getElementById("timeChip").textContent = `Time: ${time}`;
+      const isKorean = params.get("lang") === "ko";
+      document.documentElement.lang = isKorean ? "ko" : "en";
+      document.title = isKorean ? "예약 신청 완료 | lofi dental" : "Reservation Received | lofi dental";
+      document.getElementById("homeLink").href = isKorean ? "/" : "/english";
+      document.getElementById("pageTitle").textContent = isKorean ? "예약 신청이 접수되었습니다" : "Your reservation was received";
+      document.getElementById("pageMessage").innerHTML = isKorean
+        ? "확인 후 빠르게 연락드리겠습니다.<br />(보통 1~2시간 안에 확인됩니다.)"
+        : "We will confirm your appointment ASAP.<br />(Usually takes 1~2 hours for us to confirm.)";
+      document.getElementById("dateChip").textContent = `${isKorean ? "날짜" : "Date"}: ${date}`;
+      document.getElementById("timeChip").textContent = `${isKorean ? "시간" : "Time"}: ${time}`;
     </script>
   </body>
 </html>
