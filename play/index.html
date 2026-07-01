@@ -48,6 +48,7 @@
         { type: "video", id: "b6I14PwV4Fk" }
       ];
       var PAGE_DURATION = 30000;
+      var YT_RETRY_MS = 120;
 
       var pageWrap  = document.getElementById("pageWrap");
       var videoWrap = document.getElementById("videoWrap");
@@ -68,19 +69,23 @@
         var item = sequence[idx];
 
         if (item.type === "video") {
+          mainFrame.onload = null;
           pageWrap.style.display  = "none";
           videoWrap.style.display = "block";
 
           if (ytReady) {
             ytPlayer.loadVideoById(item.id);
           } else {
-            /* YT API not ready yet — retry after 500ms */
-            slideTimer = setTimeout(function () { showItem(idx); }, 500);
+            /* YT API not ready yet — retry quickly to reduce transition lag */
+            slideTimer = setTimeout(function () { showItem(idx); }, YT_RETRY_MS);
           }
           /* no slideTimer set here — onStateChange(0) triggers advance() */
         } else {
-          pageWrap.style.display  = "block";
-          videoWrap.style.display = "none";
+          mainFrame.onload = function () {
+            pageWrap.style.display  = "block";
+            videoWrap.style.display = "none";
+            mainFrame.onload = null;
+          };
           mainFrame.src = item.url;
           slideTimer = setTimeout(advance, PAGE_DURATION);
         }
