@@ -157,6 +157,13 @@
         image-orientation: from-image;
       }
 
+      body.play-signage-fix .gallery-item img {
+        object-fit: contain;
+        transform: rotate(90deg);
+        transform-origin: center center;
+        background: #ffffff;
+      }
+
       .gallery-item-featured {
         grid-row: span 2;
         aspect-ratio: 4 / 5;
@@ -335,5 +342,18 @@
         </div>
       </main>
     </div>
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        if (!params.has("play")) {
+          return;
+        }
+
+        var ua = navigator.userAgent || "";
+        if (/LG|webOS|Web0S|Signage|UH5F/i.test(ua)) {
+          document.body.classList.add("play-signage-fix");
+        }
+      })();
+    </script>
   </body>
 </html>
