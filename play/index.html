@@ -303,6 +303,22 @@
         { type: "youtube", id: "b6I14PwV4Fk", label: "lofi lab 3", durationMs: 30000 }
       ];
 
+      var userAgent = navigator.userAgent || "";
+      var isLgSignage = /LG|webOS|Web0S|Signage/i.test(userAgent);
+      var isUh5fSeries = /UH5F/i.test(userAgent);
+      var LG_YOUTUBE_SAFE_MODE = isLgSignage || isUh5fSeries;
+
+      if (LG_YOUTUBE_SAFE_MODE) {
+        var lgSafeItems = [];
+        var lgSafeIndex;
+        for (lgSafeIndex = 0; lgSafeIndex < mediaItems.length; lgSafeIndex += 1) {
+          if (mediaItems[lgSafeIndex].type !== "youtube") {
+            lgSafeItems.push(mediaItems[lgSafeIndex]);
+          }
+        }
+        mediaItems = lgSafeItems;
+      }
+
       var WAIT_INTERVAL_MS = 60000;
       var viewport = document.getElementById("viewport");
       var homeScreen = document.getElementById("homeScreen");
@@ -465,7 +481,13 @@
         }
       });
 
-      startStandbyCountdown();
+      if (document.readyState === "complete") {
+        startStandbyCountdown();
+      } else {
+        window.addEventListener("load", function () {
+          startStandbyCountdown();
+        });
+      }
     </script>
   </body>
 </html>
