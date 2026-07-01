@@ -132,6 +132,15 @@
         display: block;
       }
 
+      .case-caption {
+        margin: 0;
+        padding: 18px 20px 20px;
+        color: var(--ink);
+        font-size: 1.05rem;
+        line-height: 1.62;
+        text-align: center;
+      }
+
       @media (max-width: 640px) {
         .page {
           width: min(560px, 92vw);
@@ -144,6 +153,11 @@
         .case-card {
           width: 100%;
           border-radius: 14px;
+        }
+
+        .case-caption {
+          padding: 16px 16px 18px;
+          font-size: 0.98rem;
         }
       }
     </style>
@@ -167,6 +181,9 @@
         <section class="case-grid" aria-label="비포&애프터">
           <figure class="case-card">
             <img src="assets/before-after/case-01.jpg" alt="라미네이트 치료 전후 사례 1" />
+            <figcaption class="case-caption">
+              최대한 안건드리고 못생긴 부분만 좀 개선됐으면 좋겠어요
+            </figcaption>
           </figure>
           <figure class="case-card">
             <img src="assets/before-after/case-02.jpg" alt="라미네이트 치료 전후 사례 2" />
