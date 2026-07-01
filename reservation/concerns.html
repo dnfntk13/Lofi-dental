@@ -320,8 +320,8 @@
       const time = params.get("time") || "-";
       const isKorean = params.get("lang") === "ko";
       const text = {
-        title: isKorean ? "치아 고민을 알려주세요" : "Tell us about your dental/esthetic concerns",
-        copy: isKorean ? "증상, 원하는 치료, 상담받고 싶은 내용을 자유롭게 적어주세요." : "Please describe your symptoms, goals, or any treatment you are considering.",
+        title: isKorean ? "예약 내용을 적어주세요" : "Tell us about your dental/esthetic concerns",
+        copy: isKorean ? "" : "Please describe your symptoms, goals, or any treatment you are considering.",
         dateLabel: isKorean ? "날짜" : "Date",
         timeLabel: isKorean ? "시간" : "Time",
         email: isKorean ? "이메일" : "Email",
@@ -350,6 +350,9 @@
       document.getElementById("homeLink").href = isKorean ? "/" : "/english";
       document.getElementById("pageTitle").textContent = text.title;
       document.getElementById("pageCopy").textContent = text.copy;
+      if (!text.copy) {
+        document.getElementById("pageCopy").style.display = "none";
+      }
       document.getElementById("emailLabel").textContent = text.email;
       document.getElementById("codeLabel").textContent = text.codeLabel;
       document.getElementById("concernsLabel").textContent = text.concerns;
