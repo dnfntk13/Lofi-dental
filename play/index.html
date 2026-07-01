@@ -11,32 +11,93 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background: #ffffff;
+        background: #000;
       }
-      iframe {
+      #main {
+        position: absolute;
+        top: 0; left: 0;
         width: 100%;
         height: 100%;
         border: 0;
         display: block;
+        background: #fff;
       }
     </style>
   </head>
   <body>
     <iframe id="main" src="/"></iframe>
     <script>
-      var pages = [
-        "/",
-        "/%EB%A1%9C%EC%9A%B0%ED%8C%8C%EC%9D%B4%20%EC%9D%B4%EC%95%BC%EA%B8%B0.html",
-        "/before-after.html",
-        "/lofi-lab.html"
+      /* sequence: page items scroll for 30s; video items play fullscreen for 30s */
+      var sequence = [
+        { type: "page", url: "/" },
+        { type: "page", url: "/%EB%A1%9C%EC%9A%B0%ED%8C%8C%EC%9D%B4%20%EC%9D%B4%EC%95%BC%EA%B8%B0.html" },
+        { type: "page", url: "/before-after.html" },
+        { type: "video", id: "AAPNGmizVac" },
+        { type: "video", id: "t9qh_0y6Jlw" },
+        { type: "video", id: "b6I14PwV4Fk" }
       ];
+      var DURATION = 30000;
+
+      var frame   = document.getElementById("main");
       var current = 0;
-      var frame = document.getElementById("main");
-      function next() {
-        current = (current + 1) % pages.length;
-        frame.src = pages[current];
+      var slideTimer  = null;
+      var scrollTimer = null;
+
+      function clearAll() {
+        if (slideTimer)  { clearTimeout(slideTimer);  slideTimer  = null; }
+        if (scrollTimer) { clearInterval(scrollTimer); scrollTimer = null; }
       }
-      setInterval(next, 30000);
+
+      function startScroll() {
+        clearInterval(scrollTimer);
+        var win;
+        try { win = frame.contentWindow; } catch (e) { return; }
+        if (!win) { return; }
+        var startTime  = Date.now();
+        var pageHeight = 0;
+
+        scrollTimer = setInterval(function () {
+          try {
+            if (!pageHeight) {
+              pageHeight = win.document.body.scrollHeight - win.innerHeight;
+              if (pageHeight <= 0) { clearInterval(scrollTimer); return; }
+            }
+            var elapsed = Date.now() - startTime;
+            var ratio;
+            if (elapsed < 22000) {
+              ratio = elapsed / 22000;            /* scroll down for 22s */
+            } else {
+              ratio = 1 - ((elapsed - 22000) / 8000); /* scroll up for 8s */
+            }
+            if (ratio < 0) { ratio = 0; }
+            if (ratio > 1) { ratio = 1; }
+            win.scrollTo(0, Math.round(pageHeight * ratio));
+          } catch (e) {
+            clearInterval(scrollTimer);
+          }
+        }, 120);
+      }
+
+      function showItem(idx) {
+        clearAll();
+        var item = sequence[idx];
+
+        if (item.type === "video") {
+          frame.onload = null;
+          frame.src = "https://www.youtube.com/embed/" + item.id
+            + "?autoplay=1&mute=1&controls=0&rel=0&playsinline=1&loop=1&playlist=" + item.id;
+        } else {
+          frame.onload = function () { startScroll(); };
+          frame.src = item.url;
+        }
+
+        slideTimer = setTimeout(function () {
+          current = (current + 1) % sequence.length;
+          showItem(current);
+        }, DURATION);
+      }
+
+      window.onload = function () { showItem(0); };
     </script>
   </body>
 </html>
