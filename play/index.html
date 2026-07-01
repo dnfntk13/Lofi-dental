@@ -14,18 +14,31 @@
         background: #000;
       }
       #main {
-        position: absolute;
-        top: 0; left: 0;
         width: 100%;
         height: 100%;
         border: 0;
         display: block;
         background: #fff;
       }
+      #ytPlayer,
+      #ytPlayer iframe {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100% !important;
+        height: 100% !important;
+        border: 0;
+      }
     </style>
   </head>
   <body>
-    <iframe id="main" src="/"></iframe>
+    <div id="pageWrap" style="position:absolute;top:0;left:0;width:100%;height:100%;display:none;">
+      <iframe id="main" src="about:blank" style="width:100%;height:100%;border:0;display:block;background:#fff;"></iframe>
+    </div>
+    <div id="videoWrap" style="position:absolute;top:0;left:0;width:100%;height:100%;display:none;">
+      <div id="ytPlayer"></div>
+    </div>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
       var sequence = [
         { type: "page", url: "/" },
@@ -34,28 +47,71 @@
         { type: "video", id: "t9qh_0y6Jlw" },
         { type: "video", id: "b6I14PwV4Fk" }
       ];
-      var DURATION = 30000;
+      var PAGE_DURATION = 30000;
 
-      var frame   = document.getElementById("main");
-      var current = 0;
+      var pageWrap  = document.getElementById("pageWrap");
+      var videoWrap = document.getElementById("videoWrap");
+      var mainFrame = document.getElementById("main");
+      var current   = 0;
       var slideTimer = null;
+      var ytPlayer  = null;
+      var ytReady   = false;
+
+      function advance() {
+        if (slideTimer) { clearTimeout(slideTimer); slideTimer = null; }
+        current = (current + 1) % sequence.length;
+        showItem(current);
+      }
 
       function showItem(idx) {
         if (slideTimer) { clearTimeout(slideTimer); slideTimer = null; }
         var item = sequence[idx];
 
-        frame.onload = null;
         if (item.type === "video") {
-          frame.src = "https://www.youtube.com/embed/" + item.id
-            + "?autoplay=1&mute=1&controls=0&rel=0&playsinline=1&loop=1&playlist=" + item.id;
-        } else {
-          frame.src = item.url;
-        }
+          pageWrap.style.display  = "none";
+          videoWrap.style.display = "block";
 
-        slideTimer = setTimeout(function () {
-          current = (current + 1) % sequence.length;
-          showItem(current);
-        }, DURATION);
+          if (ytReady) {
+            ytPlayer.loadVideoById(item.id);
+          } else {
+            /* YT API not ready yet — retry after 500ms */
+            slideTimer = setTimeout(function () { showItem(idx); }, 500);
+          }
+          /* no slideTimer set here — onStateChange(0) triggers advance() */
+        } else {
+          pageWrap.style.display  = "block";
+          videoWrap.style.display = "none";
+          mainFrame.src = item.url;
+          slideTimer = setTimeout(advance, PAGE_DURATION);
+        }
+      }
+
+      function onYouTubeIframeAPIReady() {
+        ytPlayer = new YT.Player("ytPlayer", {
+          width: "100%",
+          height: "100%",
+          playerVars: {
+            autoplay: 1,
+            mute: 1,
+            controls: 0,
+            rel: 0,
+            playsinline: 1,
+            modestbranding: 1
+          },
+          events: {
+            onReady: function () {
+              ytReady = true;
+            },
+            onStateChange: function (e) {
+              if (e.data === YT.PlayerState.ENDED) {
+                advance();
+              }
+            },
+            onError: function () {
+              advance();
+            }
+          }
+        });
       }
 
       window.onload = function () { showItem(0); };
