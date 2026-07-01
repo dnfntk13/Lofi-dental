@@ -52,6 +52,7 @@
         --soft-ink: #5a6fda;
         --line: rgba(90, 111, 218, 0.22);
         --card: rgba(255, 255, 255, 0.94);
+        --amber: #cdd7ff;
       }
 
       * {
@@ -175,6 +176,36 @@
         word-break: keep-all;
       }
 
+      .bottom-cta {
+        margin-top: 34px;
+        display: flex;
+        justify-content: center;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 132px;
+        min-height: 48px;
+        padding: 14px 22px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        color: var(--logo-ink);
+        background: var(--amber);
+        box-shadow: 0 12px 28px rgba(27, 39, 35, 0.12);
+        font-family: "Paperlogy", "Nunito Sans", "Segoe UI", sans-serif;
+        font-size: 1rem;
+        font-weight: 600;
+        line-height: 1;
+        text-decoration: none;
+        transition: 180ms ease;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+      }
+
       @media (max-width: 820px) {
         .case-card-featured {
           width: 100%;
@@ -242,6 +273,9 @@
             </figcaption>
           </figure>
         </section>
+        <div class="bottom-cta">
+          <a class="btn" href="/reservation/?lang=ko">예약하기</a>
+        </div>
       </main>
     </div>
   </body>
