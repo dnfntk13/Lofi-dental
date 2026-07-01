@@ -29,7 +29,7 @@
     <script>
       /* sequence: page items scroll for 30s; video items play fullscreen for 30s */
       var sequence = [
-        { type: "page", url: "/" },
+        { type: "page", url: "/", scroll: false },
         { type: "page", url: "/%EB%A1%9C%EC%9A%B0%ED%8C%8C%EC%9D%B4%20%EC%9D%B4%EC%95%BC%EA%B8%B0.html" },
         { type: "page", url: "/before-after.html" },
         { type: "video", id: "AAPNGmizVac" },
@@ -55,6 +55,7 @@
         if (!win) { return; }
         var startTime  = Date.now();
         var pageHeight = 0;
+        var SCROLL_DURATION = DURATION - 2000; /* scroll over the full slot minus 2s buffer */
 
         scrollTimer = setInterval(function () {
           try {
@@ -63,19 +64,13 @@
               if (pageHeight <= 0) { clearInterval(scrollTimer); return; }
             }
             var elapsed = Date.now() - startTime;
-            var ratio;
-            if (elapsed < 22000) {
-              ratio = elapsed / 22000;            /* scroll down for 22s */
-            } else {
-              ratio = 1 - ((elapsed - 22000) / 8000); /* scroll up for 8s */
-            }
-            if (ratio < 0) { ratio = 0; }
-            if (ratio > 1) { ratio = 1; }
+            var ratio = Math.min(elapsed / SCROLL_DURATION, 1);
             win.scrollTo(0, Math.round(pageHeight * ratio));
+            if (ratio >= 1) { clearInterval(scrollTimer); }
           } catch (e) {
             clearInterval(scrollTimer);
           }
-        }, 120);
+        }, 80);
       }
 
       function showItem(idx) {
@@ -86,6 +81,9 @@
           frame.onload = null;
           frame.src = "https://www.youtube.com/embed/" + item.id
             + "?autoplay=1&mute=1&controls=0&rel=0&playsinline=1&loop=1&playlist=" + item.id;
+        } else if (item.scroll === false) {
+          frame.onload = null;
+          frame.src = item.url;
         } else {
           frame.onload = function () { startScroll(); };
           frame.src = item.url;
