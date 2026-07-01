@@ -176,6 +176,37 @@
         border: 0;
       }
 
+      .bottom-cta {
+        margin-top: 30px;
+        display: flex;
+        justify-content: center;
+        animation: rise 820ms ease both;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 132px;
+        min-height: 48px;
+        padding: 14px 22px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        color: var(--ink);
+        background: #cdd7ff;
+        box-shadow: 0 12px 28px rgba(27, 39, 35, 0.12);
+        font-family: "Nunito Sans", "Segoe UI", "Helvetica Neue", sans-serif;
+        font-size: 1rem;
+        font-weight: 600;
+        line-height: 1;
+        text-decoration: none;
+        transition: 180ms ease;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+      }
+
       @keyframes rise {
         from {
           opacity: 0;
@@ -279,6 +310,9 @@
             ></iframe>
           </div>
         </section>
+        <div class="bottom-cta">
+          <a class="btn" href="/reservation/?lang=ko">예약하기</a>
+        </div>
       </main>
     </div>
   </body>
