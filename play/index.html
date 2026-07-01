@@ -274,7 +274,7 @@
     </div>
 
     <script>
-      const mediaItems = [
+      var mediaItems = [
         {
           type: "image",
           src: "/assets/before-after/case-01.jpg",
@@ -288,7 +288,7 @@
           src: "/assets/before-after/case-02.jpg",
           label: "Before & After 2",
           caption: '"친구들이 라미네이트가 너무 가짜 같대요 ㅠㅠ 자연스럽게 해주세요!"',
-          beforeAfterLayout: "standard",
+          beforeAfterLayout: "featured",
           durationMs: 30000,
         },
         { type: "image", src: "/assets/story/waiting-room.jpg", label: "Story - Waiting Room", durationMs: 30000 },
@@ -303,48 +303,48 @@
         { type: "youtube", id: "b6I14PwV4Fk", label: "lofi lab 3", durationMs: 30000 }
       ];
 
-      const WAIT_INTERVAL_MS = 60_000;
-      const viewport = document.getElementById("viewport");
-      const homeScreen = document.getElementById("homeScreen");
-      const progressBar = document.getElementById("progressBar");
+      var WAIT_INTERVAL_MS = 60000;
+      var viewport = document.getElementById("viewport");
+      var homeScreen = document.getElementById("homeScreen");
+      var progressBar = document.getElementById("progressBar");
 
-      let activeIndex = -1;
-      let activeTimer;
-      let progressAnimation;
-      let isPlaying = false;
+      var activeIndex = -1;
+      var activeTimer;
+      var progressTickTimer;
+      var isPlaying = false;
 
-      const slides = mediaItems.map((item) => {
-        const slide = document.createElement("section");
+      var slides = mediaItems.map(function (item) {
+        var slide = document.createElement("section");
         slide.className = "slide";
 
         if (item.type === "image") {
           if (item.beforeAfterLayout) {
             slide.classList.add("slide-before-after");
-            const figure = document.createElement("figure");
+            var figure = document.createElement("figure");
             figure.className = item.beforeAfterLayout === "featured" ? "case-card case-card-featured" : "case-card";
 
-            const img = document.createElement("img");
+            var img = document.createElement("img");
             img.src = item.src;
             img.alt = item.label;
             img.loading = "eager";
             figure.appendChild(img);
 
-            const caption = document.createElement("figcaption");
+            var caption = document.createElement("figcaption");
             caption.className = "case-caption";
             caption.textContent = item.caption || "";
             figure.appendChild(caption);
 
             slide.appendChild(figure);
           } else {
-            const img = document.createElement("img");
-            img.src = item.src;
-            img.alt = item.label;
-            img.loading = "eager";
-            slide.appendChild(img);
+            var imgOnly = document.createElement("img");
+            imgOnly.src = item.src;
+            imgOnly.alt = item.label;
+            imgOnly.loading = "eager";
+            slide.appendChild(imgOnly);
           }
         } else {
-          const iframe = document.createElement("iframe");
-          iframe.dataset.youtubeId = item.id;
+          var iframe = document.createElement("iframe");
+          iframe.setAttribute("data-youtube-id", item.id);
           iframe.title = item.label;
           iframe.allow = "autoplay; encrypted-media; picture-in-picture";
           iframe.referrerPolicy = "strict-origin-when-cross-origin";
@@ -356,48 +356,36 @@
       });
 
       function buildYouTubeSrc(id) {
-        const params = new URLSearchParams({
-          autoplay: "1",
-          mute: "1",
-          controls: "0",
-          rel: "0",
-          modestbranding: "1",
-          playsinline: "1",
-          loop: "1",
-          playlist: id,
-        });
-        return `https://www.youtube.com/embed/${id}?${params.toString()}`;
+        return "https://www.youtube.com/embed/" + id + "?autoplay=1&mute=1&controls=0&rel=0&modestbranding=1&playsinline=1&loop=1&playlist=" + id;
       }
 
       function clearVideo(slide) {
-        const iframe = slide.querySelector("iframe");
+        var iframe = slide.querySelector("iframe");
         if (iframe) {
           iframe.src = "about:blank";
         }
       }
 
       function activateVideo(slide) {
-        const iframe = slide.querySelector("iframe");
+        var iframe = slide.querySelector("iframe");
         if (iframe) {
-          iframe.src = buildYouTubeSrc(iframe.dataset.youtubeId);
+          iframe.src = buildYouTubeSrc(iframe.getAttribute("data-youtube-id"));
         }
       }
 
       function renderProgress(durationMs) {
-        cancelAnimationFrame(progressAnimation);
+        clearInterval(progressTickTimer);
         progressBar.style.width = "0%";
 
-        const start = performance.now();
-        const tick = (now) => {
-          const elapsed = now - start;
-          const ratio = Math.min(elapsed / durationMs, 1);
-          progressBar.style.width = `${ratio * 100}%`;
-          if (ratio < 1) {
-            progressAnimation = requestAnimationFrame(tick);
+        var start = Date.now();
+        progressTickTimer = setInterval(function () {
+          var elapsed = Date.now() - start;
+          var ratio = Math.min(elapsed / durationMs, 1);
+          progressBar.style.width = ratio * 100 + "%";
+          if (ratio >= 1) {
+            clearInterval(progressTickTimer);
           }
-        };
-
-        progressAnimation = requestAnimationFrame(tick);
+        }, 100);
       }
 
       function showSlide(index) {
@@ -406,7 +394,7 @@
         }
 
         if (activeIndex >= 0) {
-          const prevSlide = slides[activeIndex];
+          var prevSlide = slides[activeIndex];
           prevSlide.classList.remove("is-active");
           clearVideo(prevSlide);
         }
@@ -417,8 +405,8 @@
         }
 
         activeIndex = index;
-        const item = mediaItems[activeIndex];
-        const slide = slides[activeIndex];
+        var item = mediaItems[activeIndex];
+        var slide = slides[activeIndex];
 
         slide.classList.add("is-active");
         if (item.type === "youtube") {
@@ -428,17 +416,17 @@
         renderProgress(item.durationMs);
 
         clearTimeout(activeTimer);
-        activeTimer = setTimeout(() => {
-          const nextIndex = activeIndex + 1;
+        activeTimer = setTimeout(function () {
+          var nextIndex = activeIndex + 1;
           showSlide(nextIndex);
         }, item.durationMs);
       }
 
       function clearActiveSlide() {
         if (activeIndex >= 0) {
-          const slide = slides[activeIndex];
-          slide.classList.remove("is-active");
-          clearVideo(slide);
+          var activeSlide = slides[activeIndex];
+          activeSlide.classList.remove("is-active");
+          clearVideo(activeSlide);
           activeIndex = -1;
         }
       }
@@ -450,7 +438,7 @@
         clearTimeout(activeTimer);
         clearActiveSlide();
         homeScreen.classList.add("is-visible");
-        activeTimer = setTimeout(() => {
+        activeTimer = setTimeout(function () {
           startPlaybackCycle();
         }, WAIT_INTERVAL_MS);
       }
@@ -468,7 +456,7 @@
         startStandbyCountdown();
       }
 
-      document.addEventListener("keydown", (event) => {
+      document.addEventListener("keydown", function (event) {
         if (event.key === "ArrowRight" && isPlaying) {
           showSlide((activeIndex + 1) % mediaItems.length);
         }
