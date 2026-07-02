@@ -49,43 +49,74 @@
       ];
       var PAGE_DURATION = 30000;
       var YT_RETRY_MS = 120;
+      var YT_MAX_WAIT_MS = 5000;
+      var VIDEO_START_TIMEOUT_MS = 8000;
+      var VIDEO_MAX_DURATION_MS = 45000;
 
       var pageWrap  = document.getElementById("pageWrap");
       var videoWrap = document.getElementById("videoWrap");
       var mainFrame = document.getElementById("main");
       var current   = 0;
       var slideTimer = null;
+      var videoStartTimer = null;
+      var videoGuardTimer = null;
       var ytPlayer  = null;
       var ytReady   = false;
+      var ytRetryStartedAt = 0;
+
+      function clearAllTimers() {
+        if (slideTimer) { clearTimeout(slideTimer); slideTimer = null; }
+        if (videoStartTimer) { clearTimeout(videoStartTimer); videoStartTimer = null; }
+        if (videoGuardTimer) { clearTimeout(videoGuardTimer); videoGuardTimer = null; }
+      }
 
       function advance() {
-        if (slideTimer) { clearTimeout(slideTimer); slideTimer = null; }
+        clearAllTimers();
         current = (current + 1) % sequence.length;
         showItem(current);
       }
 
       function showItem(idx) {
-        if (slideTimer) { clearTimeout(slideTimer); slideTimer = null; }
+        clearAllTimers();
         var item = sequence[idx];
 
         if (item.type === "video") {
           mainFrame.onload = null;
-          pageWrap.style.display  = "none";
-          videoWrap.style.display = "block";
 
           if (ytReady) {
+            ytRetryStartedAt = 0;
+            pageWrap.style.display  = "none";
+            videoWrap.style.display = "block";
             ytPlayer.loadVideoById(item.id);
+
+            videoStartTimer = setTimeout(function () {
+              advance();
+            }, VIDEO_START_TIMEOUT_MS);
+
+            videoGuardTimer = setTimeout(function () {
+              advance();
+            }, VIDEO_MAX_DURATION_MS);
           } else {
-            /* YT API not ready yet — retry quickly to reduce transition lag */
+            if (!ytRetryStartedAt) {
+              ytRetryStartedAt = Date.now();
+            }
+            if (Date.now() - ytRetryStartedAt > YT_MAX_WAIT_MS) {
+              ytRetryStartedAt = 0;
+              advance();
+              return;
+            }
+
+            /* YT API not ready yet — retry quickly */
             slideTimer = setTimeout(function () { showItem(idx); }, YT_RETRY_MS);
           }
-          /* no slideTimer set here — onStateChange(0) triggers advance() */
         } else {
-          mainFrame.onload = function () {
-            pageWrap.style.display  = "block";
-            videoWrap.style.display = "none";
-            mainFrame.onload = null;
-          };
+          if (ytReady && ytPlayer && ytPlayer.stopVideo) {
+            try { ytPlayer.stopVideo(); } catch (e) {}
+          }
+
+          pageWrap.style.display  = "block";
+          videoWrap.style.display = "none";
+          mainFrame.onload = null;
           mainFrame.src = item.url;
           slideTimer = setTimeout(advance, PAGE_DURATION);
         }
@@ -108,6 +139,10 @@
               ytReady = true;
             },
             onStateChange: function (e) {
+              if (e.data === YT.PlayerState.PLAYING && videoStartTimer) {
+                clearTimeout(videoStartTimer);
+                videoStartTimer = null;
+              }
               if (e.data === YT.PlayerState.ENDED) {
                 advance();
               }
