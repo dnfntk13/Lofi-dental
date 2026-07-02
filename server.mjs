@@ -56,7 +56,15 @@ const mimeTypes = {
 function resolvePath(urlPath) {
   const pathname = decodeURIComponent((urlPath || "/").split("?")[0]);
   if (pathname === "/") {
+    return "/english/index.html";
+  }
+
+  if (["/korean", "/korean/", "/korean.html", "/index.html"].includes(pathname)) {
     return "/index.html";
+  }
+
+  if (["/english", "/english/", "/english.html"].includes(pathname)) {
+    return "/english/index.html";
   }
 
   if (pathname.endsWith("/")) {
@@ -537,16 +545,6 @@ createServer(async (request, response) => {
     response.writeHead(301, {
       Location: redirectTarget,
       "Cache-Control": "public, max-age=300",
-    });
-    response.end();
-    return;
-  }
-
-  const mobileRedirectPath = getMobileRedirectPath(pathname);
-  if (request.method === "GET" && isMobileRequest(request) && mobileRedirectPath && !requestUrl.searchParams.has("desktop")) {
-    response.writeHead(302, {
-      Location: mobileRedirectPath,
-      "Cache-Control": "private, no-store",
     });
     response.end();
     return;
