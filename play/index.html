@@ -20,54 +20,27 @@
         display: block;
         background: #fff;
       }
-      #ytPlayer,
-      #ytPlayer iframe {
-        position: absolute;
-        top: 0; left: 0;
-        width: 100% !important;
-        height: 100% !important;
-        border: 0;
-      }
     </style>
   </head>
   <body>
-    <div id="pageWrap" style="position:absolute;top:0;left:0;width:100%;height:100%;display:none;">
+    <div id="pageWrap" style="position:absolute;top:0;left:0;width:100%;height:100%;display:block;">
       <iframe id="main" src="about:blank" style="width:100%;height:100%;border:0;display:block;background:#fff;"></iframe>
     </div>
-    <div id="videoWrap" style="position:absolute;top:0;left:0;width:100%;height:100%;display:none;">
-      <div id="ytPlayer"></div>
-    </div>
 
-    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
       var sequence = [
-        { type: "page", url: "/" },
-        { type: "page", url: "/before-after.html" },
-        { type: "video", id: "AAPNGmizVac" },
-        { type: "video", id: "t9qh_0y6Jlw" },
-        { type: "video", id: "b6I14PwV4Fk" }
+        { url: "/" },
+        { url: "/before-after.html" }
       ];
       var PAGE_DURATION = 30000;
-      var YT_RETRY_MS = 120;
-      var YT_MAX_WAIT_MS = 5000;
-      var VIDEO_START_TIMEOUT_MS = 8000;
-      var VIDEO_MAX_DURATION_MS = 45000;
 
       var pageWrap  = document.getElementById("pageWrap");
-      var videoWrap = document.getElementById("videoWrap");
       var mainFrame = document.getElementById("main");
       var current   = 0;
       var slideTimer = null;
-      var videoStartTimer = null;
-      var videoGuardTimer = null;
-      var ytPlayer  = null;
-      var ytReady   = false;
-      var ytRetryStartedAt = 0;
 
       function clearAllTimers() {
         if (slideTimer) { clearTimeout(slideTimer); slideTimer = null; }
-        if (videoStartTimer) { clearTimeout(videoStartTimer); videoStartTimer = null; }
-        if (videoGuardTimer) { clearTimeout(videoGuardTimer); videoGuardTimer = null; }
       }
 
       function advance() {
@@ -79,79 +52,10 @@
       function showItem(idx) {
         clearAllTimers();
         var item = sequence[idx];
-
-        if (item.type === "video") {
-          mainFrame.onload = null;
-
-          if (ytReady) {
-            ytRetryStartedAt = 0;
-            pageWrap.style.display  = "none";
-            videoWrap.style.display = "block";
-            ytPlayer.loadVideoById(item.id);
-
-            videoStartTimer = setTimeout(function () {
-              advance();
-            }, VIDEO_START_TIMEOUT_MS);
-
-            videoGuardTimer = setTimeout(function () {
-              advance();
-            }, VIDEO_MAX_DURATION_MS);
-          } else {
-            if (!ytRetryStartedAt) {
-              ytRetryStartedAt = Date.now();
-            }
-            if (Date.now() - ytRetryStartedAt > YT_MAX_WAIT_MS) {
-              ytRetryStartedAt = 0;
-              advance();
-              return;
-            }
-
-            /* YT API not ready yet — retry quickly */
-            slideTimer = setTimeout(function () { showItem(idx); }, YT_RETRY_MS);
-          }
-        } else {
-          if (ytReady && ytPlayer && ytPlayer.stopVideo) {
-            try { ytPlayer.stopVideo(); } catch (e) {}
-          }
-
-          pageWrap.style.display  = "block";
-          videoWrap.style.display = "none";
-          mainFrame.onload = null;
-          mainFrame.src = item.url;
-          slideTimer = setTimeout(advance, PAGE_DURATION);
-        }
-      }
-
-      function onYouTubeIframeAPIReady() {
-        ytPlayer = new YT.Player("ytPlayer", {
-          width: "100%",
-          height: "100%",
-          playerVars: {
-            autoplay: 1,
-            mute: 1,
-            controls: 0,
-            rel: 0,
-            playsinline: 1,
-            modestbranding: 1
-          },
-          events: {
-            onReady: function () {
-              ytReady = true;
-            },
-            onStateChange: function (e) {
-              if (e.data === YT.PlayerState.PLAYING && videoStartTimer) {
-                clearTimeout(videoStartTimer);
-                videoStartTimer = null;
-              }
-              if (e.data === YT.PlayerState.ENDED) {
-                advance();
-              }
-            },
-            onError: function () {
-              advance();
-            }
-          }
-        });
+        pageWrap.style.display = "block";
+        mainFrame.onload = null;
+        mainFrame.src = item.url;
+        slideTimer = setTimeout(advance, PAGE_DURATION);
       }
 
       window.onload = function () { showItem(0); };
