@@ -11,7 +11,7 @@
       gtag('config', 'G-ZKDLXLXDRE');
       gtag('config', 'AW-18173901982');
     </script>
-    <title>로우파이 이야기 | Lofi Web</title>
+    <title>Explore | Lofi Dental</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -24,11 +24,7 @@
         --bg-cream: #f5f7ff;
         --bg-mist: #e7edff;
         --ink: #1f2d66;
-        --soft-ink: #5a6fda;
         --line: rgba(90, 111, 218, 0.22);
-        --card: rgba(255, 255, 255, 0.95);
-        --mint: #e6d5f5;
-        --accent: #dcc8ed;
       }
 
       * {
@@ -108,57 +104,6 @@
         margin-top: 40px;
       }
 
-      .hero-section {
-        border: 1px solid var(--line);
-        border-radius: 30px;
-        background: var(--card);
-        padding: 48px;
-        box-shadow: 0 18px 40px rgba(32, 49, 43, 0.08);
-        animation: rise 720ms ease both;
-      }
-
-      .hero-title {
-        margin: 0;
-        font-family: "Cormorant Garamond", serif;
-        font-size: clamp(2.4rem, 5.5vw, 4.2rem);
-        line-height: 1.1;
-      }
-
-      .hero-subtitle {
-        margin: 14px 0 0;
-        color: var(--soft-ink);
-        font-size: 1.44rem;
-        font-weight: 500;
-      }
-
-      .story-section {
-        margin-top: 28px;
-        border: 1px solid var(--line);
-        border-radius: 28px;
-        background: rgba(255, 255, 255, 0.92);
-        padding: 40px;
-        box-shadow: 0 18px 40px rgba(32, 49, 43, 0.06);
-        animation: rise 760ms ease both;
-      }
-
-      .story-section h2 {
-        margin: 0 0 16px;
-        line-height: 1.92;
-        font-size: 1.16rem;
-      }
-
-      .story-section p {
-        margin: 16px 0;
-        line-height: 1.84;
-        font-size: 1.1rem;
-        color: var(--soft-ink);
-        max-width: 72ch;
-      }
-
-      .story-section p:first-of-type {
-        margin-top: 0;
-      }
-
       .clinic-gallery {
         margin-top: 28px;
         display: grid;
@@ -183,6 +128,14 @@
         height: 100%;
         display: block;
         object-fit: cover;
+        image-orientation: from-image;
+      }
+
+      body.play-signage-fix .gallery-item img {
+        object-fit: contain;
+        transform: rotate(90deg);
+        transform-origin: center center;
+        background: #ffffff;
       }
 
       .gallery-item-featured {
@@ -202,109 +155,29 @@
         gap: 14px;
       }
 
-      .timeline-vertical {
-        margin-top: 32px;
-        display: grid;
-        gap: 24px;
+      .video-section {
+        margin: 32px auto 0;
+        width: min(420px, 100%);
+        animation: rise 780ms ease both;
       }
 
-      .timeline-item {
-        display: grid;
-        grid-template-columns: 80px 1fr;
-        gap: 24px;
-        padding-bottom: 14px;
-        border-bottom: 1px solid rgba(32, 49, 43, 0.12);
-      }
-
-      .timeline-year {
-        font-size: 1.85rem;
-        font-family: "Cormorant Garamond", serif;
-        font-weight: 700;
-        color: var(--ink);
-      }
-
-      .timeline-content h3 {
-        margin: 0;
-        font-size: 1.3rem;
-        color: var(--ink);
-      }
-
-      .timeline-content p {
-        margin: 8px 0 0;
-        line-height: 1.72;
-        font-size: 1.1rem;
-        color: var(--soft-ink);
-      }
-
-      .insight-box {
-        margin-top: 28px;
-        padding: 28px;
-        border-left: 4px solid var(--ink);
-        background: rgba(204, 153, 214, 0.52);
-        border-radius: 12px;
-      }
-
-      .insight-box p {
-        margin: 0;
-        font-style: italic;
-        font-size: 1.16rem;
-        color: var(--ink);
-        line-height: 1.78;
-      }
-
-      .credentials {
-        margin-top: 28px;
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
-      }
-
-      .credential {
+      .video-frame {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 9 / 16;
         border: 1px solid var(--line);
-        border-radius: 16px;
-        padding: 20px;
-        background: #ffffff;
-        box-shadow: 0 10px 24px rgba(32, 49, 43, 0.04);
+        border-radius: 18px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 14px 30px rgba(32, 49, 43, 0.06);
       }
 
-      .credential-label {
-        font-size: 0.9rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--soft-ink);
-        margin: 0 0 6px;
-      }
-
-      .credential-value {
-        margin: 0;
-        font-size: 1.16rem;
-        color: var(--ink);
-      }
-
-      .cta-section {
-        margin-top: 36px;
-        text-align: center;
-      }
-
-      .btn {
-        text-decoration: none;
-        border-radius: 999px;
-        padding: 14px 24px;
-        font-weight: 600;
-        font-size: 1.08rem;
-        border: 1px solid transparent;
-        transition: 180ms ease;
-        display: inline-block;
-      }
-
-      .btn-primary {
-        color: #16241f;
-        background: var(--accent);
-        box-shadow: 0 12px 28px rgba(32, 49, 43, 0.12);
-      }
-
-      .btn:hover {
-        transform: translateY(-2px);
+      .video-frame iframe {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
       }
 
       @keyframes rise {
@@ -319,22 +192,6 @@
       }
 
       @media (max-width: 820px) {
-        body {
-          background:
-            radial-gradient(circle at 12% 8%, rgba(90, 111, 218, 0.18), transparent 42%),
-            radial-gradient(circle at 88% 14%, rgba(103, 128, 245, 0.2), transparent 46%),
-            linear-gradient(180deg, #f8faff 0%, var(--bg-cream) 48%, var(--bg-mist) 100%);
-        }
-
-        .credentials {
-          grid-template-columns: 1fr;
-        }
-
-        .timeline-item {
-          grid-template-columns: 60px 1fr;
-          gap: 16px;
-        }
-
         .clinic-gallery {
           grid-template-columns: 1fr;
         }
@@ -354,27 +211,9 @@
           width: min(560px, 92vw);
         }
 
-        .hero-section,
-        .story-section {
-          padding: 24px;
-          border-radius: 20px;
-        }
-
-        .timeline-item {
-          grid-template-columns: 1fr;
-          gap: 8px;
-        }
-
-        .timeline-year {
-          font-size: 1.45rem;
-        }
-
-        .timeline-content h3 {
-          font-size: 1.08rem;
-        }
-
         .gallery-item,
-        .gallery-item-featured {
+        .gallery-item-featured,
+        .video-frame {
           border-radius: 14px;
         }
 
@@ -388,7 +227,7 @@
     <div class="page">
       <header class="topbar">
         <a class="logo-link" href="/english" aria-label="Lofi Dental English home">
-          <img src="assets/logo.png?v=20260615" alt="lofi dental" class="logo-img" />
+          <img src="assets/logo.png" alt="lofi dental" class="logo-img" />
         </a>
         <nav class="nav-back">
           <a href="/english" aria-label="Back">
@@ -400,13 +239,6 @@
       </header>
 
       <main>
-        <section class="hero-section">
-          <h1 class="hero-title">로우파이 이야기</h1>
-          <p class="hero-subtitle">
-            A journey between New York and Seoul—finding purpose in bridging two worlds.
-          </p>
-        </section>
-
         <section class="clinic-gallery" aria-label="Inside lofi dental">
           <figure class="gallery-item gallery-item-featured">
             <img src="assets/story/waiting-room.jpg" alt="Softly lit waiting room at lofi dental" loading="lazy" />
@@ -432,147 +264,30 @@
           </div>
         </section>
 
-        <section class="story-section">
-          <h2>The Beginning</h2>
-          <p>
-            <strong>I wasn't born and raised in the US</strong>, but I started studying there in high school.
-            My dental career also began in New York. <strong>My first patients were American,</strong> and <strong>my first
-            residency</strong> was at Brookdale Hospital in <strong>Brooklyn.</strong>
-          </p>
-          <p>
-            The patients I saw at both NYU and Brookdale had something in common: <strong>they were looking
-            for affordable dentistry.</strong>
-          </p>
-          <p>
-            Because both Brookdale and NYU were largely <strong>insurance-based environments</strong>, I was able to
-            see up close <strong>how difficult it can be</strong> for many patients to <strong>actually receive dental care.</strong>
-            I saw <strong>how often people delayed treatment.</strong> I saw <strong>how long they had to wait</strong>, and
-            <strong>how fragile continuity of care could be.</strong> Sometimes a case would even fall apart simply
-            because the student or resident graduated before treatment was completed.
-          </p>
-        </section>
-
-        <section class="story-section">
-          <div class="insight-box">
-            <p>
-              "I am not trying to build a cheap clinic. I want to build a clinic that delivers
-              high-quality care at a price that makes sense, for both the patient and the practice."
-            </p>
+        <section class="video-section" aria-label="lofi dental YouTube Shorts">
+          <div class="video-frame">
+            <iframe
+              src="https://www.youtube.com/embed/V9zg-f-gvJg"
+              title="lofi dental YouTube Shorts"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen
+            ></iframe>
           </div>
-        </section>
-
-        <section class="story-section">
-          <h2>The Idea</h2>
-          <p>
-            Those experiences made me feel strongly that dental care needs to be more affordable.
-          </p>
-          <p>
-            At the same time, residency also taught me something equally important: dentistry is still
-            a business, and making it affordable at any cost is not sustainable in the long run.
-          </p>
-          <p>
-            That is the idea behind lofi dental.
-          </p>
-          <p>
-            My goal is to use the advantages of Korea's lower cost structure to create a model where
-            patients from the U.S. who struggle to find high-quality, reasonably priced care can come
-            to Korea for treatment. Korea's overall cost of living is lower than that of the U.S.,
-            which makes it possible to meet the expectations of American patients while also keeping
-            the practice profitable enough to allow for reinvestment and long-term growth.
-          </p>
-        </section>
-
-        <section class="story-section">
-          <div class="timeline-vertical">
-            <article class="timeline-item">
-              <div class="timeline-year">2018</div>
-              <div class="timeline-content">
-                <h3>Graduated from NYU</h3>
-                <p>
-                  Graduated from New York University College of Dentistry and completed foundational
-                  training that shaped my U.S.-standard approach to patient care.
-                </p>
-              </div>
-            </article>
-
-            <article class="timeline-item">
-              <div class="timeline-year">2018-2020</div>
-              <div class="timeline-content">
-                <h3>Army Dental Corpsman (Korea)</h3>
-                <p>
-                  Served in the military dental unit and gained practical experience in structured,
-                  high-responsibility clinical support settings.
-                </p>
-              </div>
-            </article>
-
-            <article class="timeline-item">
-              <div class="timeline-year">2021</div>
-              <div class="timeline-content">
-                <h3>Associate Dentist at Seoul Naeun Dental</h3>
-              </div>
-            </article>
-
-            <article class="timeline-item">
-              <div class="timeline-year">2022</div>
-              <div class="timeline-content">
-                <h3>Associate Dentist at Michigan Dental</h3>
-              </div>
-            </article>
-
-            <article class="timeline-item">
-              <div class="timeline-year">2023</div>
-              <div class="timeline-content">
-                <h3>General Practice Residency at Brookdale Hospital</h3>
-                <p>
-                  Trained in an insurance-heavy U.S. clinical environment and saw firsthand how cost,
-                  access, and continuity gaps impact real patient outcomes.
-                </p>
-              </div>
-            </article>
-
-            <article class="timeline-item">
-              <div class="timeline-year">2024</div>
-              <div class="timeline-content">
-                <h3>General Practice Residency (2nd Year) at Interfaith Hospital</h3>
-                <p>
-                  Advanced GPR training with deeper exposure to complex treatment sequencing,
-                  interdisciplinary coordination, and continuity planning.
-                </p>
-              </div>
-            </article>
-
-            <article class="timeline-item">
-              <div class="timeline-year">2025</div>
-              <div class="timeline-content">
-                <h3>Associate Dentist at Castle Bubu Dental and Smile Studios Dental</h3>
-                <p>
-                  Delivered high-quality clinical care across multiple practice settings while refining
-                  a sustainable model balancing quality, affordability, and operational efficiency.
-                </p>
-              </div>
-            </article>
-
-            <article class="timeline-item">
-              <div class="timeline-year">2026</div>
-              <div class="timeline-content">
-                <h3>lofi dental</h3>
-                <p>
-                  Founded lofi dental to deliver U.S.-standard care at a more accessible price point,
-                  with long-term sustainability and coordinated follow-up at the core.
-                </p>
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <section class="cta-section">
-          <p style="color: var(--soft-ink); margin: 0 0 24px;">
-            Ready to start your journey?
-          </p>
-          <a href="/contact-options.html" class="btn btn-primary">Begin Consultation</a>
         </section>
       </main>
     </div>
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        if (!params.has("play")) {
+          return;
+        }
+
+        var ua = navigator.userAgent || "";
+        if (/LG|webOS|Web0S|Signage|UH5F/i.test(ua)) {
+          document.body.classList.add("play-signage-fix");
+        }
+      })();
+    </script>
   </body>
 </html>
