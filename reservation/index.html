@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -358,7 +358,7 @@
   <body>
     <div class="page">
       <a class="site-logo" id="homeLink" href="/english" aria-label="Lofi Dental home">
-        <img src="../assets/logo.png?v=20260615" alt="lofi dental" />
+        <img id="siteLogoImage" src="../assets/영문로고.png" alt="lofi dental" />
       </a>
       <a class="back-link" href="#" aria-label="Back" onclick="history.back(); return false;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -419,7 +419,8 @@
 
       document.documentElement.lang = isKorean ? "ko" : "en";
       document.title = isKorean ? "예약 날짜 선택 | lofi dental" : "Date Selector | lofi dental";
-      document.getElementById("homeLink").href = isKorean ? "/" : "/english";
+      document.getElementById("homeLink").href = isKorean ? "/korean" : "/english";
+      document.getElementById("siteLogoImage").src = isKorean ? "../assets/한글로고.png" : "../assets/영문로고.png";
       document.getElementById("dateLabel").textContent = text.date;
       document.querySelectorAll("[data-weekday]").forEach((element) => {
         element.textContent = text.weekdays[Number(element.dataset.weekday)];
@@ -713,3 +714,4 @@
     </script>
   </body>
 </html>
+

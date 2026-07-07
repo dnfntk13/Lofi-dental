@@ -432,26 +432,23 @@ async function sendMailWithFallback(mailOptions) {
 }
 
 function buildReservationAutoReply(record) {
+  const appointmentKst = `${record.date} ${record.time} (KST)`;
+
   return {
-    subject: "We received your reservation request | lofi dental",
+    subject: "Your reservation has been confirmed | lofi dental",
     text: `Hello,
 
-Thank you for contacting lofi dental.
+Your reservation for ${appointmentKst} has been confirmed.
 
-We received your reservation request and will confirm your appointment as soon as possible.
-Confirmation usually takes 1-2 hours.
+Please provide us with the following information:
 
-Reservation details
-Date: ${record.date}
-Time: ${record.time}
-Email: ${record.email}
+Name:
+Where you are visiting from:
+Phone number:
 
-Your message
-${record.concerns}
-
-lofi dental
-49 Apgujeong-ro 28-gil, 3F, Gangnam-gu, Seoul
-+82-70-7755-8823`,
+lofi esthetic dentistry (lofi dental)
+Instagram: www.instagram.com/lofi_esthetic_dentistry
+WhatsApp: +82 10-2984-8823`,
   };
 }
 

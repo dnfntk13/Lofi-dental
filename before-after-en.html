@@ -1,5 +1,5 @@
-<!DOCTYPE html>
-<html lang="ko">
+﻿<!DOCTYPE html>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -11,13 +11,20 @@
       gtag('config', 'G-ZKDLXLXDRE');
       gtag('config', 'AW-18173901982');
     </script>
-    <title>lofi lab | Lofi Dental</title>
+    <title>Before & After | Lofi Dental</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
       @font-face {
         font-family: "Paperlogy";
         src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-4Regular.woff2") format("woff2");
         font-weight: 400;
         font-style: normal;
+        font-display: swap;
       }
 
       @font-face {
@@ -25,6 +32,7 @@
         src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-5Medium.woff2") format("woff2");
         font-weight: 500;
         font-style: normal;
+        font-display: swap;
       }
 
       @font-face {
@@ -32,15 +40,18 @@
         src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-7Bold.woff2") format("woff2");
         font-weight: 700;
         font-style: normal;
+        font-display: swap;
       }
 
       :root {
+        color-scheme: light;
         --bg-cream: #f5f7ff;
         --bg-mist: #e7edff;
+        --logo-ink: #1f2d66;
         --ink: #1f2d66;
         --soft-ink: #5a6fda;
         --line: rgba(90, 111, 218, 0.22);
-        --card: rgba(255, 255, 255, 0.95);
+        --card: rgba(255, 255, 255, 0.94);
         --amber: #cdd7ff;
       }
 
@@ -51,7 +62,7 @@
       body {
         margin: 0;
         min-height: 100vh;
-        font-family: "Paperlogy", "Noto Sans KR", sans-serif;
+        font-family: "Paperlogy", "Nunito Sans", "Segoe UI", sans-serif;
         color: var(--ink);
         background:
           radial-gradient(circle at 12% 8%, rgba(90, 111, 218, 0.18), transparent 42%),
@@ -70,10 +81,13 @@
         align-items: center;
         justify-content: flex-start;
         gap: 18px;
+        flex-wrap: wrap;
       }
 
       .logo-link {
         display: inline-block;
+        color: inherit;
+        text-decoration: none;
         line-height: 0;
       }
 
@@ -86,6 +100,8 @@
 
       .nav-back {
         margin-left: auto;
+        display: flex;
+        align-items: center;
       }
 
       .nav-back a {
@@ -94,8 +110,9 @@
         justify-content: center;
         width: 36px;
         height: 36px;
-        color: var(--ink);
         text-decoration: none;
+        color: var(--ink);
+        transition: 180ms ease;
       }
 
       .nav-back svg {
@@ -105,62 +122,84 @@
         stroke-width: 1.9;
       }
 
+      .nav-back a:hover {
+        transform: translateX(-2px);
+      }
+
       main {
-        margin-top: 30px;
+        margin-top: 40px;
       }
 
-      h1 {
-        margin: 0 0 14px;
-        font-size: clamp(1.7rem, 3vw, 2.5rem);
-      }
-
-      .intro {
-        margin: 0 0 20px;
-        color: var(--soft-ink);
-        line-height: 1.7;
-      }
-
-      .reels {
+      .case-grid {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 14px;
+        gap: 18px;
       }
 
-      .reel {
+      .case-card {
+        width: 100%;
+        margin: 0 auto;
+        overflow: hidden;
         border: 1px solid var(--line);
         border-radius: 18px;
-        overflow: hidden;
         background: var(--card);
-        box-shadow: 0 10px 24px rgba(27, 39, 35, 0.04);
+        box-shadow: 0 14px 30px rgba(32, 49, 43, 0.06);
       }
 
-      .reel iframe {
+      .case-card img {
         width: 100%;
-        aspect-ratio: 9 / 16;
-        border: 0;
+        height: auto;
         display: block;
       }
 
+      .case-card-featured {
+        width: 100%;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: minmax(0, 68%) minmax(240px, 32%);
+        align-items: center;
+      }
+
+      .case-card-featured img {
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .case-caption {
+        margin: 0;
+        padding: 28px 30px;
+        color: var(--logo-ink);
+        font-family: "Paperlogy", "Nunito Sans", "Segoe UI", sans-serif;
+        font-size: clamp(1.05rem, 1.5vw, 1.34rem);
+        font-weight: 600;
+        line-height: 1.78;
+        text-align: left;
+        word-break: keep-all;
+      }
+
       .bottom-cta {
-        margin-top: 30px;
+        margin-top: 34px;
         display: flex;
         justify-content: center;
       }
 
       .btn {
-        text-decoration: none;
-        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 132px;
+        min-height: 48px;
         padding: 14px 22px;
-        font-weight: 600;
-        font-size: 1rem;
         border: 1px solid transparent;
-        transition: 180ms ease;
-      }
-
-      .btn-primary {
-        color: #1f2d66;
+        border-radius: 999px;
+        color: var(--logo-ink);
         background: var(--amber);
         box-shadow: 0 12px 28px rgba(27, 39, 35, 0.12);
+        font-family: "Paperlogy", "Nunito Sans", "Segoe UI", sans-serif;
+        font-size: 1rem;
+        font-weight: 600;
+        line-height: 1;
+        text-decoration: none;
+        transition: 180ms ease;
       }
 
       .btn:hover {
@@ -168,8 +207,18 @@
       }
 
       @media (max-width: 820px) {
-        .reels {
+        .case-card-featured {
+          width: 100%;
+          margin: 0 auto;
           grid-template-columns: 1fr;
+        }
+
+        .case-card-featured img {
+          height: auto;
+        }
+
+        .case-caption {
+          text-align: center;
         }
       }
 
@@ -182,8 +231,14 @@
           max-width: min(360px, 78vw);
         }
 
-        .reel {
+        .case-card {
+          width: 100%;
           border-radius: 14px;
+        }
+
+        .case-caption {
+          padding: 16px 16px 18px;
+          font-size: 0.98rem;
         }
       }
     </style>
@@ -191,11 +246,11 @@
   <body>
     <div class="page">
       <header class="topbar">
-        <a class="logo-link" href="/korean" aria-label="Lofi Dental Korean home">
-          <img src="assets/한글로고.png" alt="lofi dental" class="logo-img" />
+        <a class="logo-link" href="/english" aria-label="Lofi Dental English home">
+          <img src="assets/영문로고.png" alt="lofi dental" class="logo-img" />
         </a>
         <nav class="nav-back">
-          <a href="/korean" aria-label="Back">
+          <a href="/english" aria-label="Back">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M15 18 9 12l6-6" />
             </svg>
@@ -204,39 +259,22 @@
       </header>
 
       <main>
-        <h1>lofi lab</h1>
-        <p class="intro">대표원장과 세라미스트가 협업하여 <br />수작업으로 만들어내는 라미네이트, <br />lofi veneer입니다.</p>
-        <section class="reels" aria-label="lofi lab youtube shorts">
-          <div class="reel">
-            <iframe
-              src="https://www.youtube.com/embed/AAPNGmizVac"
-              title="lofi lab youtube short 1"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowfullscreen
-              loading="lazy"
-            ></iframe>
-          </div>
-          <div class="reel">
-            <iframe
-              src="https://www.youtube.com/embed/t9qh_0y6Jlw"
-              title="lofi lab youtube short 2"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowfullscreen
-              loading="lazy"
-            ></iframe>
-          </div>
-          <div class="reel">
-            <iframe
-              src="https://www.youtube.com/embed/b6I14PwV4Fk"
-              title="lofi lab youtube short 3"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowfullscreen
-              loading="lazy"
-            ></iframe>
-          </div>
+        <section class="case-grid" aria-label="Before and after">
+          <figure class="case-card case-card-featured">
+            <img src="assets/before-after/case-01.jpg" alt="Before and after veneer case 1" />
+            <figcaption class="case-caption">
+              "I just want my other teeth to match my existing crowns"
+            </figcaption>
+          </figure>
+          <figure class="case-card case-card-featured">
+            <img src="assets/before-after/case-02.jpg" alt="Before and after veneer case 2" />
+            <figcaption class="case-caption">
+              "My friends said my veneers look too fake. Please make them look natural."
+            </figcaption>
+          </figure>
         </section>
         <div class="bottom-cta">
-          <a class="btn btn-primary" href="/reservation/?lang=ko">예약하기</a>
+          <a class="btn" href="/reservation/index.html">Make a reservation</a>
         </div>
       </main>
     </div>

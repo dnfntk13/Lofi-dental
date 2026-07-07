@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -160,7 +160,7 @@
   <body>
     <div class="page">
       <a class="site-logo" id="homeLink" href="/english" aria-label="Lofi Dental home">
-        <img src="../assets/logo.png?v=20260615" alt="lofi dental" />
+        <img id="siteLogoImage" src="../assets/영문로고.png" alt="lofi dental" />
       </a>
       <a class="back-link" href="#" aria-label="Back" onclick="history.back(); return false;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -185,7 +185,8 @@
       const isKorean = params.get("lang") === "ko";
       document.documentElement.lang = isKorean ? "ko" : "en";
       document.title = isKorean ? "예약 신청 완료 | lofi dental" : "Reservation Received | lofi dental";
-      document.getElementById("homeLink").href = isKorean ? "/" : "/english";
+      document.getElementById("homeLink").href = isKorean ? "/korean" : "/english";
+      document.getElementById("siteLogoImage").src = isKorean ? "../assets/한글로고.png" : "../assets/영문로고.png";
       document.getElementById("pageTitle").textContent = isKorean ? "예약 신청이 접수되었습니다" : "Your reservation was received";
       document.getElementById("pageMessage").innerHTML = isKorean
         ? "확인 후 빠르게 연락드리겠습니다.<br />(보통 1~2시간 안에 확인됩니다.)"
@@ -195,3 +196,4 @@
     </script>
   </body>
 </html>
+

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -267,7 +267,7 @@
   <body>
     <div class="page">
       <a class="site-logo" id="homeLink" href="/english" aria-label="Lofi Dental home">
-        <img src="../assets/logo.png?v=20260615" alt="lofi dental" />
+        <img id="siteLogoImage" src="../assets/영문로고.png" alt="lofi dental" />
       </a>
       <a class="back-link" href="#" aria-label="Back" onclick="history.back(); return false;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -334,7 +334,7 @@
         verifying: isKorean ? "확인 중..." : "Verifying...",
         verified: isKorean ? "이메일 인증이 완료되었습니다." : "Email verified.",
         concerns: isKorean ? "상담 내용" : "Patient concerns",
-        concernsPlaceholder: isKorean ? "예: 앞니 색이 어두워서 라미네이트 상담을 받고 싶어요. 왼쪽 위 어금니가 시립니다." : "Example: I want to fix dark front teeth and discuss veneers. I also have sensitivity on the upper left side.",
+        concernsPlaceholder: isKorean ? "예: 앞니 색이 어두워서 라미네이트 상담을 받고 싶어요. 왼쪽 위 치아가 시립니다." : "Example: I want to fix dark front teeth and discuss veneers. I also have sensitivity on the upper left side.",
         submit: isKorean ? "예약 신청하기" : "Confirm reservation",
         sendTimeout: isKorean ? "인증 메일 전송이 지연되고 있습니다. 다시 시도하거나 병원으로 연락해주세요." : "Verification email is taking too long. Please try again or contact us directly.",
         sendFail: isKorean ? "인증 코드를 보내지 못했습니다." : "Failed to send verification code",
@@ -347,7 +347,8 @@
 
       document.documentElement.lang = isKorean ? "ko" : "en";
       document.title = isKorean ? "예약 상담 내용 | lofi dental" : "Tell Us | lofi dental";
-      document.getElementById("homeLink").href = isKorean ? "/" : "/english";
+      document.getElementById("homeLink").href = isKorean ? "/korean" : "/english";
+      document.getElementById("siteLogoImage").src = isKorean ? "../assets/한글로고.png" : "../assets/영문로고.png";
       document.getElementById("pageTitle").textContent = text.title;
       document.getElementById("pageCopy").textContent = text.copy;
       if (!text.copy) {
@@ -575,3 +576,4 @@
     </script>
   </body>
 </html>
+
