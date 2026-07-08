@@ -164,6 +164,110 @@
         object-fit: cover;
       }
 
+      .before-after-compare {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16 / 10;
+        overflow: hidden;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #eff3ff 0%, #dfe8ff 100%);
+        cursor: ew-resize;
+        touch-action: none;
+      }
+
+      .before-after-compare:focus-visible {
+        outline: 2px solid var(--soft-ink);
+        outline-offset: 2px;
+      }
+
+      .compare-image {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        user-select: none;
+        -webkit-user-drag: none;
+        pointer-events: none;
+      }
+
+      .compare-after-wrap {
+        position: absolute;
+        inset: 0;
+        width: 50%;
+        overflow: hidden;
+      }
+
+      .compare-divider {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 2px;
+        background: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 0 0 1px rgba(49, 63, 141, 0.12);
+        transform: translateX(-50%);
+      }
+
+      .compare-handle {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        transform: translate(-50%, -50%);
+        display: grid;
+        place-items: center;
+        background: rgba(255, 255, 255, 0.94);
+        border: 1px solid rgba(49, 63, 141, 0.18);
+        color: var(--logo-ink);
+        font-size: 1rem;
+        font-weight: 700;
+      }
+
+      .compare-label {
+        position: absolute;
+        top: 12px;
+        z-index: 2;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(27, 42, 112, 0.78);
+        color: #ffffff;
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+        font-weight: 700;
+      }
+
+      .compare-label-before {
+        left: 12px;
+      }
+
+      .compare-label-after {
+        right: 12px;
+      }
+
+      .compare-hint {
+        position: absolute;
+        left: 50%;
+        bottom: 12px;
+        transform: translateX(-50%);
+        z-index: 2;
+        margin: 0;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.86);
+        color: #243378;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+      }
+
+      .before-after-compare.is-dragging .compare-handle {
+        box-shadow: 0 0 0 4px rgba(103, 128, 245, 0.18);
+      }
+
       .case-caption {
         margin: 0;
         padding: 28px 30px;
@@ -272,11 +376,118 @@
               "친구들이 라미네이트가 너무 가짜 같대요 ㅠㅠ 자연스럽게 해주세요!"
             </figcaption>
           </figure>
+          <figure class="case-card case-card-featured">
+            <div
+              class="before-after-compare"
+              tabindex="0"
+              data-start="54"
+              aria-label="이영준 라미 비포 애프터 비교"
+            >
+              <img
+                class="compare-image"
+                src="assets/before-after/이영준 라미 비포 3뷰 복사.png"
+                alt="이영준 라미네이트 치료 전 이미지"
+              />
+              <div class="compare-after-wrap">
+                <img
+                  class="compare-image"
+                  src="assets/before-after/이영준 라미 애프터 3뷰 복사.png"
+                  alt="이영준 라미네이트 치료 후 이미지"
+                />
+              </div>
+              <div class="compare-divider" aria-hidden="true">
+                <span class="compare-handle">↔</span>
+              </div>
+              <span class="compare-label compare-label-before">BEFORE</span>
+              <span class="compare-label compare-label-after">AFTER</span>
+              <p class="compare-hint" aria-hidden="true">좌우로 드래그해 보세요</p>
+            </div>
+            <figcaption class="case-caption">
+              "이영준 라미네이트 케이스: 드래그로 비포와 애프터를 비교해보세요"
+            </figcaption>
+          </figure>
         </section>
         <div class="bottom-cta">
           <a class="btn" href="/reservation/?lang=ko">예약하기</a>
         </div>
       </main>
     </div>
+    <script>
+      (function () {
+        const components = document.querySelectorAll(".before-after-compare");
+
+        const getClientX = (event) => {
+          if (event.touches && event.touches.length > 0) return event.touches[0].clientX;
+          if (event.changedTouches && event.changedTouches.length > 0) return event.changedTouches[0].clientX;
+          return event.clientX;
+        };
+
+        components.forEach((compare) => {
+          const afterWrap = compare.querySelector(".compare-after-wrap");
+          const divider = compare.querySelector(".compare-divider");
+          let isDragging = false;
+
+          const setSplit = (clientX) => {
+            const rect = compare.getBoundingClientRect();
+            if (!rect.width) return;
+            const ratio = (clientX - rect.left) / rect.width;
+            const clamped = Math.min(1, Math.max(0, ratio));
+            const percent = clamped * 100;
+            afterWrap.style.width = `${percent}%`;
+            divider.style.left = `${percent}%`;
+          };
+
+          const initial = Number(compare.dataset.start);
+          const startPercent = Number.isFinite(initial) ? Math.min(100, Math.max(0, initial)) : 50;
+          afterWrap.style.width = `${startPercent}%`;
+          divider.style.left = `${startPercent}%`;
+
+          compare.addEventListener("mousedown", (event) => {
+            isDragging = true;
+            compare.classList.add("is-dragging");
+            setSplit(getClientX(event));
+          });
+
+          window.addEventListener("mousemove", (event) => {
+            if (!isDragging) return;
+            setSplit(getClientX(event));
+          });
+
+          window.addEventListener("mouseup", () => {
+            if (!isDragging) return;
+            isDragging = false;
+            compare.classList.remove("is-dragging");
+          });
+
+          compare.addEventListener("touchstart", (event) => {
+            isDragging = true;
+            compare.classList.add("is-dragging");
+            setSplit(getClientX(event));
+          }, { passive: true });
+
+          compare.addEventListener("touchmove", (event) => {
+            if (!isDragging) return;
+            event.preventDefault();
+            setSplit(getClientX(event));
+          }, { passive: false });
+
+          compare.addEventListener("touchend", () => {
+            if (!isDragging) return;
+            isDragging = false;
+            compare.classList.remove("is-dragging");
+          });
+
+          compare.addEventListener("keydown", (event) => {
+            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+            event.preventDefault();
+            const current = parseFloat(afterWrap.style.width) || 50;
+            const next = event.key === "ArrowLeft" ? current - 3 : current + 3;
+            const clamped = Math.min(100, Math.max(0, next));
+            afterWrap.style.width = `${clamped}%`;
+            divider.style.left = `${clamped}%`;
+          });
+        });
+      })();
+    </script>
   </body>
 </html>
