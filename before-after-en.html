@@ -145,6 +145,10 @@
         box-shadow: 0 14px 30px rgba(32, 49, 43, 0.06);
       }
 
+      .case-card-compare {
+        width: min(88%, 860px);
+      }
+
       .case-card img {
         width: 100%;
         height: auto;
@@ -167,7 +171,6 @@
       .before-after-compare {
         position: relative;
         width: 100%;
-        aspect-ratio: 16 / 10;
         overflow: hidden;
         border-radius: 16px;
         background: linear-gradient(135deg, #eff3ff 0%, #dfe8ff 100%);
@@ -181,21 +184,40 @@
       }
 
       .compare-image {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
         user-select: none;
         -webkit-user-drag: none;
         pointer-events: none;
       }
 
-      .compare-after-wrap {
+      .compare-base-image {
+        position: relative;
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .compare-overlay-image {
         position: absolute;
         inset: 0;
-        width: 50%;
-        overflow: hidden;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        clip-path: inset(0 50% 0 0);
+      }
+
+      .compare-base-image.is-split {
+        aspect-ratio: var(--compare-aspect, 3 / 2);
+        background-image: var(--split-source);
+        background-size: 100% 200%;
+        background-position: center bottom;
+        background-repeat: no-repeat;
+      }
+
+      .compare-overlay-image.is-split {
+        background-image: var(--split-source);
+        background-size: 100% 200%;
+        background-position: center top;
+        background-repeat: no-repeat;
       }
 
       .compare-divider {
@@ -317,6 +339,10 @@
           grid-template-columns: 1fr;
         }
 
+        .case-card-compare {
+          width: 100%;
+        }
+
         .case-card-featured img {
           height: auto;
         }
@@ -364,37 +390,24 @@
 
       <main>
         <section class="case-grid" aria-label="Before and after">
-          <figure class="case-card case-card-featured">
-            <img src="assets/before-after/case-01.jpg" alt="Before and after veneer case 1" />
-            <figcaption class="case-caption">
-              "I just want my other teeth to match my existing crowns"
-            </figcaption>
-          </figure>
-          <figure class="case-card case-card-featured">
-            <img src="assets/before-after/case-02.jpg" alt="Before and after veneer case 2" />
-            <figcaption class="case-caption">
-              "My friends said my veneers look too fake. Please make them look natural."
-            </figcaption>
-          </figure>
-          <figure class="case-card case-card-featured">
+          <figure class="case-card case-card-compare">
             <div
               class="before-after-compare"
               tabindex="0"
-              data-start="54"
-              aria-label="Lee Youngjun laminate before and after comparison"
+              data-start="50"
+              aria-label="Before and after veneer case 1 comparison"
+              style="--split-source: url('assets/before-after/case-01.jpg'); --compare-aspect: 1535 / 442;"
             >
-              <img
-                class="compare-image"
-                src="assets/before-after/이영준 라미 비포 3뷰 복사.png"
-                alt="Lee Youngjun laminate before image"
-              />
-              <div class="compare-after-wrap">
-                <img
-                  class="compare-image"
-                  src="assets/before-after/이영준 라미 애프터 3뷰 복사.png"
-                  alt="Lee Youngjun laminate after image"
-                />
-              </div>
+              <div
+                class="compare-image compare-base-image is-split"
+                role="img"
+                aria-label="Veneer after image"
+              ></div>
+              <div
+                class="compare-image compare-overlay-image is-split"
+                role="img"
+                aria-label="Veneer before image"
+              ></div>
               <div class="compare-divider" aria-hidden="true">
                 <span class="compare-handle">↔</span>
               </div>
@@ -403,7 +416,64 @@
               <p class="compare-hint" aria-hidden="true">Drag left and right</p>
             </div>
             <figcaption class="case-caption">
-              "Lee Youngjun laminate case: drag to compare before and after"
+              "I just want my other teeth to match my existing crowns"
+            </figcaption>
+          </figure>
+          <figure class="case-card case-card-compare">
+            <div
+              class="before-after-compare"
+              tabindex="0"
+              data-start="50"
+              aria-label="Before and after veneer case 2 comparison"
+              style="--split-source: url('assets/before-after/case-02.jpg'); --compare-aspect: 575 / 243;"
+            >
+              <div
+                class="compare-image compare-base-image is-split"
+                role="img"
+                aria-label="Veneer after image"
+              ></div>
+              <div
+                class="compare-image compare-overlay-image is-split"
+                role="img"
+                aria-label="Veneer before image"
+              ></div>
+              <div class="compare-divider" aria-hidden="true">
+                <span class="compare-handle">↔</span>
+              </div>
+              <span class="compare-label compare-label-before">BEFORE</span>
+              <span class="compare-label compare-label-after">AFTER</span>
+              <p class="compare-hint" aria-hidden="true">Drag left and right</p>
+            </div>
+            <figcaption class="case-caption">
+              "My friends said my veneers look too fake. Please make them look natural."
+            </figcaption>
+          </figure>
+          <figure class="case-card case-card-compare">
+            <div
+              class="before-after-compare"
+              tabindex="0"
+              data-start="54"
+              aria-label="Lee Youngjun laminate before and after comparison"
+            >
+              <img
+                class="compare-image compare-base-image"
+                src="assets/before-after/이영준 라미 애프터 3뷰 복사.png"
+                alt="Lee Youngjun laminate after image"
+              />
+              <img
+                class="compare-image compare-overlay-image"
+                src="assets/before-after/이영준 라미 비포 3뷰 복사.png"
+                alt="Lee Youngjun laminate before image"
+              />
+              <div class="compare-divider" aria-hidden="true">
+                <span class="compare-handle">↔</span>
+              </div>
+              <span class="compare-label compare-label-before">BEFORE</span>
+              <span class="compare-label compare-label-after">AFTER</span>
+              <p class="compare-hint" aria-hidden="true">Drag left and right</p>
+            </div>
+            <figcaption class="case-caption">
+              "My teeth are crooked, and I want to fix them without braces."
             </figcaption>
           </figure>
         </section>
@@ -423,7 +493,7 @@
         };
 
         components.forEach((compare) => {
-          const afterWrap = compare.querySelector(".compare-after-wrap");
+          const overlayImage = compare.querySelector(".compare-overlay-image");
           const divider = compare.querySelector(".compare-divider");
           let isDragging = false;
 
@@ -433,13 +503,13 @@
             const ratio = (clientX - rect.left) / rect.width;
             const clamped = Math.min(1, Math.max(0, ratio));
             const percent = clamped * 100;
-            afterWrap.style.width = `${percent}%`;
+            overlayImage.style.clipPath = `inset(0 ${100 - percent}% 0 0)`;
             divider.style.left = `${percent}%`;
           };
 
           const initial = Number(compare.dataset.start);
           const startPercent = Number.isFinite(initial) ? Math.min(100, Math.max(0, initial)) : 50;
-          afterWrap.style.width = `${startPercent}%`;
+          overlayImage.style.clipPath = `inset(0 ${100 - startPercent}% 0 0)`;
           divider.style.left = `${startPercent}%`;
 
           compare.addEventListener("mousedown", (event) => {
@@ -480,10 +550,11 @@
           compare.addEventListener("keydown", (event) => {
             if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
             event.preventDefault();
-            const current = parseFloat(afterWrap.style.width) || 50;
+            const currentInset = Number((overlayImage.style.clipPath.match(/inset\(0\s+([0-9.]+)%/) || [])[1]);
+            const current = Number.isFinite(currentInset) ? 100 - currentInset : 50;
             const next = event.key === "ArrowLeft" ? current - 3 : current + 3;
             const clamped = Math.min(100, Math.max(0, next));
-            afterWrap.style.width = `${clamped}%`;
+            overlayImage.style.clipPath = `inset(0 ${100 - clamped}% 0 0)`;
             divider.style.left = `${clamped}%`;
           });
         });

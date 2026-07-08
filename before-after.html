@@ -145,6 +145,10 @@
         box-shadow: 0 14px 30px rgba(32, 49, 43, 0.06);
       }
 
+      .case-card-compare {
+        width: min(88%, 860px);
+      }
+
       .case-card img {
         width: 100%;
         height: auto;
@@ -167,7 +171,6 @@
       .before-after-compare {
         position: relative;
         width: 100%;
-        aspect-ratio: 16 / 10;
         overflow: hidden;
         border-radius: 16px;
         background: linear-gradient(135deg, #eff3ff 0%, #dfe8ff 100%);
@@ -181,21 +184,40 @@
       }
 
       .compare-image {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
         user-select: none;
         -webkit-user-drag: none;
         pointer-events: none;
       }
 
-      .compare-after-wrap {
+      .compare-base-image {
+        position: relative;
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .compare-overlay-image {
         position: absolute;
         inset: 0;
-        width: 50%;
-        overflow: hidden;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        clip-path: inset(0 50% 0 0);
+      }
+
+      .compare-base-image.is-split {
+        aspect-ratio: var(--compare-aspect, 3 / 2);
+        background-image: var(--split-source);
+        background-size: 100% 200%;
+        background-position: center bottom;
+        background-repeat: no-repeat;
+      }
+
+      .compare-overlay-image.is-split {
+        background-image: var(--split-source);
+        background-size: 100% 200%;
+        background-position: center top;
+        background-repeat: no-repeat;
       }
 
       .compare-divider {
@@ -317,6 +339,10 @@
           grid-template-columns: 1fr;
         }
 
+        .case-card-compare {
+          width: 100%;
+        }
+
         .case-card-featured img {
           height: auto;
         }
@@ -364,37 +390,24 @@
 
       <main>
         <section class="case-grid" aria-label="비포&애프터">
-          <figure class="case-card case-card-featured">
-            <img src="assets/before-after/case-01.jpg" alt="라미네이트 치료 전후 사례 1" />
-            <figcaption class="case-caption">
-              “최대한 안건드리고 못생긴 부분만 좀 개선됐으면 좋겠어요”
-            </figcaption>
-          </figure>
-          <figure class="case-card case-card-featured">
-            <img src="assets/before-after/case-02.jpg" alt="라미네이트 치료 전후 사례 2" />
-            <figcaption class="case-caption">
-              "친구들이 라미네이트가 너무 가짜 같대요 ㅠㅠ 자연스럽게 해주세요!"
-            </figcaption>
-          </figure>
-          <figure class="case-card case-card-featured">
+          <figure class="case-card case-card-compare">
             <div
               class="before-after-compare"
               tabindex="0"
-              data-start="54"
-              aria-label="이영준 라미 비포 애프터 비교"
+              data-start="50"
+              aria-label="라미네이트 치료 전후 사례 1 비교"
+              style="--split-source: url('assets/before-after/case-01.jpg'); --compare-aspect: 1535 / 442;"
             >
-              <img
-                class="compare-image"
-                src="assets/before-after/이영준 라미 비포 3뷰 복사.png"
-                alt="이영준 라미네이트 치료 전 이미지"
-              />
-              <div class="compare-after-wrap">
-                <img
-                  class="compare-image"
-                  src="assets/before-after/이영준 라미 애프터 3뷰 복사.png"
-                  alt="이영준 라미네이트 치료 후 이미지"
-                />
-              </div>
+              <div
+                class="compare-image compare-base-image is-split"
+                role="img"
+                aria-label="라미네이트 치료 후 이미지"
+              ></div>
+              <div
+                class="compare-image compare-overlay-image is-split"
+                role="img"
+                aria-label="라미네이트 치료 전 이미지"
+              ></div>
               <div class="compare-divider" aria-hidden="true">
                 <span class="compare-handle">↔</span>
               </div>
@@ -403,7 +416,64 @@
               <p class="compare-hint" aria-hidden="true">좌우로 드래그해 보세요</p>
             </div>
             <figcaption class="case-caption">
-              "이영준 라미네이트 케이스: 드래그로 비포와 애프터를 비교해보세요"
+              “최대한 안건드리고 못생긴 부분만 좀 개선됐으면 좋겠어요”
+            </figcaption>
+          </figure>
+          <figure class="case-card case-card-compare">
+            <div
+              class="before-after-compare"
+              tabindex="0"
+              data-start="50"
+              aria-label="라미네이트 치료 전후 사례 2 비교"
+              style="--split-source: url('assets/before-after/case-02.jpg'); --compare-aspect: 575 / 243;"
+            >
+              <div
+                class="compare-image compare-base-image is-split"
+                role="img"
+                aria-label="라미네이트 치료 후 이미지"
+              ></div>
+              <div
+                class="compare-image compare-overlay-image is-split"
+                role="img"
+                aria-label="라미네이트 치료 전 이미지"
+              ></div>
+              <div class="compare-divider" aria-hidden="true">
+                <span class="compare-handle">↔</span>
+              </div>
+              <span class="compare-label compare-label-before">BEFORE</span>
+              <span class="compare-label compare-label-after">AFTER</span>
+              <p class="compare-hint" aria-hidden="true">좌우로 드래그해 보세요</p>
+            </div>
+            <figcaption class="case-caption">
+              "친구들이 라미네이트가 너무 가짜 같대요 ㅠㅠ 자연스럽게 해주세요!"
+            </figcaption>
+          </figure>
+          <figure class="case-card case-card-compare">
+            <div
+              class="before-after-compare"
+              tabindex="0"
+              data-start="54"
+              aria-label="이영준 라미 비포 애프터 비교"
+            >
+              <img
+                class="compare-image compare-base-image"
+                src="assets/before-after/이영준 라미 애프터 3뷰 복사.png"
+                alt="이영준 라미네이트 치료 후 이미지"
+              />
+              <img
+                class="compare-image compare-overlay-image"
+                src="assets/before-after/이영준 라미 비포 3뷰 복사.png"
+                alt="이영준 라미네이트 치료 전 이미지"
+              />
+              <div class="compare-divider" aria-hidden="true">
+                <span class="compare-handle">↔</span>
+              </div>
+              <span class="compare-label compare-label-before">BEFORE</span>
+              <span class="compare-label compare-label-after">AFTER</span>
+              <p class="compare-hint" aria-hidden="true">좌우로 드래그해 보세요</p>
+            </div>
+            <figcaption class="case-caption">
+              "치아가 삐뚤빼뚤한데, 교정은 너무 부담스러워요."
             </figcaption>
           </figure>
         </section>
@@ -415,6 +485,8 @@
     <script>
       (function () {
         const components = document.querySelectorAll(".before-after-compare");
+        const searchParams = new URLSearchParams(window.location.search);
+        const isPlayMode = searchParams.get("play") === "1";
 
         const getClientX = (event) => {
           if (event.touches && event.touches.length > 0) return event.touches[0].clientX;
@@ -423,24 +495,26 @@
         };
 
         components.forEach((compare) => {
-          const afterWrap = compare.querySelector(".compare-after-wrap");
+          const overlayImage = compare.querySelector(".compare-overlay-image");
           const divider = compare.querySelector(".compare-divider");
           let isDragging = false;
+
+          const applyPercent = (percent) => {
+            const clamped = Math.min(100, Math.max(0, percent));
+            overlayImage.style.clipPath = `inset(0 ${100 - clamped}% 0 0)`;
+            divider.style.left = `${clamped}%`;
+          };
 
           const setSplit = (clientX) => {
             const rect = compare.getBoundingClientRect();
             if (!rect.width) return;
             const ratio = (clientX - rect.left) / rect.width;
-            const clamped = Math.min(1, Math.max(0, ratio));
-            const percent = clamped * 100;
-            afterWrap.style.width = `${percent}%`;
-            divider.style.left = `${percent}%`;
+            applyPercent(Math.min(1, Math.max(0, ratio)) * 100);
           };
 
           const initial = Number(compare.dataset.start);
           const startPercent = Number.isFinite(initial) ? Math.min(100, Math.max(0, initial)) : 50;
-          afterWrap.style.width = `${startPercent}%`;
-          divider.style.left = `${startPercent}%`;
+          applyPercent(startPercent);
 
           compare.addEventListener("mousedown", (event) => {
             isDragging = true;
@@ -480,12 +554,24 @@
           compare.addEventListener("keydown", (event) => {
             if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
             event.preventDefault();
-            const current = parseFloat(afterWrap.style.width) || 50;
+            const currentInset = Number((overlayImage.style.clipPath.match(/inset\(0\s+([0-9.]+)%/) || [])[1]);
+            const current = Number.isFinite(currentInset) ? 100 - currentInset : 50;
             const next = event.key === "ArrowLeft" ? current - 3 : current + 3;
-            const clamped = Math.min(100, Math.max(0, next));
-            afterWrap.style.width = `${clamped}%`;
-            divider.style.left = `${clamped}%`;
+            applyPercent(next);
           });
+
+          if (isPlayMode) {
+            // In play mode, animate once from BEFORE-only (100) to AFTER-only (0).
+            const durationMs = 52000;
+            const startAt = performance.now();
+            applyPercent(100);
+            const tick = (now) => {
+              const progress = Math.min(1, (now - startAt) / durationMs);
+              applyPercent(100 - progress * 100);
+              if (progress < 1) requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+          }
         });
       })();
     </script>
