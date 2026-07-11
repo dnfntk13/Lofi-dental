@@ -32,7 +32,7 @@
       }
     </style>
     <title>Date Selector | lofi dental</title>
-    <meta name="description" content="Select a weekday date for your reservation." />
+    <meta name="description" content="Select a reservation date and time." />
     <style>
       :root {
         --bg: #f5f7ff;
@@ -411,7 +411,7 @@
         date: isKorean ? "날짜" : "Date",
         availableTimes: isKorean ? "예약 가능 시간" : "Available times",
         closed: isKorean ? "휴진" : "Closed",
-        closedBanner: isKorean ? "주말과 공휴일은 휴진입니다." : "Closed on weekends and Korean public holidays.",
+        closedBanner: isKorean ? "일요일과 공휴일은 휴진입니다." : "Closed on Sundays and Korean public holidays.",
         holiday: isKorean ? "공휴일" : "Korean holiday",
         closedHint: isKorean ? "휴진" : "Closed",
         weekdays: isKorean ? ["일", "월", "화", "수", "목", "금", "토"] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
@@ -490,9 +490,14 @@
         return `${displayHour}:${String(mins).padStart(2, "0")} ${period}`;
       }
 
-      function isWeekend(dateValue) {
+      function isSunday(dateValue) {
         const day = parseLocalDate(dateValue).getDay();
-        return day === 0 || day === 6;
+        return day === 0;
+      }
+
+      function isSaturday(dateValue) {
+        const day = parseLocalDate(dateValue).getDay();
+        return day === 6;
       }
 
       function isKoreanHoliday(dateValue) {
@@ -501,7 +506,7 @@
 
       function getClosedType(dateValue) {
         if (isKoreanHoliday(dateValue)) return "holiday";
-        if (isWeekend(dateValue)) return "weekend";
+        if (isSunday(dateValue)) return "weekend";
         return null;
       }
 
@@ -520,7 +525,7 @@
       function buildTimeSlots() {
         timeGrid.innerHTML = "";
 
-        if (isWeekend(selectedDateISO) || isKoreanHoliday(selectedDateISO)) {
+        if (isSunday(selectedDateISO) || isKoreanHoliday(selectedDateISO)) {
           timeTitle.textContent = text.closed;
           const closedBanner = document.createElement("div");
           closedBanner.className = "closed-banner";
@@ -535,10 +540,12 @@
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
         const isToday = selectedDateISO === formatISODate(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
 
-        const ranges = [
-          [10 * 60, 13 * 60],
-          [14 * 60, 19 * 60],
-        ];
+        const ranges = isSaturday(selectedDateISO)
+          ? [[10 * 60, 14 * 60]]
+          : [
+              [10 * 60, 13 * 60],
+              [14 * 60, 19 * 60],
+            ];
 
         ranges.forEach(([start, end]) => {
           for (let minutes = start; minutes < end; minutes += 30) {
