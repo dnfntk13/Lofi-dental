@@ -508,15 +508,16 @@ ${text}
 
         threadContent.innerHTML = html;
         
-        // 이벤트 위임을 사용하여 메시지 아이템 우클릭 처리
-        threadContent.addEventListener("contextmenu", (e) => {
+        // document 레벨에서 모든 우클릭을 감지 (더 안정적)
+        document.addEventListener("contextmenu", (e) => {
           const messageItem = e.target.closest(".message-item");
-          if (messageItem) {
+          if (messageItem && document.getElementById("messageModal").classList.contains("visible")) {
             e.preventDefault();
+            e.stopPropagation();
             const msgIndex = messageItem.getAttribute("data-msg-index");
             showContextMenu(e, email, parseInt(msgIndex), threadContent);
           }
-        });
+        }, true);  // capture phase 사용
         
         // 모달 외부를 클릭하면 컨텍스트 메뉴 닫기
         document.addEventListener("click", hideContextMenu);

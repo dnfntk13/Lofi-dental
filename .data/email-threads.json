@@ -17,10 +17,20 @@
         "type": "auto-reply",
         "sentAt": "2026-07-14T09:00:10.000Z",
         "content": "Hello,\n\nYour reservation for 2026-07-19 4:00 PM (KST) has been confirmed.\n\nPlease provide us with the following information by visiting the link below:\n\nhttps://lofiesthetic.com/admin/reply?id=res-4\n\nName:\nWhere you are visiting from:\nPhone number:\n\nlofi esthetic dentistry (lofi dental)\nInstagram: www.instagram.com/lofi_esthetic_dentistry\nWhatsApp: +82 10-2984-8823"
+      },
+      {
+        "type": "customer-reply",
+        "receivedAt": "2026-07-14T12:30:00Z",
+        "content": "안녕하세요, 예약 확인 감사합니다. 저는 다음주 목요일 오후 4시에 임플란트 상담을 받고 싶습니다. 이름은 박정호, 전화번호는 010-9876-5432입니다. 약간 치아통증도 있고 치아 색상도 밝게 하고 싶은데 가능할까요? 감사합니다!"
+      },
+      {
+        "type": "customer-reply",
+        "receivedAt": "2026-07-15T08:15:00Z",
+        "content": "추가로 질문이 있습니다. 임플란트 수술에 얼마나 걸리나요? 그리고 회복 기간은 어느정도 되나요? 미리 휴가를 내야 할 것 같아서요."
       }
     ],
     "createdAt": "2026-07-17T06:42:44.980Z",
-    "updatedAt": "2026-07-17T06:42:44.981Z"
+    "updatedAt": "2026-07-15T08:15:00Z"
   },
   {
     "id": "thread-1784270564978-7rv59m",
