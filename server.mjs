@@ -103,6 +103,10 @@ function resolvePath(urlPath) {
     return "/admin/reply.html";
   }
 
+  if (["/patient-reply", "/patient-reply/"].includes(pathname)) {
+    return "/patient-reply.html";
+  }
+
   if (["/reservation", "/reservation/"].includes(pathname)) {
     return "/reservation/index.html";
   }
@@ -638,7 +642,7 @@ async function sendMailWithFallback(mailOptions) {
 
 function buildReservationAutoReply(record) {
   const appointmentKst = `${record.date} ${record.time} (KST)`;
-  const replyFormUrl = `https://lofiesthetic.com/admin/reply?id=${record.id}`;
+  const replyFormUrl = `https://lofiesthetic.com/patient-reply?id=${record.id}`;
 
   return {
     subject: "Your reservation has been confirmed | lofi dental",
@@ -646,13 +650,13 @@ function buildReservationAutoReply(record) {
 
 Your reservation for ${appointmentKst} has been confirmed.
 
-Please provide us with the following information by visiting the link below:
+Please complete your registration by clicking the link below — it only takes a moment:
 
 ${replyFormUrl}
 
-Name:
-Where you are visiting from:
-Phone number:
+We'll ask for your name, where you're visiting from, and phone number.
+
+See you soon!
 
 lofi esthetic dentistry (lofi dental)
 Instagram: www.instagram.com/lofi_esthetic_dentistry
@@ -1329,6 +1333,60 @@ createServer(async (request, response) => {
         ...reservationCorsHeaders,
       });
       response.end(JSON.stringify({ message: "Failed to save reservation" }));
+      return;
+    }
+  }
+
+  if (pathname === "/api/patient-reply" && request.method === "POST") {
+    try {
+      const payload = await getJsonBody(request);
+      const id = String(payload.id || "").trim();
+      const name = String(payload.name || "").trim();
+      const visitingFrom = String(payload.visitingFrom || "").trim();
+      const phone = String(payload.phone || "").trim();
+
+      if (!id || !name || !phone) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "id, name, and phone are required" }));
+        return;
+      }
+
+      const inbox = await readInbox();
+      const record = inbox.find((r) => r.id === id);
+
+      if (!record) {
+        response.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "Reservation not found" }));
+        return;
+      }
+
+      const content = [
+        `Name: ${name}`,
+        `Visiting from: ${visitingFrom}`,
+        `Phone: ${phone}`,
+      ].join("\n");
+
+      // 환자 정보 저장
+      try {
+        await saveOrUpdatePatient(record, { name, phone });
+      } catch (err) {
+        console.error("Failed to save patient info from reply", err);
+      }
+
+      // 메시지 스레드에 환자 회신으로 추가
+      await saveOrUpdateEmailThread(record.email, record.id, {
+        type: "customer-reply",
+        receivedAt: new Date().toISOString(),
+        content,
+      });
+
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ ok: true }));
+      return;
+    } catch (error) {
+      console.error("Failed to save patient reply", error);
+      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Failed to save reply" }));
       return;
     }
   }
