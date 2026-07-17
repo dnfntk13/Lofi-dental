@@ -161,7 +161,12 @@
       .cal-weekday.sun { color: #c0392b; }
       .cal-weekday.sat { color: var(--accent); }
 
-      .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+      .cal-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        user-select: none;
+        -webkit-user-select: none;
+      }
 
       .cal-cell {
         min-height: 110px;
@@ -520,27 +525,27 @@
       <div class="edit-panel">
         <h3 class="edit-title" id="createTitle">Add Reservation</h3>
         <div class="edit-field">
-          <label class="edit-label" for="createDate">Date</label>
-          <input class="edit-input" id="createDate" type="date" />
+          <label class="edit-label" for="createDate">Date (required)</label>
+          <input class="edit-input" id="createDate" type="date" required />
         </div>
         <div class="edit-field">
-          <label class="edit-label" for="createTime">Time</label>
-          <input class="edit-input" id="createTime" type="text" placeholder="e.g. 3:30 PM" />
+          <label class="edit-label" for="createTime">Time (required)</label>
+          <input class="edit-input" id="createTime" type="text" placeholder="e.g. 3:30 PM" required />
         </div>
         <div class="edit-field">
-          <label class="edit-label" for="createEmail">Email</label>
+          <label class="edit-label" for="createEmail">Email (optional)</label>
           <input class="edit-input" id="createEmail" type="email" placeholder="patient@example.com" />
         </div>
         <div class="edit-field">
-          <label class="edit-label" for="createName">Name (optional)</label>
-          <input class="edit-input" id="createName" type="text" placeholder="Patient name" />
+          <label class="edit-label" for="createName">Name (required)</label>
+          <input class="edit-input" id="createName" type="text" placeholder="Patient name" required />
         </div>
         <div class="edit-field">
           <label class="edit-label" for="createPhone">Phone (optional)</label>
           <input class="edit-input" id="createPhone" type="text" placeholder="010-1234-5678" />
         </div>
         <div class="edit-field">
-          <label class="edit-label" for="createConcerns">Concerns</label>
+          <label class="edit-label" for="createConcerns">Concerns (optional)</label>
           <textarea class="edit-input" id="createConcerns" rows="4" placeholder="Patient concerns" style="resize:vertical;"></textarea>
         </div>
         <div class="edit-actions">
@@ -917,8 +922,8 @@
           const eventsHtml = events.length > 0
             ? `<div class="day-events">
                 ${events.slice(0, 2).map((e) => {
-                  const emailName = String(e.email || "").split("@")[0] || "patient";
-                  return `<div class="event-chip" draggable="true" data-res-id="${escHtml(e.id)}">${escHtml(e.time)} ${escHtml(emailName)}</div>`;
+                  const displayName = extractNameFromRecord(e) || String(e.email || "").trim() || "Patient";
+                  return `<div class="event-chip" draggable="true" data-res-id="${escHtml(e.id)}">${escHtml(e.time)} ${escHtml(displayName)}</div>`;
                 }).join("")}
                 ${events.length > 2 ? `<div class="event-more">+${events.length - 2} more</div>` : ""}
               </div>` : "";
@@ -946,16 +951,25 @@
           });
 
           chip.addEventListener("dragstart", (e) => {
-            dragMoveState = { id: chip.dataset.resId };
-            chip.classList.add("dragging");
+            const draggedId = String(chip.dataset.resId || "");
+            if (!selectedReservationIds.has(draggedId)) {
+              setSelectionFromIds([draggedId]);
+            }
+            const ids = Array.from(selectedReservationIds);
+            dragMoveState = { ids };
+            document.querySelectorAll(".event-chip[data-res-id]").forEach((eventChip) => {
+              if (selectedReservationIds.has(String(eventChip.dataset.resId || ""))) {
+                eventChip.classList.add("dragging");
+              }
+            });
             if (e.dataTransfer) {
               e.dataTransfer.effectAllowed = "move";
-              e.dataTransfer.setData("text/plain", chip.dataset.resId || "");
+              e.dataTransfer.setData("text/plain", JSON.stringify(ids));
             }
           });
 
           chip.addEventListener("dragend", () => {
-            chip.classList.remove("dragging");
+            document.querySelectorAll(".event-chip.dragging").forEach((eventChip) => eventChip.classList.remove("dragging"));
             dragMoveState = null;
             document.querySelectorAll(".cal-cell.drop-target").forEach((cell) => cell.classList.remove("drop-target"));
           });
@@ -978,10 +992,10 @@
             e.preventDefault();
             e.stopPropagation();
             cell.classList.remove("drop-target");
-            const reservationId = dragMoveState.id || (e.dataTransfer ? e.dataTransfer.getData("text/plain") : "");
+            const reservationIds = dragMoveState.ids || [];
             const targetDate = cell.dataset.date;
-            if (!reservationId || !targetDate) return;
-            await moveReservationToDate(reservationId, targetDate);
+            if (!reservationIds.length || !targetDate) return;
+            await moveReservationsToDate(reservationIds, targetDate);
           });
 
           if (cell.classList.contains("has-events")) return;
@@ -1111,34 +1125,36 @@
         }
       }
 
-      async function moveReservationToDate(id, targetDateKey) {
-        const current = getReservationById(id);
-        if (!current || !targetDateKey) return;
-
+      async function moveReservationsToDate(ids, targetDateKey) {
         const normalizedTarget = normalizeDate(targetDateKey);
-        if (!normalizedTarget || normalizeDate(current.date) === normalizedTarget) return;
+        if (!normalizedTarget) return;
 
-        const before = { ...current };
-        const updated = {
-          ...current,
-          date: normalizedTarget,
-          updatedAt: new Date().toISOString(),
-        };
+        const records = ids
+          .map((id) => getReservationById(id))
+          .filter((record) => record && normalizeDate(record.date) !== normalizedTarget);
+        if (!records.length) return;
+
+        const before = records.map((record) => ({ ...record }));
 
         try {
-          const saved = await upsertReservation(updated);
-          upsertLocalReservation(saved);
+          const savedRecords = await Promise.all(records.map((record) => upsertReservation({
+            ...record,
+            date: normalizedTarget,
+            updatedAt: new Date().toISOString(),
+          })));
+          savedRecords.forEach(upsertLocalReservation);
           selectedReservationIds.clear();
-          selectedReservationIds.add(String(saved.id));
-          pushUndo({ type: "edit", before, after: saved });
+          savedRecords.forEach((record) => selectedReservationIds.add(String(record.id)));
+          pushUndo({ type: "batch-edit", before, after: savedRecords });
           renderCalendar();
 
           if (detailOverlay.classList.contains("open")) {
             openDetail(normalizedTarget);
           }
-          flashStatus("Reservation moved.", 1300);
+          flashStatus(`${savedRecords.length} reservation${savedRecords.length === 1 ? "" : "s"} moved.`, 1300);
         } catch {
-          alert("Failed to move reservation.");
+          await loadReservations();
+          alert("Failed to move selected reservations.");
         }
       }
 
@@ -1211,6 +1227,19 @@
             return;
           }
 
+          if (last.type === "batch-edit") {
+            const restoredRecords = await Promise.all(last.before.map(upsertReservation));
+            restoredRecords.forEach(upsertLocalReservation);
+            selectedReservationIds.clear();
+            restoredRecords.forEach((record) => selectedReservationIds.add(String(record.id)));
+            renderCalendar();
+            if (detailOverlay.classList.contains("open")) {
+              closeDetail();
+            }
+            flashStatus(`Undo complete: ${restoredRecords.length} reservations restored.`);
+            return;
+          }
+
           if (last.type === "create") {
             const createdId = String(last.record?.id || "");
             if (!createdId) return;
@@ -1280,6 +1309,7 @@
         if (e.button !== 0) return;
         if (e.target.closest(".event-chip[data-res-id], .detail-item[data-res-id]")) return;
         if (!canStartDragSelection(e.target)) return;
+        e.preventDefault();
 
         dragState = {
           startX: e.clientX,
