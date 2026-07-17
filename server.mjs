@@ -1453,13 +1453,13 @@ createServer(async (request, response) => {
       const phone = String(payload.phone || "").trim();
       const visitingFrom = String(payload.visitingFrom || "").trim();
 
-      if (!date || !time || !email || !concerns) {
+      if (!date || !time || !name) {
         response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
-        response.end(JSON.stringify({ message: "date, time, email, and concerns are required" }));
+        response.end(JSON.stringify({ message: "date, time, and name are required" }));
         return;
       }
 
-      if (!isValidEmail(email)) {
+      if (email && !isValidEmail(email)) {
         response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
         response.end(JSON.stringify({ message: "A valid email is required" }));
         return;
@@ -1469,35 +1469,39 @@ createServer(async (request, response) => {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         date,
         time,
-        email,
-        concerns,
+        name,
         createdAt: new Date().toISOString(),
       };
 
-      if (name) record.name = name;
+      if (email) record.email = email;
+      if (concerns) record.concerns = concerns;
       if (phone) record.phone = phone;
       if (visitingFrom) record.visitingFrom = visitingFrom;
 
       await addInboxRecord(record);
 
-      // Keep thread/patient data in sync for admin-created reservations.
-      try {
-        await saveOrUpdateEmailThread(email, record.id, {
-          type: "reservation",
-          sentAt: record.createdAt,
-          date: record.date,
-          time: record.time,
-          concerns: record.concerns,
-          id: record.id,
-        });
-      } catch (error) {
-        console.error("Failed to save email thread (admin create)", error);
+      // Keep thread/patient data in sync for admin-created reservations when email exists.
+      if (email) {
+        try {
+          await saveOrUpdateEmailThread(email, record.id, {
+            type: "reservation",
+            sentAt: record.createdAt,
+            date: record.date,
+            time: record.time,
+            concerns: record.concerns,
+            id: record.id,
+          });
+        } catch (error) {
+          console.error("Failed to save email thread (admin create)", error);
+        }
       }
 
-      try {
-        await saveOrUpdatePatient(record, { name: name || null, phone: phone || null });
-      } catch (error) {
-        console.error("Failed to save patient info (admin create)", error);
+      if (email) {
+        try {
+          await saveOrUpdatePatient(record, { name: name || null, phone: phone || null });
+        } catch (error) {
+          console.error("Failed to save patient info (admin create)", error);
+        }
       }
 
       response.writeHead(201, { "Content-Type": "application/json; charset=utf-8" });
@@ -1531,9 +1535,15 @@ createServer(async (request, response) => {
       const phone = String(payload.phone || "").trim();
       const visitingFrom = String(payload.visitingFrom || "").trim();
 
-      if (!date || !time || !email || !concerns) {
+      if (!date || !time) {
         response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
-        response.end(JSON.stringify({ message: "date, time, email, and concerns are required" }));
+        response.end(JSON.stringify({ message: "date and time are required" }));
+        return;
+      }
+
+      if (email && !isValidEmail(email)) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "A valid email is required" }));
         return;
       }
 
@@ -1541,12 +1551,12 @@ createServer(async (request, response) => {
         id,
         date,
         time,
-        email,
-        concerns,
         createdAt,
         updatedAt: new Date().toISOString(),
       };
 
+      if (email) nextRecord.email = email;
+      if (concerns) nextRecord.concerns = concerns;
       if (name) nextRecord.name = name;
       if (phone) nextRecord.phone = phone;
       if (visitingFrom) nextRecord.visitingFrom = visitingFrom;

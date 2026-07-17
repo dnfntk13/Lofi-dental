@@ -842,8 +842,8 @@
           concerns: String(createConcerns.value || "").trim(),
         };
 
-        if (!payload.date || !payload.time || !payload.email || !payload.concerns) {
-          alert("Date, time, email, and concerns are required.");
+        if (!payload.date || !payload.time || !payload.name) {
+          alert("Date, time, and name are required.");
           return;
         }
 
