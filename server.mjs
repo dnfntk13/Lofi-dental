@@ -1366,6 +1366,20 @@ createServer(async (request, response) => {
         `Phone: ${phone}`,
       ].join("\n");
 
+      // 기존 예약 레코드 업데이트 (환자 정보 추가)
+      record.name = name;
+      record.phone = phone;
+      record.visitingFrom = visitingFrom;
+      record.updatedAt = new Date().toISOString();
+
+      // Inbox 저장
+      try {
+        await mkdir(dataDir, { recursive: true });
+        await writeFile(inboxPath, JSON.stringify(inbox, null, 2), "utf-8");
+      } catch (err) {
+        console.error("Failed to save inbox", err);
+      }
+
       // 환자 정보 저장
       try {
         await saveOrUpdatePatient(record, { name, phone });
