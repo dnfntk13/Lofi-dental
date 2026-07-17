@@ -175,6 +175,10 @@
       .cal-cell:nth-child(7n) { border-right: none; }
       .cal-cell.has-events { cursor: pointer; }
       .cal-cell.has-events:hover { background: var(--accent-light); }
+      .cal-cell.drop-target {
+        background: rgba(29, 78, 216, 0.12);
+        box-shadow: inset 0 0 0 2px rgba(29, 78, 216, 0.35);
+      }
       .cal-cell.other-month { background: rgba(240, 243, 255, 0.5); }
       .cal-cell.other-month .day-num { opacity: 0.35; }
 
@@ -201,6 +205,14 @@
         font-size: 0.74rem; font-weight: 600;
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         line-height: 1.4;
+      }
+
+      .event-chip[draggable="true"] {
+        cursor: grab;
+      }
+
+      .event-chip.dragging {
+        opacity: 0.55;
       }
 
       .event-chip.selected {
@@ -494,8 +506,8 @@
           <input class="edit-input" id="editName" type="text" placeholder="Patient name" />
         </div>
         <div class="edit-field">
-          <label class="edit-label" for="editDate">Date</label>
-          <input class="edit-input" id="editDate" type="date" />
+          <label class="edit-label" for="editTime">Time</label>
+          <input class="edit-input" id="editTime" type="text" placeholder="e.g. 3:30 PM" />
         </div>
         <div class="edit-actions">
           <button class="btn-small" type="button" id="editCancel">Cancel</button>
@@ -555,6 +567,31 @@
         }).format(d);
       }
 
+      function parseTimeValue(value) {
+        const text = String(value || "").trim();
+        if (!text) return Number.POSITIVE_INFINITY;
+        const normalized = text.toUpperCase().replace(/\s+/g, "");
+        const match = normalized.match(/^(\d{1,2})(?::(\d{2}))?(AM|PM)?$/);
+        if (!match) return Number.POSITIVE_INFINITY;
+        let hour = Number(match[1]);
+        const minute = Number(match[2] || 0);
+        const meridiem = match[3] || "";
+        if (meridiem === "AM") {
+          if (hour === 12) hour = 0;
+        } else if (meridiem === "PM") {
+          if (hour !== 12) hour += 12;
+        }
+        return (hour * 60) + minute;
+      }
+
+      function sortReservationsByTime(reservations) {
+        return [...reservations].sort((a, b) => {
+          const diff = parseTimeValue(a.time) - parseTimeValue(b.time);
+          if (diff !== 0) return diff;
+          return String(a.time || "").localeCompare(String(b.time || ""));
+        });
+      }
+
       function normalizeDate(raw) {
         if (!raw) return null;
         const iso = /^\d{4}-\d{1,2}-\d{1,2}$/.test(String(raw).trim()) ? String(raw).trim() : null;
@@ -582,7 +619,7 @@
       const emptyCellMenu = document.getElementById("emptyCellMenu");
       const editOverlay = document.getElementById("editOverlay");
       const editName = document.getElementById("editName");
-      const editDate = document.getElementById("editDate");
+      const editTime = document.getElementById("editTime");
       const createOverlay = document.getElementById("createOverlay");
       const createDate = document.getElementById("createDate");
       const createTime = document.getElementById("createTime");
@@ -607,6 +644,8 @@
       const selectedReservationIds = new Set();
       let dragState = null;
       let suppressNextClick = false;
+      let dragMoveState = null;
+      let activeDropTarget = null;
 
       function flashStatus(message, ms = 2200) {
         clearTimeout(statusTimer);
@@ -673,6 +712,7 @@
         if (!target) return false;
         if (target.closest(".reservation-menu, .edit-panel")) return false;
         if (target.closest("button, input, textarea, select, a")) return false;
+        if (target.closest(".event-chip[data-res-id], .detail-item[data-res-id]")) return false;
         if (target.closest("#calWrap")) return true;
         if (detailOverlay.classList.contains("open") && target.closest("#detailList, .detail-panel")) return true;
         return false;
@@ -862,7 +902,7 @@
           const m = String(cell.date.getMonth() + 1).padStart(2, "0");
           const dd = String(cell.date.getDate()).padStart(2, "0");
           const key = `${y}-${m}-${dd}`;
-          const events = eventMap[key] || [];
+          const events = sortReservationsByTime(eventMap[key] || []);
           const isToday = key === todayKey();
           const dow = cell.date.getDay();
 
@@ -878,7 +918,7 @@
             ? `<div class="day-events">
                 ${events.slice(0, 2).map((e) => {
                   const emailName = String(e.email || "").split("@")[0] || "patient";
-                  return `<div class="event-chip" data-res-id="${escHtml(e.id)}">${escHtml(e.time)} ${escHtml(emailName)}</div>`;
+                  return `<div class="event-chip" draggable="true" data-res-id="${escHtml(e.id)}">${escHtml(e.time)} ${escHtml(emailName)}</div>`;
                 }).join("")}
                 ${events.length > 2 ? `<div class="event-more">+${events.length - 2} more</div>` : ""}
               </div>` : "";
@@ -904,9 +944,46 @@
             e.stopPropagation();
             showReservationMenu(e, chip.dataset.resId);
           });
+
+          chip.addEventListener("dragstart", (e) => {
+            dragMoveState = { id: chip.dataset.resId };
+            chip.classList.add("dragging");
+            if (e.dataTransfer) {
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", chip.dataset.resId || "");
+            }
+          });
+
+          chip.addEventListener("dragend", () => {
+            chip.classList.remove("dragging");
+            dragMoveState = null;
+            document.querySelectorAll(".cal-cell.drop-target").forEach((cell) => cell.classList.remove("drop-target"));
+          });
         });
 
         calGrid.querySelectorAll(".cal-cell").forEach((cell) => {
+          cell.addEventListener("dragover", (e) => {
+            if (!dragMoveState) return;
+            e.preventDefault();
+            cell.classList.add("drop-target");
+            if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+          });
+
+          cell.addEventListener("dragleave", () => {
+            cell.classList.remove("drop-target");
+          });
+
+          cell.addEventListener("drop", async (e) => {
+            if (!dragMoveState) return;
+            e.preventDefault();
+            e.stopPropagation();
+            cell.classList.remove("drop-target");
+            const reservationId = dragMoveState.id || (e.dataTransfer ? e.dataTransfer.getData("text/plain") : "");
+            const targetDate = cell.dataset.date;
+            if (!reservationId || !targetDate) return;
+            await moveReservationToDate(reservationId, targetDate);
+          });
+
           if (cell.classList.contains("has-events")) return;
           cell.addEventListener("contextmenu", (e) => {
             e.preventDefault();
@@ -927,9 +1004,9 @@
       }
 
       function renderDetailList(dateKey) {
-        const events = allReservations
-          .filter((r) => normalizeDate(r.date) === dateKey)
-          .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+        const events = sortReservationsByTime(
+          allReservations.filter((r) => normalizeDate(r.date) === dateKey)
+        );
 
         detailList.innerHTML = events.map((r) => `
           <article class="detail-item" id="cal-res-${escHtml(r.id)}" data-res-id="${escHtml(r.id)}">
@@ -973,7 +1050,7 @@
         }
         editingReservationId = id;
         editName.value = extractNameFromRecord(reservation);
-        editDate.value = normalizeDate(reservation.date) || "";
+        editTime.value = String(reservation.time || "");
         editOverlay.classList.add("open");
         editName.focus();
       }
@@ -992,17 +1069,26 @@
         }
 
         const nextName = String(editName.value || "").trim();
-        const nextDate = String(editDate.value || "").trim();
-        if (!nextDate) {
-          alert("Please select a date.");
+        const nextTime = String(editTime.value || "").trim();
+        if (!nextTime) {
+          alert("Please enter time.");
           return;
         }
+
+        const concernsBase = String(current.concerns || "")
+          .replace(/\s*Name:\s*[^,\n]*/i, "")
+          .replace(/\s{2,}/g, " ")
+          .trim();
+        const concerns = nextName
+          ? `${concernsBase}${concernsBase ? ", " : ""}Name: ${nextName}`
+          : concernsBase;
 
         const before = { ...current };
         const updated = {
           ...current,
           name: nextName,
-          date: nextDate,
+          time: nextTime,
+          concerns,
           updatedAt: new Date().toISOString(),
         };
 
@@ -1017,12 +1103,42 @@
           closeEditModal();
           hideReservationMenu();
 
-          const newDateKey = normalizeDate(saved.date);
-          if (detailOverlay.classList.contains("open") && newDateKey) {
-            openDetail(newDateKey);
+          if (detailOverlay.classList.contains("open") && currentDetailDateKey) {
+            renderDetailList(currentDetailDateKey);
           }
         } catch {
           alert("Failed to update reservation.");
+        }
+      }
+
+      async function moveReservationToDate(id, targetDateKey) {
+        const current = getReservationById(id);
+        if (!current || !targetDateKey) return;
+
+        const normalizedTarget = normalizeDate(targetDateKey);
+        if (!normalizedTarget || normalizeDate(current.date) === normalizedTarget) return;
+
+        const before = { ...current };
+        const updated = {
+          ...current,
+          date: normalizedTarget,
+          updatedAt: new Date().toISOString(),
+        };
+
+        try {
+          const saved = await upsertReservation(updated);
+          upsertLocalReservation(saved);
+          selectedReservationIds.clear();
+          selectedReservationIds.add(String(saved.id));
+          pushUndo({ type: "edit", before, after: saved });
+          renderCalendar();
+
+          if (detailOverlay.classList.contains("open")) {
+            openDetail(normalizedTarget);
+          }
+          flashStatus("Reservation moved.", 1300);
+        } catch {
+          alert("Failed to move reservation.");
         }
       }
 
@@ -1162,6 +1278,7 @@
 
       document.addEventListener("mousedown", (e) => {
         if (e.button !== 0) return;
+        if (e.target.closest(".event-chip[data-res-id], .detail-item[data-res-id]")) return;
         if (!canStartDragSelection(e.target)) return;
 
         dragState = {
