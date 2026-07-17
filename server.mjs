@@ -67,6 +67,10 @@ function resolvePath(urlPath) {
     return "/english/index.html";
   }
 
+  if (["/admin/calendar", "/admin/calendar/"].includes(pathname)) {
+    return "/admin/calendar.html";
+  }
+
   if (pathname.endsWith("/")) {
     return `${pathname}index.html`;
   }
@@ -780,8 +784,127 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname === "/api/admin/login" && request.method === "POST") {
+    try {
+      const payload = await getJsonBody(request);
+      const user = String(payload.user || "").trim();
+      const pass = String(payload.pass || "").trim();
+      if (user === adminUser && pass === adminPass) {
+        const cookie = `${adminSessionCookie}=${adminSessionValue}; Path=/; HttpOnly; SameSite=Lax`;
+        response.writeHead(200, {
+          "Content-Type": "application/json; charset=utf-8",
+          "Set-Cookie": cookie,
+        });
+        response.end(JSON.stringify({ ok: true }));
+      } else {
+        response.writeHead(401, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "Invalid credentials" }));
+      }
+    } catch {
+      response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Invalid request" }));
+    }
+    return;
+  }
+
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
     if (!adminAuthorized) {
+      const acceptHeader = String(request.headers.accept || "");
+      if (acceptHeader.includes("text/html")) {
+        const loginHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Login | lofi dental</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: grid; place-items: center;
+      font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+      background: radial-gradient(circle at 12% 8%, rgba(220,200,237,.66), transparent 42%),
+                  radial-gradient(circle at 88% 14%, rgba(230,213,245,.72), transparent 46%),
+                  linear-gradient(170deg, #f5f7ff 0%, #e7edff 100%);
+      color: #1f2d66;
+    }
+    .card {
+      background: rgba(255,255,255,.96);
+      border: 1px solid rgba(90,111,218,.2);
+      border-radius: 24px;
+      padding: 40px 36px;
+      width: min(380px, 92vw);
+      box-shadow: 0 18px 48px rgba(31,45,102,.1);
+    }
+    .logo { text-align: center; margin-bottom: 28px; }
+    .logo img { width: 180px; height: auto; }
+    h1 { margin: 0 0 24px; font-size: 1.4rem; font-weight: 700; text-align: center; }
+    label { display: block; font-size: .85rem; font-weight: 700; margin-bottom: 6px; color: #5a6fda; }
+    input {
+      width: 100%; padding: 12px 14px; border: 1px solid rgba(90,111,218,.3);
+      border-radius: 10px; font: inherit; font-size: .97rem; outline: none;
+      background: #f8f9ff; color: #1f2d66; margin-bottom: 16px;
+      transition: border-color 150ms;
+    }
+    input:focus { border-color: #5b3d8f; background: #fff; }
+    button {
+      width: 100%; padding: 13px; background: #5b3d8f; color: #fff;
+      border: none; border-radius: 999px; font: inherit; font-size: 1rem;
+      font-weight: 700; cursor: pointer; transition: opacity 150ms;
+      margin-top: 4px;
+    }
+    button:hover { opacity: .88; }
+    .err { color: #c0392b; font-size: .88rem; margin-top: 10px; text-align: center; min-height: 1.2em; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo"><img src="/assets/영문로고.png" alt="lofi dental" /></div>
+    <h1>Admin Login</h1>
+    <form id="loginForm">
+      <label for="user">Username</label>
+      <input id="user" name="user" type="text" autocomplete="username" required />
+      <label for="pass">Password</label>
+      <input id="pass" name="pass" type="password" autocomplete="current-password" required />
+      <button type="submit">Sign in</button>
+      <p class="err" id="errMsg"></p>
+    </form>
+  </div>
+  <script>
+    const dest = new URLSearchParams(location.search).get("next") || "/admin";
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = e.target.querySelector("button");
+      btn.disabled = true;
+      btn.textContent = "Signing in\u2026";
+      try {
+        const res = await fetch("/api/admin/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user: document.getElementById("user").value,
+            pass: document.getElementById("pass").value,
+          }),
+        });
+        if (res.ok) {
+          location.href = dest;
+        } else {
+          document.getElementById("errMsg").textContent = "Incorrect username or password.";
+          btn.disabled = false;
+          btn.textContent = "Sign in";
+        }
+      } catch {
+        document.getElementById("errMsg").textContent = "Connection error. Try again.";
+        btn.disabled = false;
+        btn.textContent = "Sign in";
+      }
+    });
+  </script>
+</body>
+</html>`;
+        response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        response.end(loginHtml);
+        return;
+      }
       requestAuth(response);
       return;
     }

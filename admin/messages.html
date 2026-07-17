@@ -136,7 +136,10 @@
       </header>
       <div class="header">
         <h1>Reservation Inbox</h1>
-        <button type="button" class="btn" id="refreshButton">Refresh</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <a href="/admin/calendar" style="text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:10px 16px;background:#5b3d8f;color:#fff;font:inherit;font-size:0.9rem;font-weight:700;">📅 Calendar</a>
+          <button type="button" class="btn" id="refreshButton">Refresh</button>
+        </div>
       </div>
       <p class="muted">Admin only</p>
       <section id="inbox" class="list" aria-live="polite"></section>
