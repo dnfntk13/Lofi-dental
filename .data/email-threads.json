@@ -1,0 +1,30 @@
+[
+  {
+    "id": "thread-1721234400000-abc123",
+    "email": "test@example.com",
+    "reservationId": "res-1",
+    "createdAt": "2026-07-17T06:20:00Z",
+    "updatedAt": "2026-07-17T06:25:00Z",
+    "messages": [
+      {
+        "type": "reservation",
+        "sentAt": "2026-07-17T06:20:00Z",
+        "date": "2026-07-17",
+        "time": "3:30 PM",
+        "concerns": "I want to test the email thread system. Name: John Smith, Phone: 010-1234-5678",
+        "id": "res-1",
+        "createdAt": "2026-07-17T06:20:00Z"
+      },
+      {
+        "type": "auto-reply",
+        "sentAt": "2026-07-17T06:20:10Z",
+        "content": "Thank you for your reservation request at Lofi Dental!\n\nYour reservation for 2026-07-17 at 3:30 PM has been confirmed.\n\nWe look forward to seeing you soon!"
+      },
+      {
+        "type": "customer-reply",
+        "receivedAt": "2026-07-17T06:25:00Z",
+        "content": "Thank you! I'm looking forward to the appointment. See you on the 17th."
+      }
+    ]
+  }
+]

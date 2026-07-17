@@ -19,12 +19,15 @@ const adminSessionCookie = "admin_session";
 const adminSessionValue = Buffer.from(`${adminUser}:${adminPass}`, "utf-8").toString("base64url");
 const dataDir = path.join(rootDir, ".data");
 const inboxPath = path.join(dataDir, "reservation-inbox.json");
+const emailThreadsPath = path.join(dataDir, "email-threads.json");
 const mongoUri = process.env.MONGODB_URI || "";
 const mongoDatabaseName = process.env.MONGODB_DB_NAME || "lofi-dental";
 const mongoCollectionName = process.env.MONGODB_COLLECTION || "reservationMessages";
 const patientsCollectionName = process.env.MONGODB_PATIENTS_COLLECTION || "patients";
+const emailThreadsCollectionName = process.env.MONGODB_EMAIL_THREADS_COLLECTION || "emailThreads";
 const patientsPath = path.join(dataDir, "patients.json");
 let patientsCollectionPromise;
+let emailThreadsCollectionPromise;
 const smtpHost = process.env.SMTP_HOST || "";
 const smtpPort = Number(process.env.SMTP_PORT || 587);
 const smtpUser = process.env.SMTP_USER || "";
@@ -226,6 +229,69 @@ async function readPatients() {
     const parsed = JSON.parse(data);
     return Array.isArray(parsed) ? parsed : [];
   } catch { return []; }
+}
+
+async function getEmailThreadsCollection() {
+  if (!mongoUri) return null;
+  if (!emailThreadsCollectionPromise) {
+    emailThreadsCollectionPromise = (async () => {
+      const client = new MongoClient(mongoUri, { connectTimeoutMS: 8000, serverSelectionTimeoutMS: 8000 });
+      await client.connect();
+      const col = client.db(mongoDatabaseName).collection(emailThreadsCollectionName);
+      await col.createIndex({ email: 1 });
+      await col.createIndex({ reservationId: 1 });
+      return col;
+    })().catch((error) => { emailThreadsCollectionPromise = undefined; throw error; });
+  }
+  return emailThreadsCollectionPromise;
+}
+
+async function readEmailThreads() {
+  const collection = await getEmailThreadsCollection();
+  if (collection) {
+    return collection.find({}, { projection: { _id: 0 } }).sort({ updatedAt: -1 }).limit(1000).toArray();
+  }
+  try {
+    const data = await readFile(emailThreadsPath, "utf-8");
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+async function saveOrUpdateEmailThread(email, reservationId, messageData) {
+  const now = new Date().toISOString();
+  const collection = await getEmailThreadsCollection();
+  
+  if (collection) {
+    await collection.updateOne(
+      { email },
+      {
+        $set: { email, reservationId, updatedAt: now },
+        $setOnInsert: { id: `thread-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, createdAt: now, messages: [] },
+        $push: { messages: messageData },
+      },
+      { upsert: true }
+    );
+    return;
+  }
+
+  const threads = await readEmailThreads();
+  const idx = threads.findIndex((t) => t.email === email);
+  if (idx >= 0) {
+    threads[idx].messages.push(messageData);
+    threads[idx].updatedAt = now;
+  } else {
+    threads.unshift({
+      id: `thread-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      email,
+      reservationId,
+      messages: [messageData],
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+  await mkdir(dataDir, { recursive: true });
+  await writeFile(emailThreadsPath, JSON.stringify(threads, null, 2), "utf-8");
 }
 
 function extractPatientInfo(text) {
@@ -700,6 +766,14 @@ async function checkEmailReplies() {
                       await saveOrUpdatePatient(record, patientInfo);
                       console.log(`Updated patient info from reply: ${record.email}`);
                     }
+                    
+                    // 이메일 스레드에 환자 회신 추가
+                    await saveOrUpdateEmailThread(record.email, record.id, {
+                      type: "customer-reply",
+                      receivedAt: new Date().toISOString(),
+                      content: text.slice(0, 2000), // 텍스트 일부만 저장
+                    });
+                    
                     break;
                   }
                 }
@@ -957,6 +1031,17 @@ createServer(async (request, response) => {
       };
 
       await addInboxRecord(record);
+      
+      // 이메일 스레드에 예약 요청 메시지 추가
+      await saveOrUpdateEmailThread(email, record.id, {
+        type: "reservation",
+        sentAt: record.createdAt,
+        date: record.date,
+        time: record.time,
+        concerns: record.concerns,
+        id: record.id,
+      });
+
       removeEmailVerification(email);
 
       try {
@@ -970,6 +1055,16 @@ createServer(async (request, response) => {
       let notificationSent = false;
       try {
         autoReplySent = await sendReservationAutoReply(record);
+        
+        // 이메일 스레드에 자동 회신 기록
+        if (autoReplySent) {
+          const autoReplyMsg = buildReservationAutoReply(record);
+          await saveOrUpdateEmailThread(email, record.id, {
+            type: "auto-reply",
+            sentAt: new Date().toISOString(),
+            content: autoReplyMsg.text,
+          });
+        }
       } catch (error) {
         console.error("Failed to send reservation auto-reply", error);
       }
@@ -1056,22 +1151,12 @@ createServer(async (request, response) => {
       return;
     }
     try {
-      const inbox = await readInbox();
-      const thread = inbox
-        .filter((r) => r.email && r.email.toLowerCase() === email.toLowerCase())
-        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-        .map((r) => ({
-          type: "reservation",
-          email: r.email,
-          date: r.date,
-          time: r.time,
-          concerns: r.concerns,
-          createdAt: r.createdAt,
-          id: r.id,
-        }));
-      const autoReply = buildReservationAutoReply({});
+      const emailThreads = await readEmailThreads();
+      const threadData = emailThreads.find((t) => t.email && t.email.toLowerCase() === email.toLowerCase());
+      const thread = threadData?.messages || [];
+      
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify({ email, thread, autoReplyTemplate: autoReply.text }));
+      response.end(JSON.stringify({ email, thread }));
     } catch (error) {
       console.error("Failed to load email thread", error);
       response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
