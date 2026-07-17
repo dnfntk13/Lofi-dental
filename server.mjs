@@ -5,6 +5,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { MongoClient } from "mongodb";
 import nodemailer from "nodemailer";
+import Imap from "imap";
+import { simpleParser } from "mailparser";
 
 const rootDir = process.cwd();
 const port = Number(process.env.PORT || 5173);
@@ -25,6 +27,10 @@ const smtpPort = Number(process.env.SMTP_PORT || 587);
 const smtpUser = process.env.SMTP_USER || "";
 const smtpPass = process.env.SMTP_PASS || "";
 const smtpFrom = process.env.SMTP_FROM || smtpUser;
+const imapHost = process.env.IMAP_HOST || "";
+const imapPort = Number(process.env.IMAP_PORT || 993);
+const imapUser = process.env.IMAP_USER || smtpUser;
+const imapPass = process.env.IMAP_PASS || smtpPass;
 const reservationNotifyTo = process.env.RESERVATION_NOTIFY_TO || "";
 const resendApiKey = process.env.RESEND_API_KEY || "";
 const resendFrom = process.env.RESEND_FROM || smtpFrom;
@@ -76,6 +82,10 @@ function resolvePath(urlPath) {
 
   if (["/admin/patients", "/admin/patients/"].includes(pathname)) {
     return "/admin/patients.html";
+  }
+
+  if (["/admin/reply", "/admin/reply/"].includes(pathname)) {
+    return "/admin/reply.html";
   }
 
   if (pathname.endsWith("/")) {
@@ -538,6 +548,7 @@ async function sendMailWithFallback(mailOptions) {
 
 function buildReservationAutoReply(record) {
   const appointmentKst = `${record.date} ${record.time} (KST)`;
+  const replyFormUrl = `https://lofiesthetic.com/admin/reply?id=${record.id}`;
 
   return {
     subject: "Your reservation has been confirmed | lofi dental",
@@ -545,7 +556,9 @@ function buildReservationAutoReply(record) {
 
 Your reservation for ${appointmentKst} has been confirmed.
 
-Please provide us with the following information:
+Please provide us with the following information by visiting the link below:
+
+${replyFormUrl}
 
 Name:
 Where you are visiting from:
@@ -617,6 +630,117 @@ async function sendReservationNotification(record) {
     text: message.text,
   });
   return true;
+}
+
+async function checkEmailReplies() {
+  if (!imapHost || !imapUser || !imapPass) {
+    return;
+  }
+
+  return new Promise((resolve) => {
+    const imap = new Imap({
+      user: imapUser,
+      password: imapPass,
+      host: imapHost,
+      port: imapPort,
+      tls: imapPort === 993,
+      tlsOptions: { rejectUnauthorized: false },
+      connTimeout: 10000,
+      authTimeout: 10000,
+    });
+
+    imap.openBox("INBOX", false, async (err) => {
+      if (err) {
+        console.error("Failed to open IMAP inbox", err);
+        imap.end();
+        resolve();
+        return;
+      }
+
+      try {
+        imap.search(["UNSEEN"], async (searchErr, results) => {
+          if (searchErr || !results || results.length === 0) {
+            imap.end();
+            resolve();
+            return;
+          }
+
+          const f = imap.fetch(results, { bodies: "" });
+          f.on("message", (msg) => {
+            simpleParser(msg, async (parseErr, parsed) => {
+              if (parseErr) {
+                console.error("Failed to parse email", parseErr);
+                return;
+              }
+
+              try {
+                const fromEmail = parsed.from?.text?.toLowerCase() || "";
+                const text = parsed.text || "";
+                const inReplyTo = parsed.inReplyTo || parsed.headers?.get("in-reply-to") || "";
+
+                if (!text) return;
+
+                const inbox = await readInbox();
+
+                for (const record of inbox) {
+                  if (record.email.toLowerCase() === fromEmail) {
+                    const patientInfo = extractPatientInfo(text);
+                    if (patientInfo.name || patientInfo.phone) {
+                      await saveOrUpdatePatient(record, patientInfo);
+                      console.log(`Updated patient info from reply: ${record.email}`);
+                    }
+                    break;
+                  }
+                }
+              } catch (error) {
+                console.error("Error processing reply email", error);
+              }
+            });
+          });
+
+          f.on("error", (err) => {
+            console.error("IMAP fetch error", err);
+          });
+
+          f.on("end", () => {
+            imap.end();
+            resolve();
+          });
+        });
+      } catch (error) {
+        console.error("Error in checkEmailReplies", error);
+        imap.end();
+        resolve();
+      }
+    });
+
+    imap.on("error", (err) => {
+      console.error("IMAP error", err);
+      resolve();
+    });
+
+    imap.on("end", () => {
+      resolve();
+    });
+
+    imap.openBox("INBOX", false, () => {
+      imap.end();
+    });
+  });
+}
+
+function startEmailReplyChecker() {
+  if (!imapHost || !imapUser || !imapPass) {
+    console.log("IMAP not configured, email reply checking disabled");
+    return;
+  }
+
+  console.log("Starting email reply checker...");
+  checkEmailReplies().catch((err) => console.error("Initial email check failed", err));
+
+  setInterval(() => {
+    checkEmailReplies().catch((err) => console.error("Email check failed", err));
+  }, 60000);
 }
 
 async function sendEmailVerificationCode(email, code) {
@@ -912,6 +1036,43 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname.startsWith("/api/admin/reservations/") && pathname.endsWith("/reply") && request.method === "POST") {
+    const pathParts = pathname.slice("/api/admin/reservations/".length).split("/");
+    const id = pathParts[0];
+    if (!id) {
+      response.writeHead(400, { "Content-Type": "application/json; charset=utf-8", ...reservationCorsHeaders });
+      response.end(JSON.stringify({ message: "Missing reservation id" }));
+      return;
+    }
+    try {
+      const payload = await getJsonBody(request);
+      const name = String(payload.name || "").trim();
+      const phone = String(payload.phone || "").trim();
+      if (!name && !phone) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8", ...reservationCorsHeaders });
+        response.end(JSON.stringify({ message: "Name or phone is required" }));
+        return;
+      }
+      const inbox = await readInbox();
+      const record = inbox.find((r) => r.id === id);
+      if (!record) {
+        response.writeHead(404, { "Content-Type": "application/json; charset=utf-8", ...reservationCorsHeaders });
+        response.end(JSON.stringify({ message: "Reservation not found" }));
+        return;
+      }
+      const patientInfo = { name: name || null, phone: phone || null };
+      await saveOrUpdatePatient(record, patientInfo);
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", ...reservationCorsHeaders });
+      response.end(JSON.stringify({ ok: true }));
+    } catch (error) {
+      console.error("Failed to save reply", error);
+      const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+      response.writeHead(isPayloadError ? 400 : 500, { "Content-Type": "application/json; charset=utf-8", ...reservationCorsHeaders });
+      response.end(JSON.stringify({ message: "Failed to save reply" }));
+    }
+    return;
+  }
+
   if (pathname === "/api/admin/patients" && request.method === "GET") {
     if (!adminAuthorized) { requestAuth(response); return; }
     try {
@@ -1080,4 +1241,5 @@ createServer(async (request, response) => {
 }).listen(port, () => {
   console.log(`Lofi Web running on http://localhost:${port}`);
   console.log(`Admin page: http://localhost:${port}/admin`);
+  startEmailReplyChecker();
 });

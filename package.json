@@ -11,6 +11,8 @@
     "preview": "PORT=4173 node server.mjs"
   },
   "dependencies": {
+    "imap": "^0.8.19",
+    "mailparser": "^3.6.7",
     "mongodb": "^7.3.0",
     "nodemailer": "^9.0.1"
   }
