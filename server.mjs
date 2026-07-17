@@ -103,6 +103,18 @@ function resolvePath(urlPath) {
     return "/admin/reply.html";
   }
 
+  if (["/reservation", "/reservation/"].includes(pathname)) {
+    return "/reservation/index.html";
+  }
+
+  if (pathname === "/concerns.html") {
+    return "/reservation/concerns.html";
+  }
+
+  if (pathname === "/received.html") {
+    return "/reservation/received.html";
+  }
+
   if (pathname.endsWith("/")) {
     return `${pathname}index.html`;
   }
