@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Patients | lofi dental admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Nunito+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f5f7ff;
+        --ink: #1f2d66;
+        --soft: #5a6fda;
+        --line: rgba(90, 111, 218, 0.16);
+        --card: rgba(255, 255, 255, 0.95);
+        --accent: #5b3d8f;
+        --green: #2e7d32;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Nunito Sans", "Segoe UI", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 12% 8%, rgba(220, 200, 237, 0.66), transparent 42%),
+          radial-gradient(circle at 88% 14%, rgba(230, 213, 245, 0.72), transparent 46%),
+          linear-gradient(170deg, #f5f7ff 0%, #e7edff 100%);
+      }
+
+      .wrap { width: min(1100px, 94vw); margin: 0 auto; padding: 28px 0 60px; }
+
+      .topbar {
+        display: flex; align-items: center; gap: 18px;
+        flex-wrap: wrap; margin-bottom: 32px;
+      }
+
+      .logo-img { max-width: 300px; width: min(300px, 56vw); height: auto; display: block; margin-left: -10px; }
+      .logo-link { display: inline-block; line-height: 0; text-decoration: none; }
+
+      .nav-links { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+      .nav-link {
+        text-decoration: none; color: var(--soft); font-size: 0.92rem; font-weight: 600;
+        padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line);
+        transition: 180ms ease; white-space: nowrap; background: rgba(255,255,255,0.7);
+      }
+
+      .nav-link:hover { background: #e6d5f5; transform: translateY(-1px); }
+      .nav-link.active { background: var(--green); color: #fff; border-color: var(--green); }
+
+      .header {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 12px; margin-bottom: 8px; flex-wrap: wrap;
+      }
+
+      h1 { margin: 0; font-family: "Cormorant Garamond", serif; font-size: clamp(1.8rem, 3vw, 2.6rem); font-weight: 600; }
+
+      .subtitle { margin: 0 0 20px; color: var(--soft); font-size: 0.95rem; }
+
+      .btn {
+        border: 1px solid var(--line); border-radius: 999px; padding: 10px 16px;
+        background: #fff; color: var(--ink); font: inherit; font-weight: 700; cursor: pointer;
+        transition: 150ms;
+      }
+
+      .btn:hover { background: #e6d5f5; }
+
+      .search-bar {
+        width: 100%; padding: 11px 16px;
+        border: 1px solid var(--line); border-radius: 10px;
+        font: inherit; font-size: 0.97rem; background: rgba(255,255,255,0.9);
+        color: var(--ink); outline: none; margin-bottom: 18px;
+        transition: border-color 150ms;
+      }
+
+      .search-bar:focus { border-color: var(--accent); }
+
+      .list { display: grid; gap: 12px; }
+
+      .patient-card {
+        border: 1px solid var(--line); border-radius: 20px;
+        background: var(--card); padding: 18px 20px;
+        display: grid; grid-template-columns: 1fr auto;
+        gap: 10px; align-items: start;
+      }
+
+      .patient-name {
+        margin: 0 0 4px; font-size: 1.05rem; font-weight: 700;
+      }
+
+      .patient-meta {
+        display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px;
+      }
+
+      .chip {
+        border: 1px solid var(--line); border-radius: 999px;
+        padding: 5px 11px; background: #fff; color: var(--soft);
+        font-size: 0.85rem;
+      }
+
+      .chip.phone { color: var(--green); border-color: rgba(46,125,50,0.3); background: #f0faf0; }
+      .chip.email { color: var(--accent); border-color: rgba(91,61,143,0.3); background: #f8f4ff; }
+      .chip.date { color: #666; }
+
+      .no-name { color: #aaa; font-style: italic; }
+
+      .empty { padding: 60px 0; text-align: center; color: var(--soft); font-size: 1rem; }
+
+      @media (max-width: 600px) {
+        .patient-card { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="topbar">
+        <a class="logo-link" href="/english" aria-label="Lofi Dental home">
+          <img src="../assets/영문로고.png" alt="lofi dental" class="logo-img" />
+        </a>
+        <nav class="nav-links" aria-label="Admin navigation">
+          <a class="nav-link" href="/admin/messages">Inbox</a>
+          <a class="nav-link" href="/admin/calendar">Calendar</a>
+          <a class="nav-link active" href="/admin/patients">Patients</a>
+          <a class="nav-link" href="/admin">Admin home</a>
+        </nav>
+      </header>
+
+      <div class="header">
+        <h1>Patient Directory</h1>
+        <button class="btn" id="refreshBtn">Refresh</button>
+      </div>
+      <p class="subtitle">Patients are auto-saved when name or phone number is found in reservation concerns.</p>
+
+      <input class="search-bar" type="search" id="searchInput" placeholder="Search by name, email, or phone…" />
+
+      <section class="list" id="patientList" aria-live="polite"></section>
+    </div>
+
+    <script>
+      let allPatients = [];
+
+      function esc(v) {
+        return String(v || "")
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      }
+
+      function fmtDate(iso) {
+        const d = new Date(iso);
+        if (isNaN(d)) return iso;
+        return new Intl.DateTimeFormat("en-US", { year: "numeric", month: "short", day: "2-digit" }).format(d);
+      }
+
+      function render(patients) {
+        const list = document.getElementById("patientList");
+        if (!patients.length) {
+          list.innerHTML = '<p class="empty">No patients yet. Name and phone are extracted automatically from reservation concerns.</p>';
+          return;
+        }
+
+        list.innerHTML = patients.map(p => `
+          <div class="patient-card">
+            <div>
+              <p class="patient-name">${p.name ? esc(p.name) : '<span class="no-name">Name unknown</span>'}</p>
+              <div class="patient-meta">
+                ${p.phone ? `<span class="chip phone">&#128222; ${esc(p.phone)}</span>` : ""}
+                <span class="chip email">&#9993; ${esc(p.email)}</span>
+                <span class="chip date">First seen: ${esc(fmtDate(p.firstSeen))}</span>
+                ${p.reservationIds && p.reservationIds.length ? `<span class="chip">${p.reservationIds.length} reservation${p.reservationIds.length > 1 ? "s" : ""}</span>` : ""}
+              </div>
+            </div>
+          </div>`).join("");
+      }
+
+      async function load() {
+        document.getElementById("patientList").innerHTML = '<p class="empty">Loading…</p>';
+        try {
+          const res = await fetch("/api/admin/patients", { headers: { Accept: "application/json" } });
+          if (!res.ok) { document.getElementById("patientList").innerHTML = '<p class="empty">Failed to load patients.</p>'; return; }
+          const data = await res.json();
+          allPatients = Array.isArray(data.patients) ? data.patients : [];
+          applySearch();
+        } catch {
+          document.getElementById("patientList").innerHTML = '<p class="empty">Failed to load patients.</p>';
+        }
+      }
+
+      function applySearch() {
+        const q = document.getElementById("searchInput").value.trim().toLowerCase();
+        const filtered = q
+          ? allPatients.filter(p =>
+              (p.name || "").toLowerCase().includes(q) ||
+              (p.email || "").toLowerCase().includes(q) ||
+              (p.phone || "").toLowerCase().includes(q))
+          : allPatients;
+        render(filtered);
+      }
+
+      document.getElementById("searchInput").addEventListener("input", applySearch);
+      document.getElementById("refreshBtn").addEventListener("click", load);
+      load();
+    </script>
+  </body>
+</html>

@@ -137,7 +137,8 @@
       <div class="header">
         <h1>Reservation Inbox</h1>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <a href="/admin/calendar" style="text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:10px 16px;background:#5b3d8f;color:#fff;font:inherit;font-size:0.9rem;font-weight:700;">📅 Calendar</a>
+          <a href="/admin/calendar" style="text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:10px 16px;background:#5b3d8f;color:#fff;font:inherit;font-size:0.9rem;font-weight:700;">&#128197; Calendar</a>
+          <a href="/admin/patients" style="text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:10px 16px;background:#2e7d32;color:#fff;font:inherit;font-size:0.9rem;font-weight:700;">&#128101; Patients</a>
           <button type="button" class="btn" id="refreshButton">Refresh</button>
         </div>
       </div>
@@ -184,18 +185,34 @@
             const safeConcerns = escapeHtml(message.concerns);
 
             return `
-              <article class="item">
+              <article class="item" id="msg-${escapeHtml(message.id)}">
                 <div class="meta">
                   <span class="chip">Date: ${escapeHtml(message.date)}</span>
                   <span class="chip">Time: ${escapeHtml(message.time)}</span>
                   ${safeEmail ? `<span class="chip">Email: ${safeEmail}</span>` : ""}
                   <span class="chip">Received: ${escapeHtml(formatDateTime(message.createdAt))}</span>
+                  <button class="chip" style="background:#ffeaea;color:#c0392b;border-color:#f5c6c6;cursor:pointer;font:inherit;font-size:0.85rem;font-weight:700;" onclick="deleteMessage('${escapeHtml(message.id)}')">&times; Delete</button>
                 </div>
                 <p class="body">${safeConcerns}</p>
               </article>
             `;
           })
           .join("");
+      }
+
+      async function deleteMessage(id) {
+        if (!confirm("Delete this reservation?")) return;
+        try {
+          const res = await fetch(`/api/admin/reservations/${encodeURIComponent(id)}`, { method: "DELETE" });
+          if (res.ok) {
+            const el = document.getElementById(`msg-${id}`);
+            if (el) el.remove();
+          } else {
+            alert("Failed to delete.");
+          }
+        } catch {
+          alert("Failed to delete.");
+        }
       }
 
       async function loadMessages() {

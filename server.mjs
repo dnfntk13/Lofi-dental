@@ -17,6 +17,9 @@ const inboxPath = path.join(dataDir, "reservation-inbox.json");
 const mongoUri = process.env.MONGODB_URI || "";
 const mongoDatabaseName = process.env.MONGODB_DB_NAME || "lofi-dental";
 const mongoCollectionName = process.env.MONGODB_COLLECTION || "reservationMessages";
+const patientsCollectionName = process.env.MONGODB_PATIENTS_COLLECTION || "patients";
+const patientsPath = path.join(dataDir, "patients.json");
+let patientsCollectionPromise;
 const smtpHost = process.env.SMTP_HOST || "";
 const smtpPort = Number(process.env.SMTP_PORT || 587);
 const smtpUser = process.env.SMTP_USER || "";
@@ -69,6 +72,10 @@ function resolvePath(urlPath) {
 
   if (["/admin/calendar", "/admin/calendar/"].includes(pathname)) {
     return "/admin/calendar.html";
+  }
+
+  if (["/admin/patients", "/admin/patients/"].includes(pathname)) {
+    return "/admin/patients.html";
   }
 
   if (pathname.endsWith("/")) {
@@ -158,6 +165,100 @@ async function addInboxRecord(record) {
   messages.unshift(record);
   await mkdir(dataDir, { recursive: true });
   await writeFile(inboxPath, JSON.stringify(messages, null, 2), "utf-8");
+}
+
+async function deleteInboxRecord(id) {
+  const collection = await getInboxCollection();
+  if (collection) {
+    const result = await collection.deleteOne({ id });
+    return result.deletedCount > 0;
+  }
+  const messages = await readInbox();
+  const filtered = messages.filter((m) => m.id !== id);
+  if (filtered.length === messages.length) return false;
+  await mkdir(dataDir, { recursive: true });
+  await writeFile(inboxPath, JSON.stringify(filtered, null, 2), "utf-8");
+  return true;
+}
+
+async function getPatientsCollection() {
+  if (!mongoUri) return null;
+  if (!patientsCollectionPromise) {
+    patientsCollectionPromise = (async () => {
+      const client = new MongoClient(mongoUri, { connectTimeoutMS: 8000, serverSelectionTimeoutMS: 8000 });
+      await client.connect();
+      const col = client.db(mongoDatabaseName).collection(patientsCollectionName);
+      await col.createIndex({ email: 1 }, { unique: true });
+      return col;
+    })().catch((error) => { patientsCollectionPromise = undefined; throw error; });
+  }
+  return patientsCollectionPromise;
+}
+
+async function readPatients() {
+  const collection = await getPatientsCollection();
+  if (collection) {
+    return collection.find({}, { projection: { _id: 0 } }).sort({ updatedAt: -1 }).limit(1000).toArray();
+  }
+  try {
+    const data = await readFile(patientsPath, "utf-8");
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+function extractPatientInfo(text) {
+  const result = { name: null, phone: null };
+  const namePatterns = [
+    /(?:이름|성함)\s*[:：]\s*(.+)/i,
+    /name\s*[:：]\s*(.+)/i,
+  ];
+  const phonePatterns = [
+    /(?:전화|연락처|휴대폰|핸드폰)\s*번?호?\s*[:：]\s*([\d\s\-+().]+)/i,
+    /phone\s*(?:number)?\s*[:：]\s*([\d\s\-+().]+)/i,
+    /((?:\+?82|0)\d[\d\s\-]{7,14}\d)/,
+  ];
+  for (const p of namePatterns) {
+    const m = text.match(p);
+    if (m) { result.name = m[1].trim().split(/\n/)[0].trim().slice(0, 80); break; }
+  }
+  for (const p of phonePatterns) {
+    const m = text.match(p);
+    if (m) { result.phone = m[1].trim().replace(/\s+/g, "-").slice(0, 30); break; }
+  }
+  return result;
+}
+
+async function saveOrUpdatePatient(record, patientInfo) {
+  if (!patientInfo.name && !patientInfo.phone) return;
+  const now = new Date().toISOString();
+  const collection = await getPatientsCollection();
+  if (collection) {
+    await collection.updateOne(
+      { email: record.email },
+      {
+        $set: { email: record.email, ...(patientInfo.name && { name: patientInfo.name }), ...(patientInfo.phone && { phone: patientInfo.phone }), updatedAt: now },
+        $setOnInsert: { id: `patient-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, firstSeen: now },
+        $addToSet: { reservationIds: record.id },
+      },
+      { upsert: true }
+    );
+    return;
+  }
+  const patients = await readPatients();
+  const idx = patients.findIndex((p) => p.email === record.email);
+  if (idx >= 0) {
+    const p = patients[idx];
+    if (patientInfo.name) p.name = patientInfo.name;
+    if (patientInfo.phone) p.phone = patientInfo.phone;
+    p.updatedAt = now;
+    if (!p.reservationIds) p.reservationIds = [];
+    if (!p.reservationIds.includes(record.id)) p.reservationIds.push(record.id);
+  } else {
+    patients.unshift({ id: `patient-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, email: record.email, name: patientInfo.name || null, phone: patientInfo.phone || null, firstSeen: now, updatedAt: now, reservationIds: [record.id] });
+  }
+  await mkdir(dataDir, { recursive: true });
+  await writeFile(patientsPath, JSON.stringify(patients, null, 2), "utf-8");
 }
 
 function getJsonBody(request) {
@@ -723,6 +824,13 @@ createServer(async (request, response) => {
       await addInboxRecord(record);
       removeEmailVerification(email);
 
+      try {
+        const patientInfo = extractPatientInfo(concerns);
+        await saveOrUpdatePatient(record, patientInfo);
+      } catch (error) {
+        console.error("Failed to save patient info", error);
+      }
+
       let autoReplySent = false;
       let notificationSent = false;
       try {
@@ -781,6 +889,40 @@ createServer(async (request, response) => {
 
     response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
     response.end(JSON.stringify(getEmailProviderStatus()));
+    return;
+  }
+
+  if (pathname.startsWith("/api/admin/reservations/") && request.method === "DELETE") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    const id = pathname.slice("/api/admin/reservations/".length);
+    if (!id) {
+      response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Missing id" }));
+      return;
+    }
+    try {
+      const deleted = await deleteInboxRecord(id);
+      response.writeHead(deleted ? 200 : 404, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify(deleted ? { ok: true } : { message: "Not found" }));
+    } catch (error) {
+      console.error("Failed to delete reservation", error);
+      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Failed to delete" }));
+    }
+    return;
+  }
+
+  if (pathname === "/api/admin/patients" && request.method === "GET") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    try {
+      const patients = await readPatients();
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ patients }));
+    } catch (error) {
+      console.error("Failed to load patients", error);
+      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Failed to load patients" }));
+    }
     return;
   }
 

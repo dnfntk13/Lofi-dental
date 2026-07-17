@@ -310,6 +310,7 @@
         <nav class="nav-links" aria-label="Admin navigation">
           <a class="nav-link" href="/admin/messages">Inbox list</a>
           <a class="nav-link active" href="/admin/calendar">Calendar</a>
+          <a class="nav-link" href="/admin/patients">Patients</a>
           <a class="nav-link" href="/admin">Admin home</a>
         </nav>
       </header>
@@ -475,22 +476,45 @@
           weekday: "long", year: "numeric", month: "long", day: "numeric",
         }).format(new Date(y, m - 1, d));
 
+        renderDetailList(dateKey);
+
+        document.getElementById("detailOverlay").classList.add("open");
+        document.getElementById("detailClose").focus();
+      }
+
+      function renderDetailList(dateKey) {
         const events = allReservations
           .filter(r => normalizeDate(r.date) === dateKey)
           .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
 
         document.getElementById("detailList").innerHTML = events.map(r => `
-          <article class="detail-item">
+          <article class="detail-item" id="cal-res-${escHtml(r.id)}">
             <div class="detail-row">
               <span class="detail-time">${escHtml(r.time)}</span>
               <span class="detail-email">${escHtml(r.email)}</span>
               <span class="detail-received">Received: ${escHtml(fmtReceived(r.createdAt))}</span>
+              <button onclick="deleteReservation('${escHtml(r.id)}', '${escHtml(dateKey)}')" style="margin-left:auto;background:#ffeaea;color:#c0392b;border:1px solid #f5c6c6;border-radius:999px;padding:3px 10px;font:inherit;font-size:0.78rem;font-weight:700;cursor:pointer;">&times; Delete</button>
             </div>
             <p class="detail-concerns">${escHtml(r.concerns)}</p>
           </article>`).join("");
 
-        document.getElementById("detailOverlay").classList.add("open");
-        document.getElementById("detailClose").focus();
+        if (!events.length) closeDetail();
+      }
+
+      async function deleteReservation(id, dateKey) {
+        if (!confirm("Delete this reservation?")) return;
+        try {
+          const res = await fetch(`/api/admin/reservations/${encodeURIComponent(id)}`, { method: "DELETE" });
+          if (res.ok) {
+            allReservations = allReservations.filter(r => r.id !== id);
+            renderCalendar();
+            renderDetailList(dateKey);
+          } else {
+            alert("Failed to delete.");
+          }
+        } catch {
+          alert("Failed to delete.");
+        }
       }
 
       function closeDetail() { document.getElementById("detailOverlay").classList.remove("open"); }
