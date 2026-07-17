@@ -1,30 +1,94 @@
 [
   {
-    "id": "thread-1721234400000-abc123",
+    "id": "thread-1784270564980-zcg55n",
+    "email": "park.clinic@hotmail.com",
+    "reservationId": "res-4",
+    "messages": [
+      {
+        "type": "reservation",
+        "sentAt": "2026-07-14T09:00:00Z",
+        "date": "2026-07-19",
+        "time": "4:00 PM",
+        "concerns": "Implant consultation. Name: Park Jung-ho, Phone: 010-9876-5432",
+        "id": "res-4",
+        "createdAt": "2026-07-14T09:00:00Z"
+      },
+      {
+        "type": "auto-reply",
+        "sentAt": "2026-07-14T09:00:10.000Z",
+        "content": "Hello,\n\nYour reservation for 2026-07-19 4:00 PM (KST) has been confirmed.\n\nPlease provide us with the following information by visiting the link below:\n\nhttps://lofiesthetic.com/admin/reply?id=res-4\n\nName:\nWhere you are visiting from:\nPhone number:\n\nlofi esthetic dentistry (lofi dental)\nInstagram: www.instagram.com/lofi_esthetic_dentistry\nWhatsApp: +82 10-2984-8823"
+      }
+    ],
+    "createdAt": "2026-07-17T06:42:44.980Z",
+    "updatedAt": "2026-07-17T06:42:44.981Z"
+  },
+  {
+    "id": "thread-1784270564978-7rv59m",
+    "email": "lee.sarah@naver.com",
+    "reservationId": "res-3",
+    "messages": [
+      {
+        "type": "reservation",
+        "sentAt": "2026-07-15T14:30:00Z",
+        "date": "2026-07-20",
+        "time": "11:00 AM",
+        "concerns": "Cavity treatment needed. Name: Lee Sarah, Phone: 010-2345-6789",
+        "id": "res-3",
+        "createdAt": "2026-07-15T14:30:00Z"
+      },
+      {
+        "type": "auto-reply",
+        "sentAt": "2026-07-15T14:30:10.000Z",
+        "content": "Hello,\n\nYour reservation for 2026-07-20 11:00 AM (KST) has been confirmed.\n\nPlease provide us with the following information by visiting the link below:\n\nhttps://lofiesthetic.com/admin/reply?id=res-3\n\nName:\nWhere you are visiting from:\nPhone number:\n\nlofi esthetic dentistry (lofi dental)\nInstagram: www.instagram.com/lofi_esthetic_dentistry\nWhatsApp: +82 10-2984-8823"
+      }
+    ],
+    "createdAt": "2026-07-17T06:42:44.978Z",
+    "updatedAt": "2026-07-17T06:42:44.979Z"
+  },
+  {
+    "id": "thread-1784270564976-5ccczv",
+    "email": "kim.patient@gmail.com",
+    "reservationId": "res-2",
+    "messages": [
+      {
+        "type": "reservation",
+        "sentAt": "2026-07-16T10:15:00Z",
+        "date": "2026-07-18",
+        "time": "2:00 PM",
+        "concerns": "I'm interested in whitening and scaling. Name: Kim Min-jun, Phone: 010-5678-1234",
+        "id": "res-2",
+        "createdAt": "2026-07-16T10:15:00Z"
+      },
+      {
+        "type": "auto-reply",
+        "sentAt": "2026-07-16T10:15:10.000Z",
+        "content": "Hello,\n\nYour reservation for 2026-07-18 2:00 PM (KST) has been confirmed.\n\nPlease provide us with the following information by visiting the link below:\n\nhttps://lofiesthetic.com/admin/reply?id=res-2\n\nName:\nWhere you are visiting from:\nPhone number:\n\nlofi esthetic dentistry (lofi dental)\nInstagram: www.instagram.com/lofi_esthetic_dentistry\nWhatsApp: +82 10-2984-8823"
+      }
+    ],
+    "createdAt": "2026-07-17T06:42:44.976Z",
+    "updatedAt": "2026-07-17T06:42:44.977Z"
+  },
+  {
+    "id": "thread-1784270564973-yj7q4t",
     "email": "test@example.com",
     "reservationId": "res-1",
-    "createdAt": "2026-07-17T06:20:00Z",
-    "updatedAt": "2026-07-17T06:25:00Z",
     "messages": [
       {
         "type": "reservation",
         "sentAt": "2026-07-17T06:20:00Z",
         "date": "2026-07-17",
         "time": "3:30 PM",
-        "concerns": "I want to test the email thread system. Name: John Smith, Phone: 010-1234-5678",
+        "concerns": "Test reservation. Name: John Smith, Phone: 010-1234-5678",
         "id": "res-1",
         "createdAt": "2026-07-17T06:20:00Z"
       },
       {
         "type": "auto-reply",
-        "sentAt": "2026-07-17T06:20:10Z",
-        "content": "Thank you for your reservation request at Lofi Dental!\n\nYour reservation for 2026-07-17 at 3:30 PM has been confirmed.\n\nWe look forward to seeing you soon!"
-      },
-      {
-        "type": "customer-reply",
-        "receivedAt": "2026-07-17T06:25:00Z",
-        "content": "Thank you! I'm looking forward to the appointment. See you on the 17th."
+        "sentAt": "2026-07-17T06:20:10.000Z",
+        "content": "Hello,\n\nYour reservation for 2026-07-17 3:30 PM (KST) has been confirmed.\n\nPlease provide us with the following information by visiting the link below:\n\nhttps://lofiesthetic.com/admin/reply?id=res-1\n\nName:\nWhere you are visiting from:\nPhone number:\n\nlofi esthetic dentistry (lofi dental)\nInstagram: www.instagram.com/lofi_esthetic_dentistry\nWhatsApp: +82 10-2984-8823"
       }
-    ]
+    ],
+    "createdAt": "2026-07-17T06:42:44.971Z",
+    "updatedAt": "2026-07-17T06:42:44.974Z"
   }
 ]

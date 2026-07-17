@@ -4,7 +4,31 @@
     "date": "2026-07-17",
     "time": "3:30 PM",
     "email": "test@example.com",
-    "concerns": "I want to test the email thread system. Name: John Smith, Phone: 010-1234-5678",
+    "concerns": "Test reservation. Name: John Smith, Phone: 010-1234-5678",
     "createdAt": "2026-07-17T06:20:00Z"
+  },
+  {
+    "id": "res-2",
+    "date": "2026-07-18",
+    "time": "2:00 PM",
+    "email": "kim.patient@gmail.com",
+    "concerns": "I'm interested in whitening and scaling. Name: Kim Min-jun, Phone: 010-5678-1234",
+    "createdAt": "2026-07-16T10:15:00Z"
+  },
+  {
+    "id": "res-3",
+    "date": "2026-07-20",
+    "time": "11:00 AM",
+    "email": "lee.sarah@naver.com",
+    "concerns": "Cavity treatment needed. Name: Lee Sarah, Phone: 010-2345-6789",
+    "createdAt": "2026-07-15T14:30:00Z"
+  },
+  {
+    "id": "res-4",
+    "date": "2026-07-19",
+    "time": "4:00 PM",
+    "email": "park.clinic@hotmail.com",
+    "concerns": "Implant consultation. Name: Park Jung-ho, Phone: 010-9876-5432",
+    "createdAt": "2026-07-14T09:00:00Z"
   }
 ]
