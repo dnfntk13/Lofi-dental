@@ -1263,18 +1263,22 @@ createServer(async (request, response) => {
       };
 
       await addInboxRecord(record);
-      
-      // 이메일 스레드에 예약 요청 메시지 추가
-      await saveOrUpdateEmailThread(email, record.id, {
-        type: "reservation",
-        sentAt: record.createdAt,
-        date: record.date,
-        time: record.time,
-        concerns: record.concerns,
-        id: record.id,
-      });
 
       removeEmailVerification(email);
+
+      // 이메일 스레드에 예약 요청 메시지 추가 (실패해도 예약은 정상 처리)
+      try {
+        await saveOrUpdateEmailThread(email, record.id, {
+          type: "reservation",
+          sentAt: record.createdAt,
+          date: record.date,
+          time: record.time,
+          concerns: record.concerns,
+          id: record.id,
+        });
+      } catch (error) {
+        console.error("Failed to save email thread (reservation)", error);
+      }
 
       try {
         const patientInfo = extractPatientInfo(concerns);
@@ -1288,14 +1292,18 @@ createServer(async (request, response) => {
       try {
         autoReplySent = await sendReservationAutoReply(record);
         
-        // 이메일 스레드에 자동 회신 기록
+        // 이메일 스레드에 자동 회신 기록 (실패해도 예약은 정상 처리)
         if (autoReplySent) {
-          const autoReplyMsg = buildReservationAutoReply(record);
-          await saveOrUpdateEmailThread(email, record.id, {
-            type: "auto-reply",
-            sentAt: new Date().toISOString(),
-            content: autoReplyMsg.text,
-          });
+          try {
+            const autoReplyMsg = buildReservationAutoReply(record);
+            await saveOrUpdateEmailThread(email, record.id, {
+              type: "auto-reply",
+              sentAt: new Date().toISOString(),
+              content: autoReplyMsg.text,
+            });
+          } catch (error) {
+            console.error("Failed to save email thread (auto-reply)", error);
+          }
         }
       } catch (error) {
         console.error("Failed to send reservation auto-reply", error);
