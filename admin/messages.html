@@ -212,13 +212,15 @@
 
       .context-menu {
         display: none;
-        position: fixed;
+        position: absolute;
         background: #fff;
         border: 1px solid var(--line);
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(31, 45, 102, 0.15);
         z-index: 2000;
         min-width: 160px;
+        top: 0;
+        left: 0;
       }
 
       .context-menu.visible {
@@ -262,7 +264,7 @@
   </head>
   <body>
     <div class="modal" id="messageModal">
-      <div class="modal-content">
+      <div class="modal-content" style="position:relative;">
         <div class="modal-header">
           <h2>Email Thread</h2>
           <button class="modal-close" type="button" onclick="closeMessageModal()">×</button>
@@ -328,13 +330,17 @@
       let currentMessageData = null;
       const contextMenu = document.getElementById("contextMenu");
 
-      function showContextMenu(event, email, msgIndex) {
+      function showContextMenu(event, email, msgIndex, container) {
         event.preventDefault();
         currentMessageData = { email, msgIndex };
         
-        const rect = event.target.closest(".message-item").getBoundingClientRect();
-        contextMenu.style.top = (event.clientY) + "px";
-        contextMenu.style.left = (event.clientX) + "px";
+        // container 기준으로 좌표 계산
+        const containerRect = container.getBoundingClientRect();
+        const x = event.clientX - containerRect.left;
+        const y = event.clientY - containerRect.top;
+        
+        contextMenu.style.top = Math.max(0, y) + "px";
+        contextMenu.style.left = Math.max(0, x) + "px";
         contextMenu.classList.add("visible");
       }
 
@@ -502,14 +508,14 @@ ${text}
 
         threadContent.innerHTML = html;
         
-        // 모든 메시지 아이템에 우클릭 이벤트 추가
-        const messageItems = threadContent.querySelectorAll(".message-item");
-        messageItems.forEach((item) => {
-          item.addEventListener("contextmenu", (e) => {
+        // 이벤트 위임을 사용하여 메시지 아이템 우클릭 처리
+        threadContent.addEventListener("contextmenu", (e) => {
+          const messageItem = e.target.closest(".message-item");
+          if (messageItem) {
             e.preventDefault();
-            const msgIndex = item.getAttribute("data-msg-index");
-            showContextMenu(e, email, parseInt(msgIndex));
-          });
+            const msgIndex = messageItem.getAttribute("data-msg-index");
+            showContextMenu(e, email, parseInt(msgIndex), threadContent);
+          }
         });
         
         // 모달 외부를 클릭하면 컨텍스트 메뉴 닫기

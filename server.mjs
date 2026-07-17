@@ -20,6 +20,7 @@ const adminSessionValue = Buffer.from(`${adminUser}:${adminPass}`, "utf-8").toSt
 const dataDir = path.join(rootDir, ".data");
 const inboxPath = path.join(dataDir, "reservation-inbox.json");
 const emailThreadsPath = path.join(dataDir, "email-threads.json");
+const imapProcessedPath = path.join(dataDir, "imap-processed.json");
 const mongoUri = process.env.MONGODB_URI || "";
 const mongoDatabaseName = process.env.MONGODB_DB_NAME || "lofi-dental";
 const mongoCollectionName = process.env.MONGODB_COLLECTION || "reservationMessages";
@@ -875,12 +876,178 @@ async function migrateInboxToEmailThreads() {
   }
 }
 
-async function sendEmailVerificationCode(email, code) {
-  if (!hasAnyMailConfig()) {
-    throw new Error("Email verification is not configured");
+  async function readProcessedImapUids() {
+    try {
+      const data = await readFile(imapProcessedPath, "utf8");
+      return JSON.parse(data);
+    } catch {
+      return {};
+    }
+  }
+  
+  async function saveProcessedImapUids(processed) {
+    try {
+      await mkdir(dataDir, { recursive: true });
+      await writeFile(imapProcessedPath, JSON.stringify(processed, null, 2));
+    } catch (error) {
+      console.error("Failed to save processed IMAP UIDs:", error);
+    }
+  }
+  
+  async function migrateImapToEmailThreads() {
+    if (!imapHost || !imapUser || !imapPass) {
+      console.log("IMAP not configured, skipping historical email migration");
+      return;
+    }
+    
+    try {
+      const inbox = await readInbox();
+      const patientEmails = new Set(inbox.map(r => r.email?.toLowerCase()).filter(Boolean));
+      
+      if (patientEmails.size === 0) {
+        console.log("No patient emails found for IMAP migration");
+        return;
+      }
+      
+      const processed = await readProcessedImapUids();
+      const currentProcessed = { ...processed };
+      let migratedCount = 0;
+      
+      console.log(`Starting historical IMAP email migration for ${patientEmails.size} patient emails...`);
+      
+      return new Promise((resolve) => {
+        const imap = new Imap({
+          user: imapUser,
+          password: imapPass,
+          host: imapHost,
+          port: imapPort,
+          tls: imapPort === 993,
+          tlsOptions: { rejectUnauthorized: false },
+          connTimeout: 10000,
+          authTimeout: 10000,
+        });
+        
+        imap.openBox("INBOX", false, async (err) => {
+          if (err) {
+            console.error("Failed to open IMAP inbox for historical migration:", err);
+            imap.end();
+            resolve();
+            return;
+          }
+          
+          try {
+            imap.search(["ALL"], async (searchErr, results) => {
+              if (searchErr || !results || results.length === 0) {
+                console.log("No emails found in IMAP inbox");
+                imap.end();
+                resolve();
+                return;
+              }
+              
+              console.log(`Found ${results.length} emails in IMAP inbox, checking for patient emails...`);
+              
+              const f = imap.fetch(results, { bodies: "" });
+              const emailsToProcess = [];
+              
+              f.on("message", (msg, seqno) => {
+                emailsToProcess.push({ msg, seqno });
+              });
+              
+              f.on("error", (err) => {
+                console.error("IMAP fetch error during migration:", err);
+              });
+              
+              f.on("end", async () => {
+                // Process all fetched emails
+                for (const { msg, seqno } of emailsToProcess) {
+                  const uidKey = `uid-${seqno}`;
+                  
+                  // Skip if already processed
+                  if (processed[uidKey]) {
+                    continue;
+                  }
+                  
+                  await new Promise((resolveMsg) => {
+                    simpleParser(msg, async (parseErr, parsed) => {
+                      if (parseErr) {
+                        console.error("Failed to parse email:", parseErr);
+                        resolveMsg();
+                        return;
+                      }
+                      
+                      try {
+                        const fromEmail = parsed.from?.text?.toLowerCase() || "";
+                        const toEmail = parsed.to?.text?.toLowerCase() || "";
+                        const text = parsed.text || "";
+                        const sentDate = parsed.date || new Date();
+                        
+                        // Check if this email is from a patient or sent to a patient
+                        for (const patientEmail of patientEmails) {
+                          if (fromEmail === patientEmail) {
+                            // Email FROM patient - add as customer-reply
+                            const reservation = inbox.find(r => r.email?.toLowerCase() === patientEmail);
+                            if (reservation && text) {
+                              await saveOrUpdateEmailThread(patientEmail, reservation.id, {
+                                type: "customer-reply",
+                                receivedAt: new Date(sentDate).toISOString(),
+                                content: text.slice(0, 2000),
+                              });
+                              migratedCount++;
+                              currentProcessed[uidKey] = true;
+                              break;
+                            }
+                          } else if (toEmail.includes(patientEmail)) {
+                            // Email TO patient from admin - add as admin-sent
+                            const reservation = inbox.find(r => r.email?.toLowerCase() === patientEmail);
+                            if (reservation && text) {
+                              await saveOrUpdateEmailThread(patientEmail, reservation.id, {
+                                type: "customer-reply", // Reusing customer-reply type for admin messages
+                                receivedAt: new Date(sentDate).toISOString(),
+                                content: text.slice(0, 2000),
+                              });
+                              migratedCount++;
+                              currentProcessed[uidKey] = true;
+                              break;
+                            }
+                          }
+                        }
+                      } catch (error) {
+                        console.error("Error processing IMAP email during migration:", error);
+                      }
+                      
+                      resolveMsg();
+                    });
+                  });
+                }
+                
+                // Save progress
+                await saveProcessedImapUids(currentProcessed);
+                imap.end();
+                console.log(`Successfully migrated ${migratedCount} emails from IMAP`);
+                resolve();
+              });
+            });
+          } catch (error) {
+            console.error("Error in migrateImapToEmailThreads:", error);
+            imap.end();
+            resolve();
+          }
+        });
+        
+        imap.on("error", (err) => {
+          console.error("IMAP error during migration:", err);
+          resolve();
+        });
+        
+        imap.on("end", () => {
+          resolve();
+        });
+      });
+    } catch (error) {
+      console.error("Migration error:", error);
+    }
   }
 
-  const message = buildEmailVerificationMessage(code);
   await sendMailWithFallback({
     from: smtpFrom,
     to: email,
@@ -1418,5 +1585,6 @@ createServer(async (request, response) => {
   console.log(`Lofi Web running on http://localhost:${port}`);
   console.log(`Admin page: http://localhost:${port}/admin`);
   migrateInboxToEmailThreads().catch(err => console.error("Migration error:", err));
+  migrateImapToEmailThreads().catch(err => console.error("IMAP migration error:", err));
   startEmailReplyChecker();
 });
