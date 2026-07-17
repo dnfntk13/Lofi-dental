@@ -268,11 +268,13 @@ async function saveOrUpdateEmailThread(email, reservationId, messageData) {
   const collection = await getEmailThreadsCollection();
   
   if (collection) {
+    // Note: $setOnInsert and $push cannot target the same field ("messages").
+    // Use $setOnInsert only for non-array fields; $push handles the array for both insert and update.
     await collection.updateOne(
       { email },
       {
         $set: { email, reservationId, updatedAt: now },
-        $setOnInsert: { id: `thread-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, createdAt: now, messages: [] },
+        $setOnInsert: { id: `thread-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, createdAt: now },
         $push: { messages: messageData },
       },
       { upsert: true }
