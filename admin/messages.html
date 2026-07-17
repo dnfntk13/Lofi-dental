@@ -511,7 +511,7 @@ ${text}
         // document 레벨에서 모든 우클릭을 감지 (더 안정적)
         document.addEventListener("contextmenu", (e) => {
           const messageItem = e.target.closest(".message-item");
-          if (messageItem && document.getElementById("messageModal").classList.contains("visible")) {
+          if (messageItem && document.getElementById("messageModal").classList.contains("open")) {
             e.preventDefault();
             e.stopPropagation();
             const msgIndex = messageItem.getAttribute("data-msg-index");
