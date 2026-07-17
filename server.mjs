@@ -219,18 +219,6 @@ async function getPatientsCollection() {
   return patientsCollectionPromise;
 }
 
-async function readPatients() {
-  const collection = await getPatientsCollection();
-  if (collection) {
-    return collection.find({}, { projection: { _id: 0 } }).sort({ updatedAt: -1 }).limit(1000).toArray();
-  }
-  try {
-    const data = await readFile(patientsPath, "utf-8");
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch { return []; }
-}
-
 async function getEmailThreadsCollection() {
   if (!mongoUri) return null;
   if (!emailThreadsCollectionPromise) {
@@ -292,6 +280,18 @@ async function saveOrUpdateEmailThread(email, reservationId, messageData) {
   }
   await mkdir(dataDir, { recursive: true });
   await writeFile(emailThreadsPath, JSON.stringify(threads, null, 2), "utf-8");
+}
+
+async function readPatients() {
+  const collection = await getPatientsCollection();
+  if (collection) {
+    return collection.find({}, { projection: { _id: 0 } }).sort({ updatedAt: -1 }).limit(1000).toArray();
+  }
+  try {
+    const data = await readFile(patientsPath, "utf-8");
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
 }
 
 function extractPatientInfo(text) {
@@ -826,6 +826,53 @@ function startEmailReplyChecker() {
   setInterval(() => {
     checkEmailReplies().catch((err) => console.error("Email check failed", err));
   }, 60000);
+}
+
+async function migrateInboxToEmailThreads() {
+  try {
+    const inbox = await readInbox();
+    const existingThreads = await readEmailThreads();
+    
+    // 이미 스레드로 변환된 이메일 주소들
+    const migratedEmails = new Set(existingThreads.map(t => t.email?.toLowerCase()));
+    
+    // 마이그레이션이 필요한 예약들
+    const toMigrate = inbox.filter(reservation => 
+      reservation.email && !migratedEmails.has(reservation.email.toLowerCase())
+    );
+    
+    if (toMigrate.length === 0) {
+      console.log("No reservations to migrate to email threads");
+      return;
+    }
+    
+    console.log(`Migrating ${toMigrate.length} reservations to email threads...`);
+    
+    for (const reservation of toMigrate) {
+      // 예약 요청 메시지 추가
+      await saveOrUpdateEmailThread(reservation.email, reservation.id, {
+        type: "reservation",
+        sentAt: reservation.createdAt,
+        date: reservation.date,
+        time: reservation.time,
+        concerns: reservation.concerns,
+        id: reservation.id,
+        createdAt: reservation.createdAt,
+      });
+      
+      // 자동 회신 메시지 추가 (과거 데이터이므로 추정)
+      const autoReplyMsg = buildReservationAutoReply(reservation);
+      await saveOrUpdateEmailThread(reservation.email, reservation.id, {
+        type: "auto-reply",
+        sentAt: new Date(new Date(reservation.createdAt).getTime() + 10000).toISOString(),
+        content: autoReplyMsg.text,
+      });
+    }
+    
+    console.log(`Successfully migrated ${toMigrate.length} reservations to email threads`);
+  } catch (error) {
+    console.error("Migration failed:", error);
+  }
 }
 
 async function sendEmailVerificationCode(email, code) {
@@ -1370,5 +1417,6 @@ createServer(async (request, response) => {
 }).listen(port, () => {
   console.log(`Lofi Web running on http://localhost:${port}`);
   console.log(`Admin page: http://localhost:${port}/admin`);
+  migrateInboxToEmailThreads().catch(err => console.error("Migration error:", err));
   startEmailReplyChecker();
 });
