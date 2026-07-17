@@ -533,6 +533,13 @@ ${text}
           .map((message) => {
             const safeEmail = escapeHtml(message.email);
             const safeConcerns = escapeHtml(message.concerns);
+            
+            // Build patient info from updated fields
+            const patientInfo = [];
+            if (message.name) patientInfo.push(`Name: ${escapeHtml(message.name)}`);
+            if (message.visitingFrom) patientInfo.push(`Visiting from: ${escapeHtml(message.visitingFrom)}`);
+            if (message.phone) patientInfo.push(`Phone: ${escapeHtml(message.phone)}`);
+            const patientDetails = patientInfo.length ? patientInfo.join(", ") : safeConcerns;
 
             return `
               <article class="item" id="msg-${escapeHtml(message.id)}">
@@ -544,7 +551,7 @@ ${text}
                   <button class="chip" style="background:#e8f5e9;color:#2e7d32;border-color:#c8e6c9;cursor:pointer;font:inherit;font-size:0.85rem;font-weight:700;" onclick="openMessageModal('${escapeHtml(message.email)}')">💬 Messages</button>
                   <button class="chip" style="background:#ffeaea;color:#c0392b;border-color:#f5c6c6;cursor:pointer;font:inherit;font-size:0.85rem;font-weight:700;" onclick="deleteMessage('${escapeHtml(message.id)}')">&times; Delete</button>
                 </div>
-                <p class="body">${safeConcerns}</p>
+                <p class="body">${patientDetails}</p>
               </article>
             `;
           })

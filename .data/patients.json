@@ -1,0 +1,13 @@
+[
+  {
+    "id": "patient-1784290527014-6lyyyv",
+    "email": "test@example.com",
+    "name": "Alice Johnson",
+    "phone": "+1-415-555-0001",
+    "firstSeen": "2026-07-17T12:15:27.013Z",
+    "updatedAt": "2026-07-17T12:15:27.013Z",
+    "reservationIds": [
+      "res-1"
+    ]
+  }
+]

@@ -5,7 +5,11 @@
     "time": "3:30 PM",
     "email": "test@example.com",
     "concerns": "Test reservation. Name: John Smith, Phone: 010-1234-5678",
-    "createdAt": "2026-07-17T06:20:00Z"
+    "createdAt": "2026-07-17T06:20:00Z",
+    "name": "Alice Johnson",
+    "phone": "+1-415-555-0001",
+    "visitingFrom": "San Francisco",
+    "updatedAt": "2026-07-17T12:15:27.011Z"
   },
   {
     "id": "res-2",

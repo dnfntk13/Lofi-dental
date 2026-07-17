@@ -96,9 +96,14 @@
         "type": "auto-reply",
         "sentAt": "2026-07-17T06:20:10.000Z",
         "content": "Hello,\n\nYour reservation for 2026-07-17 3:30 PM (KST) has been confirmed.\n\nPlease provide us with the following information by visiting the link below:\n\nhttps://lofiesthetic.com/admin/reply?id=res-1\n\nName:\nWhere you are visiting from:\nPhone number:\n\nlofi esthetic dentistry (lofi dental)\nInstagram: www.instagram.com/lofi_esthetic_dentistry\nWhatsApp: +82 10-2984-8823"
+      },
+      {
+        "type": "customer-reply",
+        "receivedAt": "2026-07-17T12:15:27.015Z",
+        "content": "Name: Alice Johnson\nVisiting from: San Francisco\nPhone: +1-415-555-0001"
       }
     ],
     "createdAt": "2026-07-17T06:42:44.971Z",
-    "updatedAt": "2026-07-17T06:42:44.974Z"
+    "updatedAt": "2026-07-17T12:15:27.015Z"
   }
 ]
