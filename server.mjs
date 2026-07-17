@@ -80,6 +80,10 @@ function resolvePath(urlPath) {
     return "/admin/calendar.html";
   }
 
+  if (["/admin", "/admin/"].includes(pathname)) {
+    return "/admin/calendar.html";
+  }
+
   if (["/admin/patients", "/admin/patients/"].includes(pathname)) {
     return "/admin/patients.html";
   }
@@ -1032,6 +1036,39 @@ createServer(async (request, response) => {
       console.error("Failed to delete reservation", error);
       response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ message: "Failed to delete" }));
+    }
+    return;
+  }
+
+  if (pathname.startsWith("/api/admin/email-thread/") && request.method === "GET") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    const email = decodeURIComponent(pathname.slice("/api/admin/email-thread/".length));
+    if (!email) {
+      response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Email is required" }));
+      return;
+    }
+    try {
+      const inbox = await readInbox();
+      const thread = inbox
+        .filter((r) => r.email.toLowerCase() === email.toLowerCase())
+        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+        .map((r) => ({
+          type: "reservation",
+          email: r.email,
+          date: r.date,
+          time: r.time,
+          concerns: r.concerns,
+          createdAt: r.createdAt,
+          id: r.id,
+        }));
+      const autoReply = buildReservationAutoReply({});
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ email, thread, autoReplyTemplate: autoReply.text }));
+    } catch (error) {
+      console.error("Failed to load email thread", error);
+      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Failed to load thread" }));
     }
     return;
   }

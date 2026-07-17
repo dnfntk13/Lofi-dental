@@ -125,9 +125,102 @@
         white-space: pre-wrap;
         line-height: 1.6;
       }
+
+      .modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(31, 45, 102, 0.5);
+        z-index: 1000;
+        overflow-y: auto;
+        padding: 20px;
+      }
+
+      .modal.open { display: flex; align-items: center; justify-content: center; }
+
+      .modal-content {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        max-width: 600px;
+        width: 100%;
+        max-height: 85vh;
+        overflow-y: auto;
+        padding: 24px;
+      }
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 12px;
+      }
+
+      .modal-header h2 {
+        margin: 0;
+        font-size: 1.3rem;
+      }
+
+      .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: var(--soft);
+      }
+
+      .message-item {
+        margin-bottom: 16px;
+        padding: 12px;
+        background: #f8f9ff;
+        border-left: 3px solid var(--soft);
+        border-radius: 4px;
+      }
+
+      .message-item.auto-reply {
+        border-left-color: #2e7d32;
+        background: #f1f8f5;
+      }
+
+      .message-type {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #fff;
+        background: var(--soft);
+        padding: 2px 8px;
+        border-radius: 999px;
+        display: inline-block;
+        margin-bottom: 6px;
+      }
+
+      .message-item.auto-reply .message-type {
+        background: #2e7d32;
+      }
+
+      .message-date {
+        font-size: 0.85rem;
+        color: var(--soft);
+        margin-bottom: 8px;
+      }
+
+      .message-text {
+        white-space: pre-wrap;
+        line-height: 1.5;
+      }
     </style>
   </head>
   <body>
+    <div class="modal" id="messageModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Email Thread</h2>
+          <button class="modal-close" type="button" onclick="closeMessageModal()">×</button>
+        </div>
+        <div id="threadContent"></div>
+      </div>
+    </div>
     <main class="wrap">
       <header class="topbar">
         <a class="logo-link" href="/english" aria-label="Lofi Dental English home">
@@ -149,6 +242,8 @@
     <script>
       const inbox = document.getElementById("inbox");
       const refreshButton = document.getElementById("refreshButton");
+      const messageModal = document.getElementById("messageModal");
+      const threadContent = document.getElementById("threadContent");
 
       function formatDateTime(value) {
         const date = new Date(value);
@@ -173,6 +268,81 @@
           .replaceAll('"', "&quot;");
       }
 
+      function closeMessageModal() {
+        messageModal.classList.remove("open");
+        threadContent.innerHTML = "";
+      }
+
+      async function openMessageModal(email) {
+        messageModal.classList.add("open");
+        threadContent.innerHTML = '<p style="color: var(--soft);">Loading messages...</p>';
+
+        try {
+          const apiUrl = new URL(`/api/admin/email-thread/${encodeURIComponent(email)}`, window.location.origin);
+          const authHeaders = { Accept: "application/json" };
+          const authUser = window.location.username || "";
+          const authPass = window.location.password || "";
+
+          if (authUser || authPass) {
+            authHeaders.Authorization = `Basic ${btoa(`${decodeURIComponent(authUser)}:${decodeURIComponent(authPass)}`)}`;
+          }
+
+          const response = await fetch(apiUrl.toString(), { headers: authHeaders });
+
+          if (!response.ok) {
+            threadContent.innerHTML = '<p style="color: #c0392b;">Failed to load messages.</p>';
+            return;
+          }
+
+          const data = await response.json();
+          renderThread(data);
+        } catch (error) {
+          console.error("Error loading thread:", error);
+          threadContent.innerHTML = '<p style="color: #c0392b;">Failed to load messages.</p>';
+        }
+      }
+
+      function renderThread(data) {
+        const { email, thread = [] } = data;
+        let html = `<p style="font-size: 0.9rem; color: var(--soft); margin-bottom: 16px;"><strong>Email:</strong> ${escapeHtml(email)}</p>`;
+
+        if (thread.length === 0) {
+          html += '<p style="color: var(--soft);">No messages yet.</p>';
+          threadContent.innerHTML = html;
+          return;
+        }
+
+        thread.forEach((msg) => {
+          if (msg.type === "reservation") {
+            html += `
+              <div class="message-item">
+                <div class="message-type">RESERVATION REQUEST</div>
+                <div class="message-date">📅 ${escapeHtml(msg.date)} at ${escapeHtml(msg.time)} | ${escapeHtml(formatDateTime(msg.createdAt))}</div>
+                <div class="message-text">${escapeHtml(msg.concerns)}</div>
+              </div>
+            `;
+          } else if (msg.type === "auto-reply") {
+            html += `
+              <div class="message-item auto-reply">
+                <div class="message-type">AUTO-REPLY</div>
+                <div class="message-date">🤖 ${escapeHtml(formatDateTime(msg.sentAt))}</div>
+                <div class="message-text">${escapeHtml(msg.content)}</div>
+              </div>
+            `;
+          } else if (msg.type === "customer-reply") {
+            html += `
+              <div class="message-item">
+                <div class="message-type">CUSTOMER REPLY</div>
+                <div class="message-date">💌 ${escapeHtml(formatDateTime(msg.receivedAt))}</div>
+                <div class="message-text">${escapeHtml(msg.content)}</div>
+              </div>
+            `;
+          }
+        });
+
+        threadContent.innerHTML = html;
+      }
+
       function render(messages) {
         if (!messages.length) {
           inbox.innerHTML = '<article class="item"><p class="body">No messages yet.</p></article>';
@@ -191,6 +361,7 @@
                   <span class="chip">Time: ${escapeHtml(message.time)}</span>
                   ${safeEmail ? `<span class="chip">Email: ${safeEmail}</span>` : ""}
                   <span class="chip">Received: ${escapeHtml(formatDateTime(message.createdAt))}</span>
+                  <button class="chip" style="background:#e8f5e9;color:#2e7d32;border-color:#c8e6c9;cursor:pointer;font:inherit;font-size:0.85rem;font-weight:700;" onclick="openMessageModal('${escapeHtml(message.email)}')">💬 Messages</button>
                   <button class="chip" style="background:#ffeaea;color:#c0392b;border-color:#f5c6c6;cursor:pointer;font:inherit;font-size:0.85rem;font-weight:700;" onclick="deleteMessage('${escapeHtml(message.id)}')">&times; Delete</button>
                 </div>
                 <p class="body">${safeConcerns}</p>
