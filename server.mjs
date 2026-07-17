@@ -3,12 +3,15 @@ import { randomInt } from "node:crypto";
 import { Resolver } from "node:dns/promises";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { MongoClient } from "mongodb";
 import nodemailer from "nodemailer";
 import Imap from "imap";
 import { simpleParser } from "mailparser";
 
-const rootDir = process.cwd();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = __dirname;
 const port = Number(process.env.PORT || 5173);
 const adminUser = process.env.ADMIN_USER || "lofidental";
 const adminPass = process.env.ADMIN_PASS || "Lofidental1!";
@@ -80,12 +83,16 @@ function resolvePath(urlPath) {
     return "/admin/calendar.html";
   }
 
-  if (["/admin", "/admin/"].includes(pathname)) {
-    return "/admin/calendar.html";
+  if (["/admin/messages", "/admin/messages/"].includes(pathname)) {
+    return "/admin/messages.html";
   }
 
   if (["/admin/patients", "/admin/patients/"].includes(pathname)) {
     return "/admin/patients.html";
+  }
+
+  if (["/admin", "/admin/"].includes(pathname)) {
+    return "/admin/calendar.html";
   }
 
   if (["/admin/reply", "/admin/reply/"].includes(pathname)) {
@@ -1051,7 +1058,7 @@ createServer(async (request, response) => {
     try {
       const inbox = await readInbox();
       const thread = inbox
-        .filter((r) => r.email.toLowerCase() === email.toLowerCase())
+        .filter((r) => r.email && r.email.toLowerCase() === email.toLowerCase())
         .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
         .map((r) => ({
           type: "reservation",
