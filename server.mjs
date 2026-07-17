@@ -1373,12 +1373,16 @@ createServer(async (request, response) => {
         console.error("Failed to save patient info from reply", err);
       }
 
-      // 메시지 스레드에 환자 회신으로 추가
-      await saveOrUpdateEmailThread(record.email, record.id, {
-        type: "customer-reply",
-        receivedAt: new Date().toISOString(),
-        content,
-      });
+      // 메시지 스레드에 환자 회신으로 추가 (실패해도 성공 응답)
+      try {
+        await saveOrUpdateEmailThread(record.email, record.id, {
+          type: "customer-reply",
+          receivedAt: new Date().toISOString(),
+          content,
+        });
+      } catch (err) {
+        console.error("Failed to save email thread (patient reply)", err);
+      }
 
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ ok: true }));
