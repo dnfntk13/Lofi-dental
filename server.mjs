@@ -1048,13 +1048,19 @@ async function migrateInboxToEmailThreads() {
     }
   }
 
-  await sendMailWithFallback({
-    from: smtpFrom,
-    to: email,
-    subject: message.subject,
-    text: message.text,
-  });
-}
+  async function sendEmailVerificationCode(email, code) {
+    if (!hasAnyMailConfig()) {
+      throw new Error("Email verification is not configured");
+    }
+
+    const message = buildEmailVerificationMessage(code);
+    await sendMailWithFallback({
+      from: smtpFrom,
+      to: email,
+      subject: message.subject,
+      text: message.text,
+    });
+  }
 
 createServer(async (request, response) => {
   const forwardedHostHeader = String(request.headers["x-forwarded-host"] || "").split(",")[0].trim();
