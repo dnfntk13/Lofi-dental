@@ -203,6 +203,11 @@
         line-height: 1.4;
       }
 
+      .event-chip.selected {
+        background: #1d4ed8;
+        box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.24);
+      }
+
       .event-more { font-size: 0.72rem; color: var(--soft-ink); font-weight: 600; padding: 2px 4px; }
 
       .detail-overlay {
@@ -247,6 +252,11 @@
         padding: 16px; background: var(--bg-cream);
       }
 
+      .detail-item.selected {
+        border-color: #1d4ed8;
+        background: rgba(29, 78, 216, 0.1);
+      }
+
       .detail-row {
         display: flex; gap: 8px; align-items: center;
         flex-wrap: wrap; margin-bottom: 8px;
@@ -281,6 +291,118 @@
         color: var(--soft-ink); font-size: 1rem;
       }
 
+      .reservation-menu {
+        position: fixed;
+        z-index: 300;
+        min-width: 150px;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        box-shadow: 0 16px 38px rgba(31, 45, 102, 0.2);
+        overflow: hidden;
+        display: none;
+      }
+
+      .reservation-menu.open { display: block; }
+
+      .menu-item {
+        width: 100%;
+        border: none;
+        background: #fff;
+        color: var(--ink);
+        text-align: left;
+        padding: 10px 12px;
+        font: inherit;
+        font-size: 0.88rem;
+        cursor: pointer;
+      }
+
+      .menu-item:hover { background: var(--accent-light); }
+      .menu-item.delete { color: #c0392b; }
+      .menu-item.delete:hover { background: #ffeaea; }
+
+      .edit-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 250;
+        background: rgba(31, 45, 102, 0.3);
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+
+      .edit-overlay.open { display: flex; }
+
+      .edit-panel {
+        width: min(420px, 100%);
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 20px 48px rgba(31, 45, 102, 0.24);
+      }
+
+      .edit-title {
+        margin: 0 0 14px;
+        font-family: "Cormorant Garamond", serif;
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+
+      .edit-field { display: grid; gap: 6px; margin-bottom: 12px; }
+      .edit-label { font-size: 0.82rem; font-weight: 700; color: var(--soft-ink); }
+
+      .edit-input {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font: inherit;
+        font-size: 0.94rem;
+        color: var(--ink);
+        background: #fff;
+      }
+
+      .edit-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 16px;
+      }
+
+      .btn-small {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.84rem;
+        font-weight: 700;
+        padding: 8px 13px;
+        cursor: pointer;
+      }
+
+      .btn-small.primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+
+      .undo-hint {
+        margin-top: 10px;
+        color: var(--soft-ink);
+        font-size: 0.8rem;
+      }
+
+      .selection-box {
+        position: fixed;
+        z-index: 240;
+        border: 1px solid #1d4ed8;
+        background: rgba(29, 78, 216, 0.15);
+        pointer-events: none;
+        display: none;
+      }
+
       @media (max-width: 680px) {
         .cal-cell { min-height: 70px; padding: 4px; }
         .event-chip { font-size: 0.68rem; padding: 2px 5px; }
@@ -308,7 +430,7 @@
           <img src="../assets/영문로고.png" alt="lofi dental" class="logo-img" />
         </a>
         <nav class="nav-links" aria-label="Admin navigation">
-          <a class="nav-link" href="/admin/messages">Inbox list</a>
+          <a class="nav-link" href="/admin/messages">Messages</a>
           <a class="nav-link active" href="/admin/calendar">Calendar</a>
           <a class="nav-link" href="/admin/patients">Patients</a>
           <a class="nav-link" href="/admin">Admin home</a>
@@ -351,8 +473,72 @@
         <button class="detail-close" id="detailClose" aria-label="Close">&#x2715;</button>
         <h2 class="detail-date" id="detailDate"></h2>
         <div class="detail-list" id="detailList"></div>
+        <p class="undo-hint">Tip: Press Ctrl+Z to undo your last edit/delete.</p>
       </div>
     </div>
+
+    <div class="reservation-menu" id="reservationMenu" role="menu" aria-label="Reservation actions">
+      <button class="menu-item" id="menuEdit" type="button">Edit</button>
+      <button class="menu-item delete" id="menuDelete" type="button">Delete</button>
+    </div>
+
+    <div class="reservation-menu" id="emptyCellMenu" role="menu" aria-label="Empty date actions">
+      <button class="menu-item" id="menuAddReservation" type="button">Add reservation</button>
+    </div>
+
+    <div class="edit-overlay" id="editOverlay" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+      <div class="edit-panel">
+        <h3 class="edit-title" id="editTitle">Edit Reservation</h3>
+        <div class="edit-field">
+          <label class="edit-label" for="editName">Name</label>
+          <input class="edit-input" id="editName" type="text" placeholder="Patient name" />
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="editDate">Date</label>
+          <input class="edit-input" id="editDate" type="date" />
+        </div>
+        <div class="edit-actions">
+          <button class="btn-small" type="button" id="editCancel">Cancel</button>
+          <button class="btn-small primary" type="button" id="editSave">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="edit-overlay" id="createOverlay" role="dialog" aria-modal="true" aria-labelledby="createTitle">
+      <div class="edit-panel">
+        <h3 class="edit-title" id="createTitle">Add Reservation</h3>
+        <div class="edit-field">
+          <label class="edit-label" for="createDate">Date</label>
+          <input class="edit-input" id="createDate" type="date" />
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="createTime">Time</label>
+          <input class="edit-input" id="createTime" type="text" placeholder="e.g. 3:30 PM" />
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="createEmail">Email</label>
+          <input class="edit-input" id="createEmail" type="email" placeholder="patient@example.com" />
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="createName">Name (optional)</label>
+          <input class="edit-input" id="createName" type="text" placeholder="Patient name" />
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="createPhone">Phone (optional)</label>
+          <input class="edit-input" id="createPhone" type="text" placeholder="010-1234-5678" />
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="createConcerns">Concerns</label>
+          <textarea class="edit-input" id="createConcerns" rows="4" placeholder="Patient concerns" style="resize:vertical;"></textarea>
+        </div>
+        <div class="edit-actions">
+          <button class="btn-small" type="button" id="createCancel">Cancel</button>
+          <button class="btn-small primary" type="button" id="createSave">Create</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="selection-box" id="selectionBox" aria-hidden="true"></div>
 
     <script>
       function escHtml(v) {
@@ -369,18 +555,163 @@
         }).format(d);
       }
 
+      function normalizeDate(raw) {
+        if (!raw) return null;
+        const iso = /^\d{4}-\d{1,2}-\d{1,2}$/.test(String(raw).trim()) ? String(raw).trim() : null;
+        if (iso) {
+          const parts = iso.split("-");
+          return `${parts[0]}-${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}`;
+        }
+        const d = new Date(raw);
+        if (isNaN(d)) return null;
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      }
+
+      function extractNameFromRecord(record) {
+        if (record?.name) return String(record.name).trim();
+        const concerns = String(record?.concerns || "");
+        const match = concerns.match(/name\s*:\s*([^,\n]+)/i);
+        return match ? match[1].trim() : "";
+      }
+
+      const statusMsg = document.getElementById("statusMsg");
+      const detailOverlay = document.getElementById("detailOverlay");
+      const detailList = document.getElementById("detailList");
+      const detailDate = document.getElementById("detailDate");
+      const reservationMenu = document.getElementById("reservationMenu");
+      const emptyCellMenu = document.getElementById("emptyCellMenu");
+      const editOverlay = document.getElementById("editOverlay");
+      const editName = document.getElementById("editName");
+      const editDate = document.getElementById("editDate");
+      const createOverlay = document.getElementById("createOverlay");
+      const createDate = document.getElementById("createDate");
+      const createTime = document.getElementById("createTime");
+      const createEmail = document.getElementById("createEmail");
+      const createName = document.getElementById("createName");
+      const createPhone = document.getElementById("createPhone");
+      const createConcerns = document.getElementById("createConcerns");
+      const calWrap = document.getElementById("calWrap");
+      const selectionBox = document.getElementById("selectionBox");
+
       const today = new Date();
       let viewYear = today.getFullYear();
       let viewMonth = today.getMonth();
       let allReservations = [];
+      let currentDetailDateKey = null;
+      let menuReservationId = null;
+      let menuCreateDateKey = null;
+      let editingReservationId = null;
+      let statusTimer = null;
+      const undoStack = [];
+      const maxUndoStack = 30;
+      const selectedReservationIds = new Set();
+      let dragState = null;
+      let suppressNextClick = false;
+
+      function flashStatus(message, ms = 2200) {
+        clearTimeout(statusTimer);
+        statusMsg.style.display = "block";
+        statusMsg.textContent = message;
+        statusTimer = setTimeout(() => {
+          statusMsg.style.display = "none";
+        }, ms);
+      }
+
+      function pushUndo(action) {
+        undoStack.push(action);
+        if (undoStack.length > maxUndoStack) undoStack.shift();
+        flashStatus("Saved. Press Ctrl+Z to undo.", 1800);
+      }
+
+      function getReservationById(id) {
+        return allReservations.find((r) => String(r.id) === String(id));
+      }
+
+      function applySelectionStyles() {
+        document.querySelectorAll(".event-chip[data-res-id]").forEach((el) => {
+          const id = el.getAttribute("data-res-id");
+          el.classList.toggle("selected", selectedReservationIds.has(id));
+        });
+
+        document.querySelectorAll(".detail-item[data-res-id]").forEach((el) => {
+          const id = el.getAttribute("data-res-id");
+          el.classList.toggle("selected", selectedReservationIds.has(id));
+        });
+      }
+
+      function intersectRect(a, b) {
+        return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
+      }
+
+      function getSelectableElements() {
+        return Array.from(document.querySelectorAll(".event-chip[data-res-id], .detail-item[data-res-id]"));
+      }
+
+      function setSelectionFromIds(ids) {
+        selectedReservationIds.clear();
+        ids.forEach((id) => selectedReservationIds.add(String(id)));
+        applySelectionStyles();
+      }
+
+      function updateSelectionBox(x1, y1, x2, y2) {
+        const left = Math.min(x1, x2);
+        const top = Math.min(y1, y2);
+        const width = Math.abs(x2 - x1);
+        const height = Math.abs(y2 - y1);
+        selectionBox.style.display = "block";
+        selectionBox.style.left = `${left}px`;
+        selectionBox.style.top = `${top}px`;
+        selectionBox.style.width = `${width}px`;
+        selectionBox.style.height = `${height}px`;
+      }
+
+      function hideSelectionBox() {
+        selectionBox.style.display = "none";
+      }
+
+      function canStartDragSelection(target) {
+        if (!target) return false;
+        if (target.closest(".reservation-menu, .edit-panel")) return false;
+        if (target.closest("button, input, textarea, select, a")) return false;
+        if (target.closest("#calWrap")) return true;
+        if (detailOverlay.classList.contains("open") && target.closest("#detailList, .detail-panel")) return true;
+        return false;
+      }
+
+      function upsertLocalReservation(record) {
+        const idx = allReservations.findIndex((r) => r.id === record.id);
+        if (idx >= 0) {
+          allReservations[idx] = record;
+        } else {
+          allReservations.unshift(record);
+        }
+      }
+
+      async function upsertReservation(record) {
+        const res = await fetch(`/api/admin/reservations/${encodeURIComponent(record.id)}`, {
+          method: "PUT",
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(record),
+        });
+        if (!res.ok) {
+          throw new Error("Failed to save reservation");
+        }
+        const data = await res.json();
+        return data.record || record;
+      }
 
       async function loadReservations() {
-        const statusMsg = document.getElementById("statusMsg");
         statusMsg.style.display = "block";
-        statusMsg.textContent = "Loading reservations\u2026";
+        statusMsg.textContent = "Loading reservations...";
         try {
           const res = await fetch("/api/admin/messages", { headers: { Accept: "application/json" } });
-          if (!res.ok) { statusMsg.textContent = "Failed to load reservations."; return; }
+          if (!res.ok) {
+            statusMsg.textContent = "Failed to load reservations.";
+            return;
+          }
           const data = await res.json();
           allReservations = Array.isArray(data.messages) ? data.messages : [];
           statusMsg.style.display = "none";
@@ -388,18 +719,6 @@
         } catch {
           statusMsg.textContent = "Failed to load reservations.";
         }
-      }
-
-      function normalizeDate(raw) {
-        if (!raw) return null;
-        const iso = /^\d{4}-\d{1,2}-\d{1,2}$/.test(raw.trim()) ? raw.trim() : null;
-        if (iso) {
-          const parts = iso.split("-");
-          return `${parts[0]}-${parts[1].padStart(2,"0")}-${parts[2].padStart(2,"0")}`;
-        }
-        const d = new Date(raw);
-        if (isNaN(d)) return null;
-        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
       }
 
       function buildEventMap() {
@@ -414,7 +733,111 @@
       }
 
       function todayKey() {
-        return `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      }
+
+      function setDetailHeading(dateKey) {
+        const [y, m, d] = dateKey.split("-").map(Number);
+        detailDate.textContent = new Intl.DateTimeFormat("en-US", {
+          weekday: "long", year: "numeric", month: "long", day: "numeric",
+        }).format(new Date(y, m - 1, d));
+      }
+
+      function hideReservationMenu() {
+        reservationMenu.classList.remove("open");
+        menuReservationId = null;
+      }
+
+      function hideEmptyCellMenu() {
+        emptyCellMenu.classList.remove("open");
+        menuCreateDateKey = null;
+      }
+
+      function showReservationMenu(event, reservationId) {
+        menuReservationId = reservationId;
+        reservationMenu.classList.add("open");
+        const padding = 8;
+        const menuWidth = 160;
+        const menuHeight = 88;
+        const left = Math.min(event.clientX, window.innerWidth - menuWidth - padding);
+        const top = Math.min(event.clientY, window.innerHeight - menuHeight - padding);
+        reservationMenu.style.left = `${Math.max(padding, left)}px`;
+        reservationMenu.style.top = `${Math.max(padding, top)}px`;
+      }
+
+      function showEmptyCellMenu(event, dateKey) {
+        menuCreateDateKey = dateKey;
+        emptyCellMenu.classList.add("open");
+        const padding = 8;
+        const menuWidth = 160;
+        const menuHeight = 46;
+        const left = Math.min(event.clientX, window.innerWidth - menuWidth - padding);
+        const top = Math.min(event.clientY, window.innerHeight - menuHeight - padding);
+        emptyCellMenu.style.left = `${Math.max(padding, left)}px`;
+        emptyCellMenu.style.top = `${Math.max(padding, top)}px`;
+      }
+
+      function openCreateModal(dateKey) {
+        createDate.value = normalizeDate(dateKey) || "";
+        createTime.value = "";
+        createEmail.value = "";
+        createName.value = "";
+        createPhone.value = "";
+        createConcerns.value = "";
+        createOverlay.classList.add("open");
+        createTime.focus();
+      }
+
+      function closeCreateModal() {
+        createOverlay.classList.remove("open");
+      }
+
+      async function createReservationFromModal() {
+        const payload = {
+          date: String(createDate.value || "").trim(),
+          time: String(createTime.value || "").trim(),
+          email: String(createEmail.value || "").trim().toLowerCase(),
+          name: String(createName.value || "").trim(),
+          phone: String(createPhone.value || "").trim(),
+          concerns: String(createConcerns.value || "").trim(),
+        };
+
+        if (!payload.date || !payload.time || !payload.email || !payload.concerns) {
+          alert("Date, time, email, and concerns are required.");
+          return;
+        }
+
+        try {
+          const res = await fetch("/api/admin/reservations", {
+            method: "POST",
+            headers: {
+              "Accept": "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data?.record) {
+            alert(data?.message || "Failed to create reservation.");
+            return;
+          }
+
+          upsertLocalReservation(data.record);
+          selectedReservationIds.clear();
+          selectedReservationIds.add(String(data.record.id));
+          pushUndo({ type: "create", record: data.record });
+          renderCalendar();
+          closeCreateModal();
+          hideEmptyCellMenu();
+
+          const key = normalizeDate(data.record.date);
+          if (detailOverlay.classList.contains("open") && key) {
+            openDetail(key);
+          }
+        } catch {
+          alert("Failed to create reservation.");
+        }
       }
 
       function renderCalendar() {
@@ -453,42 +876,63 @@
 
           const eventsHtml = events.length > 0
             ? `<div class="day-events">
-                ${events.slice(0,2).map(e => `<div class="event-chip">${escHtml(e.time)} ${escHtml(e.email.split("@")[0])}</div>`).join("")}
+                ${events.slice(0, 2).map((e) => {
+                  const emailName = String(e.email || "").split("@")[0] || "patient";
+                  return `<div class="event-chip" data-res-id="${escHtml(e.id)}">${escHtml(e.time)} ${escHtml(emailName)}</div>`;
+                }).join("")}
                 ${events.length > 2 ? `<div class="event-more">+${events.length - 2} more</div>` : ""}
               </div>` : "";
 
           const clickAttr = events.length > 0
-            ? `onclick="openDetail('${key}')" role="button" tabindex="0" aria-label="${events.length} reservation${events.length>1?"s":""} on ${key}"` : "";
+            ? `onclick="openDetail('${key}')" role="button" tabindex="0" aria-label="${events.length} reservation${events.length > 1 ? "s" : ""} on ${key}"` : "";
 
           return `<div class="${classes}" data-date="${key}" ${clickAttr}><div class="day-num">${cell.date.getDate()}</div>${eventsHtml}</div>`;
         }).join("");
 
-        calGrid.querySelectorAll(".has-events").forEach(cell => {
+        calGrid.querySelectorAll(".has-events").forEach((cell) => {
           cell.addEventListener("keydown", (e) => {
-            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(cell.dataset.date); }
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              openDetail(cell.dataset.date);
+            }
           });
         });
+
+        calGrid.querySelectorAll(".event-chip[data-res-id]").forEach((chip) => {
+          chip.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showReservationMenu(e, chip.dataset.resId);
+          });
+        });
+
+        calGrid.querySelectorAll(".cal-cell").forEach((cell) => {
+          if (cell.classList.contains("has-events")) return;
+          cell.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showEmptyCellMenu(e, cell.dataset.date);
+          });
+        });
+
+        applySelectionStyles();
       }
 
       function openDetail(dateKey) {
-        const [y, m, d] = dateKey.split("-").map(Number);
-        document.getElementById("detailDate").textContent = new Intl.DateTimeFormat("en-US", {
-          weekday: "long", year: "numeric", month: "long", day: "numeric",
-        }).format(new Date(y, m - 1, d));
-
+        currentDetailDateKey = dateKey;
+        setDetailHeading(dateKey);
         renderDetailList(dateKey);
-
-        document.getElementById("detailOverlay").classList.add("open");
+        detailOverlay.classList.add("open");
         document.getElementById("detailClose").focus();
       }
 
       function renderDetailList(dateKey) {
         const events = allReservations
-          .filter(r => normalizeDate(r.date) === dateKey)
+          .filter((r) => normalizeDate(r.date) === dateKey)
           .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
 
-        document.getElementById("detailList").innerHTML = events.map(r => `
-          <article class="detail-item" id="cal-res-${escHtml(r.id)}">
+        detailList.innerHTML = events.map((r) => `
+          <article class="detail-item" id="cal-res-${escHtml(r.id)}" data-res-id="${escHtml(r.id)}">
             <div class="detail-row">
               <span class="detail-time">${escHtml(r.time)}</span>
               <span class="detail-email">${escHtml(r.email)}</span>
@@ -498,39 +942,338 @@
             <p class="detail-concerns">${escHtml(r.concerns)}</p>
           </article>`).join("");
 
-        if (!events.length) closeDetail();
+        if (!events.length) {
+          closeDetail();
+          return;
+        }
+
+        detailList.querySelectorAll(".detail-item[data-res-id]").forEach((item) => {
+          item.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showReservationMenu(e, item.dataset.resId);
+          });
+        });
+
+        applySelectionStyles();
       }
 
-      async function deleteReservation(id, dateKey) {
-        if (!confirm("Delete this reservation?")) return;
+      function closeDetail() {
+        detailOverlay.classList.remove("open");
+        hideReservationMenu();
+        hideEmptyCellMenu();
+        currentDetailDateKey = null;
+      }
+
+      function openEditModal(id) {
+        const reservation = getReservationById(id);
+        if (!reservation) {
+          alert("Reservation not found.");
+          return;
+        }
+        editingReservationId = id;
+        editName.value = extractNameFromRecord(reservation);
+        editDate.value = normalizeDate(reservation.date) || "";
+        editOverlay.classList.add("open");
+        editName.focus();
+      }
+
+      function closeEditModal() {
+        editOverlay.classList.remove("open");
+        editingReservationId = null;
+      }
+
+      async function saveEditReservation() {
+        if (!editingReservationId) return;
+        const current = getReservationById(editingReservationId);
+        if (!current) {
+          closeEditModal();
+          return;
+        }
+
+        const nextName = String(editName.value || "").trim();
+        const nextDate = String(editDate.value || "").trim();
+        if (!nextDate) {
+          alert("Please select a date.");
+          return;
+        }
+
+        const before = { ...current };
+        const updated = {
+          ...current,
+          name: nextName,
+          date: nextDate,
+          updatedAt: new Date().toISOString(),
+        };
+
+        try {
+          const saved = await upsertReservation(updated);
+          upsertLocalReservation(saved);
+          if (saved?.id) {
+            selectedReservationIds.add(String(saved.id));
+          }
+          pushUndo({ type: "edit", before, after: saved });
+          renderCalendar();
+          closeEditModal();
+          hideReservationMenu();
+
+          const newDateKey = normalizeDate(saved.date);
+          if (detailOverlay.classList.contains("open") && newDateKey) {
+            openDetail(newDateKey);
+          }
+        } catch {
+          alert("Failed to update reservation.");
+        }
+      }
+
+      async function deleteReservation(id, dateKey, options = {}) {
+        const { skipConfirm = false, trackUndo = true } = options;
+        const target = getReservationById(id);
+        if (!target) {
+          alert("Reservation not found.");
+          return;
+        }
+
+        if (!skipConfirm && !confirm("Delete this reservation?")) return;
+
         try {
           const res = await fetch(`/api/admin/reservations/${encodeURIComponent(id)}`, { method: "DELETE" });
-          if (res.ok) {
-            allReservations = allReservations.filter(r => r.id !== id);
-            renderCalendar();
-            renderDetailList(dateKey);
-          } else {
+          if (!res.ok) {
             alert("Failed to delete.");
+            return;
+          }
+
+          allReservations = allReservations.filter((r) => r.id !== id);
+          selectedReservationIds.delete(String(id));
+          if (trackUndo) {
+            pushUndo({ type: "delete", record: target });
+          }
+
+          renderCalendar();
+          hideReservationMenu();
+
+          const nextDateKey = dateKey || currentDetailDateKey || normalizeDate(target.date);
+          if (detailOverlay.classList.contains("open") && nextDateKey) {
+            renderDetailList(nextDateKey);
           }
         } catch {
           alert("Failed to delete.");
         }
       }
 
-      function closeDetail() { document.getElementById("detailOverlay").classList.remove("open"); }
+      async function undoLastAction() {
+        const last = undoStack.pop();
+        if (!last) {
+          flashStatus("Nothing to undo.", 1400);
+          return;
+        }
+
+        try {
+          if (last.type === "delete") {
+            const restored = await upsertReservation(last.record);
+            upsertLocalReservation(restored);
+            if (restored?.id) {
+              selectedReservationIds.add(String(restored.id));
+            }
+            renderCalendar();
+            flashStatus("Undo complete: reservation restored.");
+            return;
+          }
+
+          if (last.type === "edit") {
+            const restored = await upsertReservation(last.before);
+            upsertLocalReservation(restored);
+            if (restored?.id) {
+              selectedReservationIds.add(String(restored.id));
+            }
+            renderCalendar();
+            if (detailOverlay.classList.contains("open")) {
+              const key = normalizeDate(restored.date);
+              if (key) openDetail(key);
+            }
+            flashStatus("Undo complete: edit reverted.");
+            return;
+          }
+
+          if (last.type === "create") {
+            const createdId = String(last.record?.id || "");
+            if (!createdId) return;
+            const res = await fetch(`/api/admin/reservations/${encodeURIComponent(createdId)}`, { method: "DELETE" });
+            if (!res.ok) throw new Error("Failed to undo create");
+            allReservations = allReservations.filter((r) => String(r.id) !== createdId);
+            selectedReservationIds.delete(createdId);
+            renderCalendar();
+            flashStatus("Undo complete: new reservation removed.");
+          }
+        } catch {
+          alert("Undo failed.");
+        }
+      }
+
+      document.getElementById("menuEdit").addEventListener("click", () => {
+        if (!menuReservationId) return;
+        openEditModal(menuReservationId);
+      });
+
+      document.getElementById("menuDelete").addEventListener("click", async () => {
+        if (!menuReservationId) return;
+        const reservation = getReservationById(menuReservationId);
+        const dateKey = normalizeDate(reservation?.date || "");
+        await deleteReservation(menuReservationId, dateKey);
+      });
+
+      document.getElementById("menuAddReservation").addEventListener("click", () => {
+        if (!menuCreateDateKey) return;
+        openCreateModal(menuCreateDateKey);
+      });
+
+      document.getElementById("editCancel").addEventListener("click", closeEditModal);
+      document.getElementById("editSave").addEventListener("click", saveEditReservation);
+      document.getElementById("createCancel").addEventListener("click", closeCreateModal);
+      document.getElementById("createSave").addEventListener("click", createReservationFromModal);
+
+      editOverlay.addEventListener("click", (e) => {
+        if (e.target === e.currentTarget) closeEditModal();
+      });
+
+      createOverlay.addEventListener("click", (e) => {
+        if (e.target === e.currentTarget) closeCreateModal();
+      });
 
       document.getElementById("detailClose").addEventListener("click", closeDetail);
-      document.getElementById("detailOverlay").addEventListener("click", (e) => { if (e.target === e.currentTarget) closeDetail(); });
-      document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDetail(); });
+      detailOverlay.addEventListener("click", (e) => {
+        if (e.target === e.currentTarget) closeDetail();
+      });
+
+      document.addEventListener("click", (e) => {
+        if (suppressNextClick) {
+          e.preventDefault();
+          e.stopPropagation();
+          suppressNextClick = false;
+          return;
+        }
+        if (!reservationMenu.contains(e.target)) {
+          hideReservationMenu();
+        }
+        if (!emptyCellMenu.contains(e.target)) {
+          hideEmptyCellMenu();
+        }
+      });
+
+      document.addEventListener("mousedown", (e) => {
+        if (e.button !== 0) return;
+        if (!canStartDragSelection(e.target)) return;
+
+        dragState = {
+          startX: e.clientX,
+          startY: e.clientY,
+          currentX: e.clientX,
+          currentY: e.clientY,
+          moved: false,
+          baseSelection: new Set(selectedReservationIds),
+          additive: e.ctrlKey || e.metaKey,
+        };
+
+        hideReservationMenu();
+        hideEmptyCellMenu();
+      });
+
+      document.addEventListener("mousemove", (e) => {
+        if (!dragState) return;
+        dragState.currentX = e.clientX;
+        dragState.currentY = e.clientY;
+
+        const dx = Math.abs(dragState.currentX - dragState.startX);
+        const dy = Math.abs(dragState.currentY - dragState.startY);
+        if (!dragState.moved && (dx > 3 || dy > 3)) {
+          dragState.moved = true;
+        }
+        if (!dragState.moved) return;
+
+        updateSelectionBox(dragState.startX, dragState.startY, dragState.currentX, dragState.currentY);
+
+        const selectionRect = {
+          left: Math.min(dragState.startX, dragState.currentX),
+          right: Math.max(dragState.startX, dragState.currentX),
+          top: Math.min(dragState.startY, dragState.currentY),
+          bottom: Math.max(dragState.startY, dragState.currentY),
+        };
+
+        const insideIds = new Set();
+        getSelectableElements().forEach((el) => {
+          const rect = el.getBoundingClientRect();
+          const id = el.getAttribute("data-res-id");
+          if (!id) return;
+          if (intersectRect(selectionRect, rect)) {
+            insideIds.add(String(id));
+          }
+        });
+
+        if (dragState.additive) {
+          const merged = new Set(dragState.baseSelection);
+          insideIds.forEach((id) => merged.add(id));
+          setSelectionFromIds(merged);
+        } else {
+          setSelectionFromIds(insideIds);
+        }
+      });
+
+      document.addEventListener("mouseup", () => {
+        if (!dragState) return;
+        if (dragState.moved) {
+          suppressNextClick = true;
+          flashStatus(`Selected ${selectedReservationIds.size} reservation${selectedReservationIds.size === 1 ? "" : "s"}.`, 1200);
+        }
+        dragState = null;
+        hideSelectionBox();
+      });
+
+      document.addEventListener("keydown", async (e) => {
+        if (e.key === "Escape") {
+          closeEditModal();
+          closeCreateModal();
+          closeDetail();
+          return;
+        }
+
+        const isUndo = (e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "z";
+        if (!isUndo) return;
+
+        const target = e.target;
+        const isTypingTarget = target instanceof HTMLElement && (
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable
+        );
+        if (isTypingTarget) return;
+
+        e.preventDefault();
+        await undoLastAction();
+      });
 
       document.getElementById("prevBtn").addEventListener("click", () => {
-        viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; } renderCalendar();
+        viewMonth--;
+        if (viewMonth < 0) {
+          viewMonth = 11;
+          viewYear--;
+        }
+        renderCalendar();
       });
+
       document.getElementById("nextBtn").addEventListener("click", () => {
-        viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; } renderCalendar();
+        viewMonth++;
+        if (viewMonth > 11) {
+          viewMonth = 0;
+          viewYear++;
+        }
+        renderCalendar();
       });
+
       document.getElementById("todayBtn").addEventListener("click", () => {
-        viewYear = today.getFullYear(); viewMonth = today.getMonth(); renderCalendar();
+        viewYear = today.getFullYear();
+        viewMonth = today.getMonth();
+        renderCalendar();
       });
 
       loadReservations();

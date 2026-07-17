@@ -175,16 +175,53 @@
       }
 
       .message-item {
-        margin-bottom: 16px;
+        margin-bottom: 8px;
         padding: 12px;
         background: #f8f9ff;
-        border-left: 3px solid var(--soft);
-        border-radius: 4px;
+        border: 1px solid #dbe5ff;
+        border-radius: 16px;
+        max-width: 82%;
+      }
+
+      .thread-messages {
+        display: grid;
+        gap: 10px;
+      }
+
+      .message-row {
+        display: flex;
+      }
+
+      .message-row.left {
+        justify-content: flex-start;
+      }
+
+      .message-row.right {
+        justify-content: flex-end;
+      }
+
+      .message-row.center {
+        justify-content: center;
       }
 
       .message-item.auto-reply {
-        border-left-color: #2e7d32;
+        border-color: #9fd8b2;
         background: #f1f8f5;
+      }
+
+      .message-item.admin-reply {
+        border-color: #93b9f2;
+        background: #edf4ff;
+      }
+
+      .message-item.customer-reply {
+        border-color: #b6c7f8;
+        background: #ffffff;
+      }
+
+      .message-item.reservation {
+        border-color: #b6c7f8;
+        background: #f7f9ff;
       }
 
       .message-type {
@@ -202,15 +239,85 @@
         background: #2e7d32;
       }
 
+      .message-item.admin-reply .message-type {
+        background: #1565c0;
+      }
+
       .message-date {
         font-size: 0.85rem;
         color: var(--soft);
         margin-bottom: 8px;
       }
 
+      .message-row.right .message-date {
+        text-align: right;
+      }
+
+      .message-row.right .message-type {
+        margin-left: auto;
+      }
+
       .message-text {
         white-space: pre-wrap;
         line-height: 1.5;
+      }
+
+      .reply-composer {
+        margin-top: 16px;
+        border-top: 1px solid var(--line);
+        padding-top: 14px;
+      }
+
+      .reply-label {
+        display: block;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--soft);
+        margin-bottom: 6px;
+      }
+
+      .reply-input {
+        width: 100%;
+        min-height: 92px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px 12px;
+        font: inherit;
+        font-size: 0.95rem;
+        color: var(--ink);
+        background: #fff;
+        resize: vertical;
+      }
+
+      .reply-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 8px;
+      }
+
+      .reply-send {
+        border: 1px solid #1565c0;
+        border-radius: 999px;
+        background: #1565c0;
+        color: #fff;
+        font: inherit;
+        font-size: 0.86rem;
+        font-weight: 700;
+        padding: 8px 14px;
+        cursor: pointer;
+      }
+
+      .reply-send:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .reply-status {
+        min-height: 1em;
+        font-size: 0.82rem;
+        color: var(--soft);
       }
 
       .context-menu {
@@ -273,6 +380,14 @@
           <button class="modal-close" type="button" onclick="closeMessageModal()">×</button>
         </div>
         <div id="threadContent"></div>
+        <div class="reply-composer">
+          <label class="reply-label" for="replyInput">Reply to patient</label>
+          <textarea id="replyInput" class="reply-input" placeholder="Type your message and send to patient..."></textarea>
+          <div class="reply-row">
+            <span id="replyStatus" class="reply-status"></span>
+            <button id="sendReplyButton" class="reply-send" type="button">Send Reply</button>
+          </div>
+        </div>
       </div>
     </div>
     
@@ -306,6 +421,9 @@
       const refreshButton = document.getElementById("refreshButton");
       const messageModal = document.getElementById("messageModal");
       const threadContent = document.getElementById("threadContent");
+      const replyInput = document.getElementById("replyInput");
+      const replyStatus = document.getElementById("replyStatus");
+      const sendReplyButton = document.getElementById("sendReplyButton");
 
       function formatDateTime(value) {
         const date = new Date(value);
@@ -331,6 +449,8 @@
       }
 
       let currentMessageData = null;
+      let currentThreadEmail = "";
+      let currentThreadReservationId = null;
       const contextMenu = document.getElementById("contextMenu");
 
       function showContextMenu(event, email, msgIndex, container) {
@@ -350,6 +470,11 @@
       function hideContextMenu() {
         contextMenu.classList.remove("visible");
         currentMessageData = null;
+      }
+
+      function setReplyStatus(message, isError = false) {
+        replyStatus.textContent = message || "";
+        replyStatus.style.color = isError ? "#c0392b" : "var(--soft)";
       }
 
       function copyMessageText() {
@@ -377,22 +502,11 @@
         
         const textElement = msgElement.querySelector(".message-text");
         const text = textElement?.textContent || "";
-        
-        const replyText = `
----
-On ${new Date().toLocaleString()}, you wrote:
-${text}
----
 
-Your reply:
-        `.trim();
-        
-        navigator.clipboard.writeText(replyText).then(() => {
-          alert("✅ Reply template copied to clipboard. You can now paste it in your email client.");
-          hideContextMenu();
-        }).catch(() => {
-          alert("❌ Failed to copy reply template");
-        });
+        const replyText = `\n\n---\nOn ${new Date().toLocaleString()}, patient wrote:\n${text}\n---\n`;
+        replyInput.value = `${replyInput.value || ""}${replyText}`.trimStart();
+        replyInput.focus();
+        hideContextMenu();
       }
 
       function forwardMessage() {
@@ -437,11 +551,19 @@ ${text}
       function closeMessageModal() {
         messageModal.classList.remove("open");
         threadContent.innerHTML = "";
+        currentThreadEmail = "";
+        currentThreadReservationId = null;
+        replyInput.value = "";
+        setReplyStatus("");
+        sendReplyButton.disabled = false;
       }
 
       async function openMessageModal(email) {
+        currentThreadEmail = String(email || "").trim();
         messageModal.classList.add("open");
         threadContent.innerHTML = '<p style="color: var(--soft);">Loading messages...</p>';
+        setReplyStatus("");
+        sendReplyButton.disabled = false;
 
         try {
           const apiUrl = new URL(`/api/admin/email-thread/${encodeURIComponent(email)}`, window.location.origin);
@@ -461,10 +583,60 @@ ${text}
           }
 
           const data = await response.json();
+          currentThreadReservationId = data?.reservationId || null;
           renderThread(data);
         } catch (error) {
           console.error("Error loading thread:", error);
           threadContent.innerHTML = '<p style="color: #c0392b;">Failed to load messages.</p>';
+        }
+      }
+
+      async function sendThreadReply() {
+        const email = String(currentThreadEmail || "").trim();
+        const content = String(replyInput.value || "").trim();
+
+        if (!email) {
+          setReplyStatus("Open a thread first.", true);
+          return;
+        }
+
+        if (!content) {
+          setReplyStatus("Type a message to send.", true);
+          return;
+        }
+
+        sendReplyButton.disabled = true;
+        setReplyStatus("Sending...");
+
+        try {
+          const apiUrl = new URL(`/api/admin/email-thread/${encodeURIComponent(email)}/reply`, window.location.origin);
+          const response = await fetch(apiUrl.toString(), {
+            method: "POST",
+            headers: {
+              "Accept": "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              reservationId: currentThreadReservationId,
+              content,
+            }),
+          });
+
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            setReplyStatus(data?.message || "Failed to send reply.", true);
+            sendReplyButton.disabled = false;
+            return;
+          }
+
+          replyInput.value = "";
+          setReplyStatus("Reply sent.");
+          await openMessageModal(email);
+        } catch (error) {
+          console.error("Failed to send thread reply", error);
+          setReplyStatus("Failed to send reply.", true);
+        } finally {
+          sendReplyButton.disabled = false;
         }
       }
 
@@ -478,52 +650,51 @@ ${text}
           return;
         }
 
+        html += '<div class="thread-messages">';
+
         thread.forEach((msg, index) => {
           const msgId = `msg-${index}`;
-          const safeEmail = escapeHtml(email);
-          
+          let rowClass = "center";
+          let cardClass = "message-item";
+          let typeLabel = "MESSAGE";
+          let dateLabel = "";
+
           if (msg.type === "reservation") {
-            html += `
-              <div class="message-item" id="${msgId}" data-msg-index="${index}" data-msg-type="reservation">
-                <div class="message-type">RESERVATION REQUEST</div>
-                <div class="message-date">📅 ${escapeHtml(msg.date)} at ${escapeHtml(msg.time)} | ${escapeHtml(formatDateTime(msg.createdAt))}</div>
-                <div class="message-text">${escapeHtml(msg.concerns)}</div>
-              </div>
-            `;
+            rowClass = "left";
+            cardClass += " reservation";
+            typeLabel = "PATIENT REQUEST";
+            dateLabel = `📅 ${escapeHtml(msg.date)} at ${escapeHtml(msg.time)} | ${escapeHtml(formatDateTime(msg.createdAt))}`;
           } else if (msg.type === "auto-reply") {
-            html += `
-              <div class="message-item auto-reply" id="${msgId}" data-msg-index="${index}" data-msg-type="auto-reply">
-                <div class="message-type">AUTO-REPLY</div>
-                <div class="message-date">🤖 ${escapeHtml(formatDateTime(msg.sentAt))}</div>
-                <div class="message-text">${escapeHtml(msg.content)}</div>
-              </div>
-            `;
+            rowClass = "right";
+            cardClass += " auto-reply";
+            typeLabel = "LOFI AUTO REPLY";
+            dateLabel = `🤖 ${escapeHtml(formatDateTime(msg.sentAt))}`;
           } else if (msg.type === "customer-reply") {
-            html += `
-              <div class="message-item" id="${msgId}" data-msg-index="${index}" data-msg-type="customer-reply">
-                <div class="message-type">CUSTOMER REPLY</div>
-                <div class="message-date">💌 ${escapeHtml(formatDateTime(msg.receivedAt))}</div>
-                <div class="message-text">${escapeHtml(msg.content)}</div>
-              </div>
-            `;
+            rowClass = "left";
+            cardClass += " customer-reply";
+            typeLabel = "PATIENT";
+            dateLabel = `💌 ${escapeHtml(formatDateTime(msg.receivedAt))}`;
+          } else if (msg.type === "admin-reply") {
+            rowClass = "right";
+            cardClass += " admin-reply";
+            typeLabel = "LOFI ADMIN";
+            dateLabel = `📤 ${escapeHtml(formatDateTime(msg.sentAt))}`;
           }
+
+          html += `
+            <div class="message-row ${rowClass}">
+              <div class="${cardClass}" id="${msgId}" data-msg-index="${index}" data-msg-type="${escapeHtml(msg.type || "")}">
+                <div class="message-type">${typeLabel}</div>
+                <div class="message-date">${dateLabel}</div>
+                <div class="message-text">${escapeHtml(msg.content || msg.concerns || "")}</div>
+              </div>
+            </div>
+          `;
         });
 
+        html += '</div>';
+
         threadContent.innerHTML = html;
-        
-        // document 레벨에서 모든 우클릭을 감지 (더 안정적)
-        document.addEventListener("contextmenu", (e) => {
-          const messageItem = e.target.closest(".message-item");
-          if (messageItem && document.getElementById("messageModal").classList.contains("open")) {
-            e.preventDefault();
-            e.stopPropagation();
-            const msgIndex = messageItem.getAttribute("data-msg-index");
-            showContextMenu(e, email, parseInt(msgIndex), threadContent);
-          }
-        }, true);  // capture phase 사용
-        
-        // 모달 외부를 클릭하면 컨텍스트 메뉴 닫기
-        document.addEventListener("click", hideContextMenu);
       }
 
       function render(messages) {
@@ -606,6 +777,25 @@ ${text}
       }
 
       refreshButton.addEventListener("click", loadMessages);
+      sendReplyButton.addEventListener("click", sendThreadReply);
+      replyInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          sendThreadReply();
+        }
+      });
+
+      document.addEventListener("contextmenu", (e) => {
+        const messageItem = e.target.closest(".message-item");
+        if (messageItem && messageModal.classList.contains("open")) {
+          e.preventDefault();
+          e.stopPropagation();
+          const msgIndex = messageItem.getAttribute("data-msg-index");
+          showContextMenu(e, currentThreadEmail, parseInt(msgIndex, 10), threadContent);
+        }
+      }, true);
+
+      document.addEventListener("click", hideContextMenu);
       loadMessages();
     </script>
   </body>

@@ -1440,6 +1440,160 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname === "/api/admin/reservations" && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+
+    try {
+      const payload = await getJsonBody(request);
+      const date = String(payload.date || "").trim();
+      const time = String(payload.time || "").trim();
+      const email = String(payload.email || "").trim().toLowerCase();
+      const concerns = String(payload.concerns || "").trim();
+      const name = String(payload.name || "").trim();
+      const phone = String(payload.phone || "").trim();
+      const visitingFrom = String(payload.visitingFrom || "").trim();
+
+      if (!date || !time || !email || !concerns) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "date, time, email, and concerns are required" }));
+        return;
+      }
+
+      if (!isValidEmail(email)) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "A valid email is required" }));
+        return;
+      }
+
+      const record = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        date,
+        time,
+        email,
+        concerns,
+        createdAt: new Date().toISOString(),
+      };
+
+      if (name) record.name = name;
+      if (phone) record.phone = phone;
+      if (visitingFrom) record.visitingFrom = visitingFrom;
+
+      await addInboxRecord(record);
+
+      // Keep thread/patient data in sync for admin-created reservations.
+      try {
+        await saveOrUpdateEmailThread(email, record.id, {
+          type: "reservation",
+          sentAt: record.createdAt,
+          date: record.date,
+          time: record.time,
+          concerns: record.concerns,
+          id: record.id,
+        });
+      } catch (error) {
+        console.error("Failed to save email thread (admin create)", error);
+      }
+
+      try {
+        await saveOrUpdatePatient(record, { name: name || null, phone: phone || null });
+      } catch (error) {
+        console.error("Failed to save patient info (admin create)", error);
+      }
+
+      response.writeHead(201, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ ok: true, record }));
+    } catch (error) {
+      console.error("Failed to create reservation", error);
+      const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+      response.writeHead(isPayloadError ? 400 : 500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Failed to create reservation" }));
+    }
+    return;
+  }
+
+  if (pathname.startsWith("/api/admin/reservations/") && request.method === "PUT") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    const id = pathname.slice("/api/admin/reservations/".length);
+    if (!id) {
+      response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Missing id" }));
+      return;
+    }
+
+    try {
+      const payload = await getJsonBody(request);
+      const date = String(payload.date || "").trim();
+      const time = String(payload.time || "").trim();
+      const email = String(payload.email || "").trim().toLowerCase();
+      const concerns = String(payload.concerns || "").trim();
+      const createdAt = String(payload.createdAt || "").trim() || new Date().toISOString();
+      const name = String(payload.name || "").trim();
+      const phone = String(payload.phone || "").trim();
+      const visitingFrom = String(payload.visitingFrom || "").trim();
+
+      if (!date || !time || !email || !concerns) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "date, time, email, and concerns are required" }));
+        return;
+      }
+
+      const nextRecord = {
+        id,
+        date,
+        time,
+        email,
+        concerns,
+        createdAt,
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (name) nextRecord.name = name;
+      if (phone) nextRecord.phone = phone;
+      if (visitingFrom) nextRecord.visitingFrom = visitingFrom;
+
+      const collection = await getInboxCollection();
+      if (collection) {
+        const existing = await collection.findOne({ id }, { projection: { _id: 0 } });
+        const merged = {
+          ...(existing || {}),
+          ...nextRecord,
+          id,
+          createdAt: existing?.createdAt || nextRecord.createdAt,
+        };
+        await collection.replaceOne({ id }, merged, { upsert: true });
+        response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ ok: true, record: merged }));
+        return;
+      }
+
+      const inbox = await readInbox();
+      const idx = inbox.findIndex((r) => r.id === id);
+      if (idx >= 0) {
+        const existing = inbox[idx] || {};
+        inbox[idx] = {
+          ...existing,
+          ...nextRecord,
+          id,
+          createdAt: existing.createdAt || nextRecord.createdAt,
+        };
+      } else {
+        inbox.unshift(nextRecord);
+      }
+
+      await mkdir(dataDir, { recursive: true });
+      await writeFile(inboxPath, JSON.stringify(inbox, null, 2), "utf-8");
+
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ ok: true, record: idx >= 0 ? inbox[idx] : nextRecord }));
+    } catch (error) {
+      console.error("Failed to update reservation", error);
+      const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+      response.writeHead(isPayloadError ? 400 : 500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Failed to update reservation" }));
+    }
+    return;
+  }
+
   if (pathname.startsWith("/api/admin/reservations/") && request.method === "DELETE") {
     if (!adminAuthorized) { requestAuth(response); return; }
     const id = pathname.slice("/api/admin/reservations/".length);
@@ -1460,6 +1614,71 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname.startsWith("/api/admin/email-thread/") && pathname.endsWith("/reply") && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+
+    const prefix = "/api/admin/email-thread/";
+    const suffix = "/reply";
+    const encodedEmail = pathname.slice(prefix.length, pathname.length - suffix.length);
+    const email = decodeURIComponent(encodedEmail || "").trim().toLowerCase();
+
+    if (!email || !isValidEmail(email)) {
+      response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Valid email is required" }));
+      return;
+    }
+
+    try {
+      const payload = await getJsonBody(request);
+      const content = String(payload.content || "").trim();
+      const subject = String(payload.subject || "").trim() || "Reply from lofi dental";
+
+      if (!content) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "Reply content is required" }));
+        return;
+      }
+
+      if (!hasAnyMailConfig()) {
+        response.writeHead(503, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "Email provider is not configured" }));
+        return;
+      }
+
+      await sendMailWithFallback({
+        from: smtpFrom,
+        to: email,
+        subject,
+        text: content,
+      });
+
+      const inbox = await readInbox();
+      const record = inbox.find((r) => String(r.email || "").toLowerCase() === email);
+      const reservationId = String(payload.reservationId || "").trim() || record?.id || `manual-${Date.now()}`;
+
+      const threadMessage = {
+        type: "admin-reply",
+        sentAt: new Date().toISOString(),
+        content,
+      };
+
+      try {
+        await saveOrUpdateEmailThread(email, reservationId, threadMessage);
+      } catch (error) {
+        console.error("Failed to save email thread (admin reply)", error);
+      }
+
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ ok: true, message: threadMessage, reservationId }));
+    } catch (error) {
+      console.error("Failed to send admin reply", error);
+      const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+      response.writeHead(isPayloadError ? 400 : 500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : "Failed to send reply" }));
+    }
+    return;
+  }
+
   if (pathname.startsWith("/api/admin/email-thread/") && request.method === "GET") {
     if (!adminAuthorized) { requestAuth(response); return; }
     const email = decodeURIComponent(pathname.slice("/api/admin/email-thread/".length));
@@ -1472,9 +1691,12 @@ createServer(async (request, response) => {
       const emailThreads = await readEmailThreads();
       const threadData = emailThreads.find((t) => t.email && t.email.toLowerCase() === email.toLowerCase());
       const thread = threadData?.messages || [];
+      const inbox = await readInbox();
+      const fallbackRecord = inbox.find((r) => String(r.email || "").toLowerCase() === email.toLowerCase());
+      const reservationId = threadData?.reservationId || fallbackRecord?.id || null;
       
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify({ email, thread }));
+      response.end(JSON.stringify({ email, reservationId, thread }));
     } catch (error) {
       console.error("Failed to load email thread", error);
       response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
