@@ -369,6 +369,41 @@
         window.location.href = nextUrl.toString();
       };
 
+      // Fill these with Google Ads conversion labels after creating actions in Google Ads.
+      // Example: "AW-18173901982/AbCdEFgHiJkLmNoPq"
+      const conversionConfig = {
+        emailConfirmSendTo: "",
+        reservationSendTo: "",
+      };
+
+      const emitEvent = (eventName, payload) => {
+        if (typeof gtag !== "function") {
+          return;
+        }
+        gtag("event", eventName, payload);
+      };
+
+      const trackEmailConfirmed = () => {
+        emitEvent("reservation_email_confirm", {
+          event_category: "reservation",
+          event_label: emailInput.value.trim(),
+          reservation_date: date,
+          reservation_time: time,
+          reservation_lang: isKorean ? "ko" : "en",
+        });
+
+        if (!conversionConfig.emailConfirmSendTo || typeof gtag !== "function") {
+          return;
+        }
+
+        gtag("event", "conversion", {
+          send_to: conversionConfig.emailConfirmSendTo,
+          reservation_date: date,
+          reservation_time: time,
+          reservation_lang: isKorean ? "ko" : "en",
+        });
+      };
+
       const trackReservationSubmit = (nextUrl) => {
         if (typeof gtag !== "function") {
           goToReceivedPage(nextUrl);
@@ -384,12 +419,34 @@
           goToReceivedPage(nextUrl);
         };
 
-        setTimeout(redirectOnce, 900);
+        setTimeout(redirectOnce, 1200);
+
+        emitEvent("reservation_send", {
+          event_category: "reservation",
+          event_label: `${date} ${time}`,
+          reservation_date: date,
+          reservation_time: time,
+          reservation_lang: isKorean ? "ko" : "en",
+        });
+
+        if (conversionConfig.reservationSendTo) {
+          gtag("event", "conversion", {
+            send_to: conversionConfig.reservationSendTo,
+            reservation_date: date,
+            reservation_time: time,
+            reservation_lang: isKorean ? "ko" : "en",
+            transport_type: "beacon",
+            event_callback: redirectOnce,
+          });
+          return;
+        }
+
         gtag("event", "reservation_submit", {
           event_category: "reservation",
           event_label: `${date} ${time}`,
           reservation_date: date,
           reservation_time: time,
+          reservation_lang: isKorean ? "ko" : "en",
           transport_type: "beacon",
           event_callback: redirectOnce,
         });
@@ -507,6 +564,7 @@
 
           emailVerified = true;
           codeStatus.textContent = text.verified;
+          trackEmailConfirmed();
         } catch (error) {
           emailVerified = false;
           const message = error instanceof Error && error.name === "AbortError"
