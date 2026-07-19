@@ -13,8 +13,14 @@
     }
   })();
 
+  function createDeviceId() {
+    const randomValue = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    return `device-${String(randomValue).toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 80)}`;
+  }
+
   let sessionId = savedSession.sessionId || "";
   let displayName = savedSession.displayName || "";
+  let deviceId = savedSession.deviceId || createDeviceId();
   let isOpen = false;
 
   const style = document.createElement("style");
@@ -282,10 +288,10 @@
   const panel = document.createElement("section");
   panel.className = "consult-chat-panel";
   panel.id = "consultChatPanel";
-  panel.setAttribute("aria-label", "Consult with Dr. Kim chat");
+  panel.setAttribute("aria-label", "Live Chat with Dr.Ryan KIm. Please remain on the website for response.");
   panel.innerHTML = `
     <div class="consult-chat-head">
-      <span>Consult with Dr. Kim</span>
+      <span>Live Chat with Dr.Ryan KIm. Please remain on the website for response.</span>
       <button class="consult-chat-close" type="button" aria-label="Close chat">×</button>
     </div>
     <div class="consult-chat-log" aria-live="polite"></div>
@@ -323,8 +329,10 @@
   let pendingAttachment = null;
 
   function saveSession() {
-    localStorage.setItem(storageKey, JSON.stringify({ sessionId, displayName }));
+    localStorage.setItem(storageKey, JSON.stringify({ sessionId, displayName, deviceId }));
   }
+
+  saveSession();
 
   function addMessage(text, type, attachments = []) {
     const message = document.createElement("div");
@@ -354,6 +362,41 @@
     }
     statusNode.textContent = status;
     log.scrollTop = log.scrollHeight;
+  }
+
+  function renderThread(thread) {
+    log.innerHTML = "";
+    thread.forEach((item) => {
+      if (item.type === "customer-reply") {
+        const message = addMessage(item.content || "", "user", item.attachments || []);
+        setMessageStatus(message, "Read");
+        return;
+      }
+
+      if (item.type === "admin-reply") {
+        addMessage(item.content || "", "system", item.attachments || []);
+      }
+    });
+  }
+
+  async function restoreChat() {
+    try {
+      const params = new URLSearchParams();
+      if (sessionId) params.set("sessionId", sessionId);
+      if (deviceId) params.set("deviceId", deviceId);
+      const response = await fetch(`/api/consult-chat?${params.toString()}`, {
+        headers: { Accept: "application/json" },
+      });
+
+      if (!response.ok) return;
+      const data = await response.json().catch(() => ({}));
+      if (data.sessionId) sessionId = data.sessionId;
+      if (data.displayName) displayName = data.displayName;
+      saveSession();
+      renderThread(Array.isArray(data.thread) ? data.thread : []);
+    } catch {
+      // Keep the chat usable even if history cannot be restored.
+    }
   }
 
   function openChat() {
@@ -473,7 +516,7 @@
           Accept: "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ sessionId, displayName, content, attachments }),
+        body: JSON.stringify({ sessionId, displayName, deviceId, content, attachments }),
       });
       const data = await response.json().catch(() => ({}));
 
@@ -494,4 +537,6 @@
       input.focus();
     }
   });
+
+  restoreChat();
 })();

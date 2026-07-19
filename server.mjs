@@ -73,7 +73,7 @@ const emailResolver = new Resolver();
 emailResolver.setServers(emailDnsServers);
 const reservationCorsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Accept",
 };
 
@@ -373,6 +373,41 @@ function getPatientThreadEmail(record) {
   if (email) return email;
   const id = String(record?.id || `manual-${Date.now()}`).trim().toLowerCase().replace(/[^a-z0-9-]/g, "") || `manual-${Date.now()}`;
   return `${id}@schedule.lofi.internal`;
+}
+
+function normalizeChatToken(value, maxLength = 80) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "")
+    .slice(0, maxLength);
+}
+
+function getRequestIp(request) {
+  const forwarded = String(request.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  const realIp = String(request.headers["x-real-ip"] || "").trim();
+  const remoteAddress = String(request.socket?.remoteAddress || "").trim();
+  return (forwarded || realIp || remoteAddress).replace(/^::ffff:/, "").slice(0, 80);
+}
+
+async function findConsultChatRecord({ sessionId, deviceId, clientIp }) {
+  const inbox = await readInbox();
+  const matches = inbox.filter((record) => {
+    if (record?.source !== "consult-chat") return false;
+    if (sessionId && (record.chatSessionId === sessionId || record.id === sessionId)) return true;
+    if (deviceId && record.chatDeviceId === deviceId) return true;
+    if (clientIp && record.clientIp === clientIp) return true;
+    return false;
+  });
+
+  return matches.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0))[0] || null;
+}
+
+async function getConsultThread(record) {
+  if (!record?.email) return [];
+  const threads = await readEmailThreads();
+  const thread = threads.find((item) => item.email && item.email.toLowerCase() === record.email.toLowerCase());
+  return Array.isArray(thread?.messages) ? thread.messages : [];
 }
 
 function normalizeConsultAttachments(value) {
@@ -1808,11 +1843,9 @@ createServer(async (request, response) => {
       const payload = await getJsonBody(request);
       const content = String(payload.content || "").trim();
       const attachments = normalizeConsultAttachments(payload.attachments);
-      const requestedSessionId = String(payload.sessionId || "")
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9-]/g, "")
-        .slice(0, 80);
+      const requestedSessionId = normalizeChatToken(payload.sessionId);
+      const deviceId = normalizeChatToken(payload.deviceId, 120);
+      const clientIp = getRequestIp(request);
 
       if (!content && !attachments.length) {
         response.writeHead(400, {
@@ -1833,9 +1866,10 @@ createServer(async (request, response) => {
       }
 
       const now = new Date().toISOString();
-      const sessionId = requestedSessionId || `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const matchedRecord = await findConsultChatRecord({ sessionId: requestedSessionId, deviceId, clientIp });
+      const sessionId = requestedSessionId || matchedRecord?.chatSessionId || matchedRecord?.id || `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const chatEmail = `${sessionId}@chat.lofi.internal`;
-      const existingRecord = (await readInbox()).find((record) => record.id === sessionId);
+      const existingRecord = matchedRecord || (await readInbox()).find((record) => record.id === sessionId);
       const patientInfo = extractPatientInfo(content);
       const displayName = patientInfo.name || existingRecord?.name || String(payload.displayName || "").trim() || `Visitor ${randomInt(1000, 10000)}`;
       const phone = patientInfo.phone || existingRecord?.phone || null;
@@ -1848,6 +1882,8 @@ createServer(async (request, response) => {
         concerns: content || "[Photo]",
         source: "consult-chat",
         chatSessionId: sessionId,
+        chatDeviceId: deviceId || existingRecord?.chatDeviceId || null,
+        clientIp: clientIp || existingRecord?.clientIp || null,
         createdAt: existingRecord?.createdAt || now,
         updatedAt: now,
       };
@@ -1885,6 +1921,46 @@ createServer(async (request, response) => {
         ...reservationCorsHeaders,
       });
       response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : "Failed to save chat message" }));
+      return;
+    }
+  }
+
+  if (pathname === "/api/consult-chat" && request.method === "GET") {
+    try {
+      const requestedSessionId = normalizeChatToken(requestUrl.searchParams.get("sessionId"));
+      const deviceId = normalizeChatToken(requestUrl.searchParams.get("deviceId"), 120);
+      const clientIp = getRequestIp(request);
+      const record = await findConsultChatRecord({ sessionId: requestedSessionId, deviceId, clientIp });
+
+      if (!record) {
+        response.writeHead(200, {
+          "Content-Type": "application/json; charset=utf-8",
+          ...reservationCorsHeaders,
+        });
+        response.end(JSON.stringify({ ok: true, thread: [] }));
+        return;
+      }
+
+      const thread = await getConsultThread(record);
+      response.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        ...reservationCorsHeaders,
+      });
+      response.end(JSON.stringify({
+        ok: true,
+        sessionId: record.chatSessionId || record.id,
+        displayName: record.name || "",
+        email: record.email,
+        thread,
+      }));
+      return;
+    } catch (error) {
+      console.error("Failed to load consult chat", error);
+      response.writeHead(500, {
+        "Content-Type": "application/json; charset=utf-8",
+        ...reservationCorsHeaders,
+      });
+      response.end(JSON.stringify({ message: "Failed to load chat" }));
       return;
     }
   }
