@@ -332,6 +332,22 @@
         transform: translateY(-2px);
       }
 
+      .sticky-appointment {
+        position: fixed;
+        right: 28px;
+        bottom: 28px;
+        z-index: 20;
+        white-space: nowrap;
+      }
+
+      @media (max-width: 640px) {
+        .sticky-appointment {
+          right: 18px;
+          bottom: 18px;
+          left: 18px;
+        }
+      }
+
       @media (max-width: 820px) {
         .case-card-featured {
           width: 100%;
@@ -478,7 +494,7 @@
           </figure>
         </section>
         <div class="bottom-cta">
-          <a class="btn" href="/reservation/index.html">Make a reservation</a>
+          <a class="btn sticky-appointment" href="/reservation/index.html">Book your appointment</a>
         </div>
       </main>
     </div>
@@ -560,5 +576,6 @@
         });
       })();
     </script>
+    <script src="/assets/consult-chat.js" defer></script>
   </body>
 </html>

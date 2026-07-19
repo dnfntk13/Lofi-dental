@@ -133,8 +133,8 @@
       h1 {
         margin: 14px 0 0;
         font-family: "Paperlogy", "Noto Sans KR", sans-serif;
-        font-size: clamp(1.54rem, 3.85vw, 3.22rem);
-        line-height: 0.98;
+        font-size: clamp(1.38rem, 3.2vw, 2.72rem);
+        line-height: 1.06;
         font-weight: 400;
       }
 
@@ -177,6 +177,14 @@
 
       .btn:hover {
         transform: translateY(-2px);
+      }
+
+      .sticky-appointment {
+        position: fixed;
+        right: 28px;
+        bottom: 28px;
+        z-index: 20;
+        white-space: nowrap;
       }
 
       .hero-side {
@@ -326,6 +334,12 @@
         .btn {
           text-align: center;
         }
+
+        .sticky-appointment {
+          right: 18px;
+          bottom: 18px;
+          left: 18px;
+        }
       }
     </style>
   </head>
@@ -348,14 +362,9 @@
       <main>
         <section class="hero">
           <article class="hero-main">
-            <h1>Through intentional imperfection,<br />we pursue natural beauty.</h1>
-            <p>
-              Instead of over-whitened and overly perfect veneers made for fast results,<br />
-              we aim for subtle beauty that lasts over time.
-            </p>
+            <h1>&ldquo;You need a dentist who knows by heart<br />what it feels like to be a foreigner.&rdquo;</h1>
             <div class="cta-row">
-              <a class="btn btn-primary" href="/reservation/index.html">Make a reservation</a>
-              <a class="btn btn-secondary" href="/dr-kim-story.html">Explore</a>
+              <a class="btn btn-secondary" href="/meetdrkim.html">Meet Dr. Ryan Kim</a>
               <a class="btn btn-secondary" href="/before-after-en.html">Before &amp; After</a>
             </div>
           </article>
@@ -415,10 +424,9 @@
         </section>
       </main>
 
-      <footer id="contact">
-        <a class="btn btn-primary" href="/reservation/index.html">Make a reservation</a>
-      </footer>
+      <a class="btn btn-primary sticky-appointment" href="/reservation/index.html">Book your appointment</a>
     </div>
+    <script src="/assets/consult-chat.js" defer></script>
   </body>
 </html>
 

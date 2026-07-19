@@ -134,11 +134,11 @@
         box-shadow: 0 10px 24px rgba(27, 39, 35, 0.04);
       }
 
-      .reel iframe {
+      .reel video {
         width: 100%;
         aspect-ratio: 9 / 16;
-        border: 0;
         display: block;
+        object-fit: cover;
       }
 
       .bottom-cta {
@@ -167,6 +167,14 @@
         transform: translateY(-2px);
       }
 
+      .sticky-appointment {
+        position: fixed;
+        right: 28px;
+        bottom: 28px;
+        z-index: 20;
+        white-space: nowrap;
+      }
+
       @media (max-width: 820px) {
         .reels {
           grid-template-columns: 1fr;
@@ -184,6 +192,12 @@
 
         .reel {
           border-radius: 14px;
+        }
+
+        .sticky-appointment {
+          right: 18px;
+          bottom: 18px;
+          left: 18px;
         }
       }
     </style>
@@ -206,39 +220,28 @@
       <main>
         <h1>lofi lab</h1>
         <p class="intro">Our lead doctor and ceramist collaborate to handcraft each veneer.<br />This is the lofi veneer process.</p>
-        <section class="reels" aria-label="lofi lab YouTube Shorts">
+        <section class="reels" aria-label="lofi lab videos">
           <div class="reel">
-            <iframe
-              src="https://www.youtube.com/embed/AAPNGmizVac"
-              title="lofi lab YouTube short 1"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowfullscreen
-              loading="lazy"
-            ></iframe>
+            <video controls playsinline preload="metadata">
+              <source src="assets/story/lofi-lab-veneers.mp4" type="video/mp4" />
+            </video>
           </div>
           <div class="reel">
-            <iframe
-              src="https://www.youtube.com/embed/t9qh_0y6Jlw"
-              title="lofi lab YouTube short 2"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowfullscreen
-              loading="lazy"
-            ></iframe>
+            <video controls playsinline preload="metadata">
+              <source src="assets/story/lofi-lab-dentistryisart.mp4" type="video/mp4" />
+            </video>
           </div>
           <div class="reel">
-            <iframe
-              src="https://www.youtube.com/embed/b6I14PwV4Fk"
-              title="lofi lab YouTube short 3"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowfullscreen
-              loading="lazy"
-            ></iframe>
+            <video controls playsinline preload="metadata">
+              <source src="assets/story/lofi-lab-primemill.mp4" type="video/mp4" />
+            </video>
           </div>
         </section>
         <div class="bottom-cta">
-          <a class="btn btn-primary" href="/reservation/index.html">Make a reservation</a>
+          <a class="btn btn-primary sticky-appointment" href="/reservation/index.html">Book your appointment</a>
         </div>
       </main>
     </div>
+    <script src="/assets/consult-chat.js" defer></script>
   </body>
 </html>

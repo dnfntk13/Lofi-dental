@@ -187,6 +187,14 @@
         transform: translateY(-2px);
       }
 
+      .sticky-appointment {
+        position: fixed;
+        right: 28px;
+        bottom: 28px;
+        z-index: 20;
+        white-space: nowrap;
+      }
+
       .hero-side {
         display: grid;
         gap: 14px;
@@ -419,6 +427,12 @@
           text-align: center;
         }
 
+        .sticky-appointment {
+          right: 18px;
+          bottom: 18px;
+          left: 18px;
+        }
+
         .step-main {
           flex-direction: column;
           align-items: flex-start;
@@ -452,9 +466,8 @@
               Full-mouth restoration, smile makeover, and seamless continuity of care when you return home.
             </p>
             <div class="cta-row">
-              <a class="btn btn-primary" href="contact-options.html">Consult with us</a>
-              <a class="btn btn-reservation" href="reservation/index.html">Make a reservation</a>
-              <a class="btn btn-meet-dr-kim" href="/dr-kim-story.html">Meet Dr. Kim</a>
+              <a class="btn btn-primary" href="#consult" data-consult-trigger>Consult with us</a>
+              <a class="btn btn-meet-dr-kim" href="/meetdrkim.html">Meet Dr. Kim</a>
             </div>
           </article>
 
@@ -471,7 +484,7 @@
           <div class="timeline">
             <article class="step">
               <div class="step-main">
-                <p><a class="step-link" href="contact-options.html">Tell us</a> about your dental/esthetic concerns.</p>
+                <p><a class="step-link" href="#consult" data-consult-trigger>Tell us</a> about your dental/esthetic concerns.</p>
               </div>
             </article>
             <article class="step">
@@ -520,16 +533,18 @@
             </article>
           </div>
           <div class="cta-row" style="margin-top: 20px;">
-            <a class="btn btn-secondary" href="/dr-kim-story.html">Read Dr. Kim's Full Story</a>
+            <a class="btn btn-secondary" href="/meetdrkim.html">Read Dr. Kim's Full Story</a>
           </div>
         </section>
       </main>
 
       <footer id="contact">
-        <a class="btn btn-primary" href="contact-options.html">Consult with us</a>
-        <a class="btn btn-reservation" href="reservation/index.html">Make a reservation</a>
+        <a class="btn btn-primary" href="#consult" data-consult-trigger>Consult with us</a>
       </footer>
+
+      <a class="btn btn-reservation sticky-appointment" href="reservation/index.html">Book your appointment</a>
     </div>
+    <script src="/assets/consult-chat.js" defer></script>
   </body>
 </html>
 

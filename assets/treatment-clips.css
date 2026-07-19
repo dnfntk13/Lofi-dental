@@ -182,53 +182,53 @@
 .clip-overlay.is-playing .tc-veneers .tc-photo-track,
 .clip-overlay.is-playing .tc-implants .tc-photo-track,
 .clip-overlay.is-playing .tc-all-on-x .tc-photo-track {
-  animation: tc-pan-vertical 3s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  animation: tc-pan-vertical 5s cubic-bezier(0.65, 0, 0.35, 1) forwards;
 }
 
 .clip-overlay.is-playing .tc-suresmile-before {
-  animation: tc-suresmile-before 3s ease forwards;
+  animation: tc-suresmile-before 5s ease forwards;
 }
 
 .clip-overlay.is-playing .tc-suresmile-aligner {
-  animation: tc-suresmile-aligner 3s ease forwards;
+  animation: tc-suresmile-aligner 5s ease forwards;
 }
 
 .clip-overlay.is-playing .tc-suresmile-after {
-  animation: tc-suresmile-after 3s ease forwards;
+  animation: tc-suresmile-after 5s ease forwards;
 }
 
 .clip-overlay.is-playing .tc-filling .tc-photo-track {
-  animation: tc-pan-horizontal 3s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  animation: tc-pan-horizontal 5s cubic-bezier(0.65, 0, 0.35, 1) forwards;
 }
 
 .clip-overlay.is-playing .tc-crown .tc-photo-track {
-  animation: tc-pan-three-stages 3s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  animation: tc-pan-three-stages 5s cubic-bezier(0.65, 0, 0.35, 1) forwards;
 }
 
 .clip-overlay.is-playing .tc-phase-labels span:first-child {
-  animation: tc-label-out 3s ease forwards;
+  animation: tc-label-out 5s ease forwards;
 }
 
 .clip-overlay.is-playing .tc-phase-labels span:last-child {
-  animation: tc-label-in 3s ease forwards;
+  animation: tc-label-in 5s ease forwards;
 }
 
 .clip-overlay.is-playing .tc-crown .tc-phase-labels span:nth-child(2) {
-  animation: tc-label-middle 3s ease forwards;
+  animation: tc-label-middle 5s ease forwards;
 }
 
 .clip-overlay.is-playing .tc-light-sweep,
 .clip-overlay.is-playing .tc-ceramic-sheen {
-  animation: tc-sweep 3s ease forwards;
+  animation: tc-sweep 5s ease forwards;
 }
 
 .clip-overlay.is-playing .tc-focus-ring,
 .clip-overlay.is-playing .tc-implant-pulse {
-  animation: tc-focus 3s ease forwards;
+  animation: tc-focus 5s ease forwards;
 }
 
 .clip-overlay.is-playing .tc-aligner {
-  animation: tc-aligner-seat 3s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+  animation: tc-aligner-seat 5s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
 }
 
 @keyframes tc-pan-vertical {

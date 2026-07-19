@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Instagram Settings | lofi dental admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Nunito+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-cream: #f5f7ff;
+        --bg-mist: #e7edff;
+        --ink: #1f2d66;
+        --soft-ink: #5a6fda;
+        --line: rgba(90, 111, 218, 0.22);
+        --card: rgba(255, 255, 255, 0.94);
+        --mint: #e6d5f5;
+        --accent: #5b3d8f;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Nunito Sans", "Segoe UI", "Helvetica Neue", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 12% 8%, rgba(220, 200, 237, 0.66), transparent 42%),
+          radial-gradient(circle at 88% 14%, rgba(230, 213, 245, 0.72), transparent 46%),
+          linear-gradient(170deg, var(--bg-cream) 0%, var(--bg-mist) 100%);
+      }
+
+      .page {
+        width: min(820px, 92vw);
+        margin: 0 auto;
+        padding: 28px 0 76px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        flex-wrap: wrap;
+        margin-bottom: 32px;
+      }
+
+      .logo-img {
+        max-width: 340px;
+        height: auto;
+        display: block;
+        margin-left: -10px;
+      }
+
+      .logo-link {
+        display: inline-block;
+        color: inherit;
+        text-decoration: none;
+        line-height: 0;
+      }
+
+      .nav-links {
+        margin-left: auto;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .nav-link {
+        text-decoration: none;
+        color: var(--soft-ink);
+        font-size: 0.92rem;
+        font-weight: 700;
+        padding: 8px 14px;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+        transition: 180ms ease;
+        white-space: nowrap;
+        background: rgba(255,255,255,0.7);
+      }
+
+      .nav-link:hover { background: var(--mint); transform: translateY(-1px); }
+      .nav-link.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: var(--card);
+        box-shadow: 0 18px 40px rgba(27,39,35,0.07);
+        overflow: hidden;
+      }
+
+      .card-head {
+        padding: 28px 30px;
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(135deg, rgba(91, 61, 143, 0.1), rgba(255, 255, 255, 0.8));
+      }
+
+      h1 {
+        margin: 0;
+        font-family: "Cormorant Garamond", serif;
+        font-size: clamp(2rem, 4vw, 3rem);
+        line-height: 1;
+        font-weight: 700;
+      }
+
+      .subtitle {
+        margin: 12px 0 0;
+        color: var(--soft-ink);
+        line-height: 1.6;
+        max-width: 62ch;
+      }
+
+      form {
+        padding: 28px 30px 30px;
+        display: grid;
+        gap: 18px;
+      }
+
+      .field {
+        display: grid;
+        gap: 7px;
+      }
+
+      label {
+        color: var(--soft-ink);
+        font-size: 0.84rem;
+        font-weight: 800;
+      }
+
+      input[type="text"], input[type="password"] {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        padding: 12px 14px;
+        outline: none;
+      }
+
+      input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(91, 61, 143, 0.12);
+      }
+
+      .hint {
+        margin: 0;
+        color: var(--soft-ink);
+        font-size: 0.8rem;
+        line-height: 1.45;
+      }
+
+      .render-box {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 18px;
+        background: rgba(245, 247, 255, 0.72);
+        display: grid;
+        gap: 14px;
+      }
+
+      .check-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--ink);
+        font-size: 0.9rem;
+        font-weight: 800;
+      }
+
+      .actions {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 4px;
+      }
+
+      .btn {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 11px 18px;
+        background: #fff;
+        color: var(--ink);
+        text-decoration: none;
+        font: inherit;
+        font-size: 0.9rem;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .btn.primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+
+      .btn:disabled {
+        opacity: 0.56;
+        cursor: default;
+      }
+
+      .status {
+        color: var(--soft-ink);
+        font-size: 0.86rem;
+        line-height: 1.45;
+      }
+
+      .status.ok { color: #166534; }
+      .status.error { color: #b42318; }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <a class="logo-link" href="/english" aria-label="Lofi Dental home">
+          <img src="../assets/영문로고.png" alt="lofi dental" class="logo-img" />
+        </a>
+        <nav class="nav-links" aria-label="Admin navigation">
+          <a class="nav-link" href="/admin/messages">Messages</a>
+          <a class="nav-link" href="/admin/calendar">Calendar</a>
+          <a class="nav-link" href="/admin/patients">Patients</a>
+          <a class="nav-link active" href="/admin/instagram-settings">Instagram Settings</a>
+        </nav>
+      </header>
+
+      <main class="card">
+        <div class="card-head">
+          <h1>Instagram Settings</h1>
+          <p class="subtitle">Enter the clinic Instagram ID for the admin inbox. Advanced Meta values are only needed for real DM sync and replies.</p>
+        </div>
+
+        <form id="settingsForm">
+          <div class="field">
+            <label for="instagramUsername">Instagram ID</label>
+            <input id="instagramUsername" name="instagramUsername" type="text" autocomplete="off" placeholder="lofi_esthetic_dentistry" required />
+            <p class="hint">After Meta is connected once, admin staff can manage this page with just the Instagram ID.</p>
+          </div>
+
+          <details class="render-box">
+            <summary class="check-row">Advanced Meta and Render settings</summary>
+
+          <div class="field">
+            <label for="businessAccountId">Instagram Business Account ID</label>
+            <input id="businessAccountId" name="businessAccountId" type="text" autocomplete="off" />
+            <p class="hint">This is the Instagram Business/Creator account ID connected to the clinic Meta app.</p>
+          </div>
+
+          <div class="field">
+            <label for="accessToken">Instagram Access Token</label>
+            <input id="accessToken" name="accessToken" type="password" autocomplete="off" />
+            <p class="hint" id="tokenHint">Paste a token with Instagram Messaging permissions.</p>
+          </div>
+
+          <div class="field">
+            <label for="graphApiVersion">Graph API Version</label>
+            <input id="graphApiVersion" name="graphApiVersion" type="text" value="v21.0" />
+          </div>
+
+            <label class="check-row">
+              <input id="syncRender" name="syncRender" type="checkbox" />
+              Sync these values to Render
+            </label>
+
+            <div class="field">
+              <label for="renderServiceId">Render Service ID</label>
+              <input id="renderServiceId" name="renderServiceId" type="text" autocomplete="off" />
+              <p class="hint">Default Render service is prefilled for this project.</p>
+            </div>
+
+            <div class="field">
+              <label for="renderApiKey">Render API Key</label>
+              <input id="renderApiKey" name="renderApiKey" type="password" autocomplete="off" />
+              <p class="hint" id="renderKeyHint">Used once by this server to update Render env vars. It is not saved or shown.</p>
+            </div>
+
+            <label class="check-row">
+              <input id="triggerDeploy" name="triggerDeploy" type="checkbox" checked />
+              Trigger a Render deploy after syncing
+            </label>
+          </details>
+
+          <div class="actions">
+            <a class="btn" href="/admin/calendar">Back to Calendar</a>
+            <button class="btn primary" id="saveBtn" type="submit">Save Settings</button>
+          </div>
+
+          <div class="status" id="status">Loading current settings...</div>
+        </form>
+      </main>
+    </div>
+
+    <script>
+      const form = document.getElementById("settingsForm");
+      const statusEl = document.getElementById("status");
+      const saveBtn = document.getElementById("saveBtn");
+      const instagramUsername = document.getElementById("instagramUsername");
+      const businessAccountId = document.getElementById("businessAccountId");
+      const accessToken = document.getElementById("accessToken");
+      const graphApiVersion = document.getElementById("graphApiVersion");
+      const syncRender = document.getElementById("syncRender");
+      const renderServiceId = document.getElementById("renderServiceId");
+      const renderApiKey = document.getElementById("renderApiKey");
+      const triggerDeploy = document.getElementById("triggerDeploy");
+      const tokenHint = document.getElementById("tokenHint");
+      const renderKeyHint = document.getElementById("renderKeyHint");
+
+      function setStatus(message, type = "") {
+        statusEl.className = `status ${type}`.trim();
+        statusEl.textContent = message;
+      }
+
+      async function loadSettings() {
+        try {
+          const res = await fetch("/api/admin/instagram-settings", { headers: { Accept: "application/json" } });
+          if (!res.ok) throw new Error("Failed to load settings");
+          const data = await res.json();
+          const settings = data.settings || {};
+          instagramUsername.value = settings.instagramUsername || "";
+          businessAccountId.value = settings.businessAccountId || "";
+          graphApiVersion.value = settings.graphApiVersion || "v21.0";
+          renderServiceId.value = settings.renderServiceIdDefault || "";
+          tokenHint.textContent = settings.accessTokenConfigured
+            ? "A token is already saved. Paste a new token only if you want to replace it."
+            : "Paste a token with Instagram Messaging permissions.";
+          renderKeyHint.textContent = settings.renderApiKeyConfigured
+            ? "A Render API key is configured on the server. Leave this blank unless replacing it for this save."
+            : "Used once by this server to update Render env vars. It is not saved or shown.";
+          setStatus(settings.accessTokenConfigured ? "Instagram messaging settings are saved." : "Instagram ID can be saved now. Meta credentials are still needed for real DM sync and replies.");
+        } catch {
+          setStatus("Failed to load current settings.", "error");
+        }
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        saveBtn.disabled = true;
+        setStatus("Saving settings...");
+
+        try {
+          const payload = {
+            instagramUsername: instagramUsername.value.trim(),
+            businessAccountId: businessAccountId.value.trim(),
+            accessToken: accessToken.value.trim(),
+            graphApiVersion: graphApiVersion.value.trim() || "v21.0",
+            syncRender: syncRender.checked,
+            renderServiceId: renderServiceId.value.trim(),
+            renderApiKey: renderApiKey.value.trim(),
+            triggerDeploy: triggerDeploy.checked,
+          };
+
+          const res = await fetch("/api/admin/instagram-settings", {
+            method: "POST",
+            headers: {
+              "Accept": "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.message || "Failed to save settings");
+
+          const renderMessage = data.render ? " Render env vars were synced." : "";
+          setStatus(`Settings saved.${renderMessage}`, "ok");
+          accessToken.value = "";
+          renderApiKey.value = "";
+          await loadSettings();
+        } catch (error) {
+          setStatus(error.message || "Failed to save settings.", "error");
+        } finally {
+          saveBtn.disabled = false;
+        }
+      });
+
+      loadSettings();
+    </script>
+  </body>
+</html>

@@ -63,12 +63,12 @@
     },
     allOnX: {
       title: "All on X",
-      copy: "Multiple implants use the same support principle to secure a fixed full-arch restoration.",
+      copy: "Multiple teeth supported by several implants to replace multiple missing teeth or the entire arch or mouth.",
       visual: verticalSequence("all-on-x-before-after.jpg", "tc-all-on-x", '<div class="tc-implant-pulse" aria-hidden="true"></div>'),
     },
     sureSmile: {
       title: "SureSmile Clear Aligners",
-      copy: "Crowded front teeth are guided through clear aligner planning toward a straighter bite.",
+      copy: "Corrects misaligned teeth into natural, beautiful smile.",
       visual: `
         <div class="tc-photo-scene tc-suresmile">
           <div class="tc-suresmile-sequence">
@@ -105,7 +105,7 @@
     overlay.classList.remove("is-hidden", "is-playing");
     void overlay.offsetWidth;
     overlay.classList.add("is-playing");
-    closeTimer = window.setTimeout(close, 3000);
+    closeTimer = window.setTimeout(close, 5000);
   };
 
   document.addEventListener("click", (event) => {

@@ -343,6 +343,211 @@
         color: var(--soft-ink); font-size: 1rem;
       }
 
+      .admin-workspace {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 380px;
+        gap: 18px;
+        align-items: start;
+      }
+
+      .calendar-column { min-width: 0; }
+
+      .instagram-panel {
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 18px 40px rgba(27,39,35,0.07);
+        overflow: hidden;
+        position: sticky;
+        top: 18px;
+      }
+
+      .instagram-head {
+        padding: 18px;
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(135deg, rgba(91, 61, 143, 0.1), rgba(255, 255, 255, 0.8));
+      }
+
+      .instagram-title {
+        margin: 0;
+        font-family: "Cormorant Garamond", serif;
+        font-size: 1.45rem;
+        line-height: 1;
+      }
+
+      .instagram-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 14px;
+        justify-content: flex-end;
+      }
+
+      .instagram-btn {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 12px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.8rem;
+        font-weight: 800;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      .instagram-btn.primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+
+      .instagram-status {
+        margin-top: 10px;
+        color: var(--soft-ink);
+        font-size: 0.78rem;
+        line-height: 1.45;
+      }
+
+      .instagram-list {
+        max-height: 220px;
+        overflow-y: auto;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .instagram-empty {
+        margin: 0;
+        padding: 22px 18px;
+        color: var(--soft-ink);
+        font-size: 0.9rem;
+        line-height: 1.55;
+      }
+
+      .instagram-thread {
+        border-bottom: 1px solid var(--line);
+        padding: 14px 16px;
+        display: grid;
+        gap: 8px;
+        width: 100%;
+        background: #fff;
+        color: inherit;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .instagram-thread:last-child { border-bottom: none; }
+      .instagram-thread.active { background: rgba(91, 61, 143, 0.09); }
+
+      .instagram-thread-top {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .instagram-name {
+        margin: 0;
+        font-size: 0.92rem;
+        font-weight: 800;
+        color: var(--ink);
+      }
+
+      .instagram-time {
+        color: var(--soft-ink);
+        font-size: 0.72rem;
+        white-space: nowrap;
+      }
+
+      .instagram-message {
+        margin: 0;
+        color: var(--soft-ink);
+        font-size: 0.86rem;
+        line-height: 1.55;
+        white-space: pre-wrap;
+      }
+
+      .instagram-chat {
+        min-height: 360px;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+
+      .instagram-chat-head {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(245, 247, 255, 0.75);
+      }
+
+      .instagram-chat-name {
+        margin: 0;
+        font-weight: 900;
+        color: var(--ink);
+      }
+
+      .instagram-chat-meta {
+        margin: 4px 0 0;
+        color: var(--soft-ink);
+        font-size: 0.76rem;
+      }
+
+      .instagram-messages {
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 330px;
+        overflow-y: auto;
+      }
+
+      .instagram-bubble {
+        width: fit-content;
+        max-width: 86%;
+        padding: 9px 11px;
+        border-radius: 14px;
+        background: #f1f4ff;
+        color: var(--ink);
+        font-size: 0.86rem;
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+
+      .instagram-bubble.admin {
+        margin-left: auto;
+        background: var(--accent);
+        color: #fff;
+      }
+
+      .instagram-reply {
+        padding: 12px;
+        border-top: 1px solid var(--line);
+        display: grid;
+        gap: 8px;
+      }
+
+      .instagram-reply textarea {
+        width: 100%;
+        min-height: 78px;
+        resize: vertical;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        font: inherit;
+        color: var(--ink);
+      }
+
+      .instagram-reply-actions {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .instagram-reply-note {
+        color: var(--soft-ink);
+        font-size: 0.72rem;
+        line-height: 1.35;
+      }
+
       .reservation-menu {
         position: fixed;
         z-index: 300;
@@ -456,6 +661,8 @@
       }
 
       @media (max-width: 680px) {
+        .admin-workspace { grid-template-columns: 1fr; }
+        .instagram-panel { position: static; }
         .cal-cell { min-height: 70px; padding: 4px; }
         .event-chip { font-size: 0.68rem; padding: 2px 5px; }
         .cal-weekday { font-size: 0.7rem; padding: 8px 2px; }
@@ -505,22 +712,36 @@
 
       <div id="statusMsg" class="state-msg" style="display:none"></div>
 
-      <div class="cal-wrap" id="calWrap">
-        <div class="cal-weekdays">
-          <div class="cal-weekday sun">Sun</div>
-          <div class="cal-weekday">Mon</div>
-          <div class="cal-weekday">Tue</div>
-          <div class="cal-weekday">Wed</div>
-          <div class="cal-weekday">Thu</div>
-          <div class="cal-weekday">Fri</div>
-          <div class="cal-weekday sat">Sat</div>
-        </div>
-        <div class="cal-grid" id="calGrid" aria-label="Calendar"></div>
-      </div>
+      <div class="admin-workspace">
+        <div class="calendar-column">
+          <div class="cal-wrap" id="calWrap">
+            <div class="cal-weekdays">
+              <div class="cal-weekday sun">Sun</div>
+              <div class="cal-weekday">Mon</div>
+              <div class="cal-weekday">Tue</div>
+              <div class="cal-weekday">Wed</div>
+              <div class="cal-weekday">Thu</div>
+              <div class="cal-weekday">Fri</div>
+              <div class="cal-weekday sat">Sat</div>
+            </div>
+            <div class="cal-grid" id="calGrid" aria-label="Calendar"></div>
+          </div>
 
-      <div class="legend">
-        <span class="legend-dot"></span>
-        <span>Reservation received</span>
+          <div class="legend">
+            <span class="legend-dot"></span>
+            <span>Reservation received</span>
+          </div>
+        </div>
+
+        <aside class="instagram-panel" aria-label="Instagram DM inbox">
+          <div class="instagram-head">
+            <h2 class="instagram-title">Instagram DM</h2>
+            <div class="instagram-actions">
+              <button class="instagram-btn primary" type="button" id="instagramOpen">Open Instagram</button>
+            </div>
+            <div class="instagram-status" id="instagramStatus">Open Instagram Direct and log in with the account you want to use.</div>
+          </div>
+        </aside>
       </div>
     </div>
 
@@ -674,6 +895,8 @@
       const calWrap = document.getElementById("calWrap");
       const selectionBox = document.getElementById("selectionBox");
       const undoBtn = document.getElementById("undoBtn");
+      const instagramStatus = document.getElementById("instagramStatus");
+      const instagramOpen = document.getElementById("instagramOpen");
 
       const today = new Date();
       let viewYear = today.getFullYear();
@@ -702,6 +925,26 @@
         statusTimer = setTimeout(() => {
           statusMsg.style.display = "none";
         }, ms);
+      }
+
+      function openInstagramWindow() {
+        const width = 460;
+        const height = 760;
+        const left = Math.max(0, window.screenX + window.outerWidth - width - 24);
+        const top = Math.max(0, window.screenY + 64);
+        const popup = window.open(
+          "https://www.instagram.com/direct/inbox/",
+          "lofiInstagramDirect",
+          `popup=yes,width=${width},height=${height},left=${left},top=${top}`,
+        );
+
+        if (!popup) {
+          window.location.href = "https://www.instagram.com/direct/inbox/";
+          return;
+        }
+
+        popup.focus();
+        instagramStatus.textContent = "Instagram opened. Log in there with any Instagram account.";
       }
 
       function pushUndo(action) {
@@ -1643,6 +1886,8 @@
         viewMonth = today.getMonth();
         renderCalendar();
       });
+
+      instagramOpen.addEventListener("click", openInstagramWindow);
 
       loadReservations();
     </script>

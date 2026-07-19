@@ -134,11 +134,11 @@
         box-shadow: 0 10px 24px rgba(27, 39, 35, 0.04);
       }
 
-      .reel iframe {
+      .reel video {
         width: 100%;
         aspect-ratio: 9 / 16;
-        border: 0;
         display: block;
+        object-fit: cover;
       }
 
       .bottom-cta {
@@ -206,33 +206,21 @@
       <main>
         <h1>lofi lab</h1>
         <p class="intro">대표원장과 세라미스트가 협업하여 <br />수작업으로 만들어내는 라미네이트, <br />lofi veneer입니다.</p>
-        <section class="reels" aria-label="lofi lab youtube shorts">
+        <section class="reels" aria-label="lofi lab videos">
           <div class="reel">
-            <iframe
-              src="https://www.youtube.com/embed/AAPNGmizVac"
-              title="lofi lab youtube short 1"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowfullscreen
-              loading="lazy"
-            ></iframe>
+            <video controls playsinline preload="metadata">
+              <source src="assets/story/lofi-lab-veneers.mp4" type="video/mp4" />
+            </video>
           </div>
           <div class="reel">
-            <iframe
-              src="https://www.youtube.com/embed/t9qh_0y6Jlw"
-              title="lofi lab youtube short 2"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowfullscreen
-              loading="lazy"
-            ></iframe>
+            <video controls playsinline preload="metadata">
+              <source src="assets/story/lofi-lab-dentistryisart.mp4" type="video/mp4" />
+            </video>
           </div>
           <div class="reel">
-            <iframe
-              src="https://www.youtube.com/embed/b6I14PwV4Fk"
-              title="lofi lab youtube short 3"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowfullscreen
-              loading="lazy"
-            ></iframe>
+            <video controls playsinline preload="metadata">
+              <source src="assets/story/lofi-lab-primemill.mp4" type="video/mp4" />
+            </video>
           </div>
         </section>
         <div class="bottom-cta">

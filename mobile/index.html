@@ -189,6 +189,14 @@
         flex: 0 0 auto;
       }
 
+      .sticky-appointment {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        left: 18px;
+        z-index: 20;
+      }
+
       .section {
         margin-top: 12px;
         padding: 16px;
@@ -299,33 +307,6 @@
         text-decoration: none;
       }
 
-      .sticky-actions {
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 10;
-        padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
-        background: rgba(245, 247, 255, 0.92);
-        border-top: 1px solid var(--line);
-        backdrop-filter: blur(12px);
-      }
-
-      .sticky-inner {
-        width: min(100%, 432px);
-        margin: 0 auto;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 9px;
-      }
-
-      .sticky-actions .btn {
-        min-height: 48px;
-        justify-content: center;
-        padding: 0 12px;
-        font-size: 0.94rem;
-      }
-
       @media (max-width: 360px) {
         .page { padding-left: 12px; padding-right: 12px; }
         h1 { font-size: 2.08rem; }
@@ -360,13 +341,13 @@
       </section>
 
       <nav class="actions" aria-label="Primary actions">
-        <a class="btn btn-primary" href="reservation/index.html">
-          <span>Make a reservation</span>
+        <a class="btn btn-primary sticky-appointment" href="reservation/index.html">
+          <span>Book your appointment</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M9 18l6-6-6-6" />
           </svg>
         </a>
-        <a class="btn btn-fresh" href="contact-options.html">
+        <a class="btn btn-fresh" href="#consult" data-consult-trigger>
           <span>Consult with us</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M9 18l6-6-6-6" />
@@ -421,11 +402,6 @@
       </section>
     </main>
 
-    <nav class="sticky-actions" aria-label="Quick actions">
-      <div class="sticky-inner">
-        <a class="btn btn-primary" href="reservation/index.html">Reserve</a>
-        <a class="btn" href="contact-options.html">Consult</a>
-      </div>
-    </nav>
+    <script src="/assets/consult-chat.js" defer></script>
   </body>
 </html>

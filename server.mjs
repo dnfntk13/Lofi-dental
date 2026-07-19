@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { randomInt } from "node:crypto";
+import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { Resolver } from "node:dns/promises";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -17,10 +17,28 @@ const adminUser = process.env.ADMIN_USER || "lofidental";
 const adminPass = process.env.ADMIN_PASS || "Lofidental1!";
 const adminSessionCookie = "admin_session";
 const adminSessionValue = Buffer.from(`${adminUser}:${adminPass}`, "utf-8").toString("base64url");
+const instagramClientId = process.env.INSTAGRAM_CLIENT_ID || "";
+const instagramClientSecret = process.env.INSTAGRAM_CLIENT_SECRET || "";
+const instagramRedirectUri = process.env.INSTAGRAM_REDIRECT_URI || "";
+const instagramWebhookVerifyToken = process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN || "";
+const instagramGraphApiVersion = process.env.INSTAGRAM_GRAPH_API_VERSION || "v21.0";
+const instagramBusinessAccountId = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID || "";
+const instagramAccessToken = process.env.INSTAGRAM_ACCESS_TOKEN || "";
+const renderDefaultServiceId = process.env.RENDER_SERVICE_ID || "srv-d8l6hspkh4rs73fqrtqg";
+const renderApiKey = process.env.RENDER_API_KEY || "";
+const instagramAdminUsers = (process.env.INSTAGRAM_ADMIN_USERS || "lofi_esthetic_dentistry")
+  .split(",")
+  .map((value) => value.trim().toLowerCase())
+  .filter(Boolean);
+const instagramAdminIds = (process.env.INSTAGRAM_ADMIN_IDS || "")
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
 const dataDir = path.join(rootDir, ".data");
 const inboxPath = path.join(dataDir, "reservation-inbox.json");
 const emailThreadsPath = path.join(dataDir, "email-threads.json");
 const imapProcessedPath = path.join(dataDir, "imap-processed.json");
+const instagramSettingsPath = path.join(dataDir, "instagram-settings.json");
 const mongoUri = process.env.MONGODB_URI || "";
 const mongoDatabaseName = process.env.MONGODB_DB_NAME || "lofi-dental";
 const mongoCollectionName = process.env.MONGODB_COLLECTION || "reservationMessages";
@@ -48,7 +66,9 @@ const emailDnsServers = (process.env.EMAIL_DNS_SERVERS || "8.8.8.8,1.1.1.1")
 let inboxCollectionPromise;
 const emailVerificationCodes = new Map();
 const verifiedEmails = new Map();
+const instagramAuthStates = new Map();
 const emailVerificationTtlMs = 10 * 60 * 1000;
+const instagramAuthStateTtlMs = 10 * 60 * 1000;
 const emailResolver = new Resolver();
 emailResolver.setServers(emailDnsServers);
 const reservationCorsHeaders = {
@@ -65,6 +85,7 @@ const mimeTypes = {
   ".jpeg": "image/jpeg",
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".mp4": "video/mp4",
   ".png": "image/png",
   ".svg": "image/svg+xml",
 };
@@ -83,6 +104,10 @@ function resolvePath(urlPath) {
     return "/english/index.html";
   }
 
+  if (["/meetdrkim", "/meetdrkim/"].includes(pathname)) {
+    return "/meetdrkim.html";
+  }
+
   if (["/admin/calendar", "/admin/calendar/"].includes(pathname)) {
     return "/admin/calendar.html";
   }
@@ -93,6 +118,10 @@ function resolvePath(urlPath) {
 
   if (["/admin/patients", "/admin/patients/"].includes(pathname)) {
     return "/admin/patients.html";
+  }
+
+  if (["/admin/instagram-settings", "/admin/instagram-settings/"].includes(pathname)) {
+    return "/admin/instagram-settings.html";
   }
 
   if (["/admin", "/admin/"].includes(pathname)) {
@@ -208,6 +237,37 @@ async function addInboxRecord(record) {
   await writeFile(inboxPath, JSON.stringify(messages, null, 2), "utf-8");
 }
 
+async function upsertInboxRecord(record) {
+  const collection = await getInboxCollection();
+  if (collection) {
+    const existing = await collection.findOne({ id: record.id }, { projection: { _id: 0 } });
+    const merged = {
+      ...(existing || {}),
+      ...record,
+      id: record.id,
+      createdAt: existing?.createdAt || record.createdAt,
+    };
+    await collection.replaceOne({ id: record.id }, merged, { upsert: true });
+    return merged;
+  }
+
+  const messages = await readInbox();
+  const index = messages.findIndex((message) => message.id === record.id);
+  if (index >= 0) {
+    messages[index] = {
+      ...messages[index],
+      ...record,
+      id: record.id,
+      createdAt: messages[index].createdAt || record.createdAt,
+    };
+  } else {
+    messages.unshift(record);
+  }
+  await mkdir(dataDir, { recursive: true });
+  await writeFile(inboxPath, JSON.stringify(messages, null, 2), "utf-8");
+  return index >= 0 ? messages[index] : record;
+}
+
 async function deleteInboxRecord(id) {
   const collection = await getInboxCollection();
   if (collection) {
@@ -266,6 +326,13 @@ async function readEmailThreads() {
 async function saveOrUpdateEmailThread(email, reservationId, messageData) {
   const now = new Date().toISOString();
   const collection = await getEmailThreadsCollection();
+  const message = { ...messageData };
+  if (!message.channel) {
+    const source = String(message.source || "").toLowerCase();
+    if (source === "consult-chat" || source === "web") message.channel = "web";
+    else if (source === "instagram" || source === "instagram-dm" || source === "instagram_dm") message.channel = "instagram";
+    else message.channel = "email";
+  }
   
   if (collection) {
     // Note: $setOnInsert and $push cannot target the same field ("messages").
@@ -275,7 +342,7 @@ async function saveOrUpdateEmailThread(email, reservationId, messageData) {
       {
         $set: { email, reservationId, updatedAt: now },
         $setOnInsert: { id: `thread-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, createdAt: now },
-        $push: { messages: messageData },
+        $push: { messages: message },
       },
       { upsert: true }
     );
@@ -285,20 +352,27 @@ async function saveOrUpdateEmailThread(email, reservationId, messageData) {
   const threads = await readEmailThreads();
   const idx = threads.findIndex((t) => t.email === email);
   if (idx >= 0) {
-    threads[idx].messages.push(messageData);
+    threads[idx].messages.push(message);
     threads[idx].updatedAt = now;
   } else {
     threads.unshift({
       id: `thread-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       email,
       reservationId,
-      messages: [messageData],
+      messages: [message],
       createdAt: now,
       updatedAt: now,
     });
   }
   await mkdir(dataDir, { recursive: true });
   await writeFile(emailThreadsPath, JSON.stringify(threads, null, 2), "utf-8");
+}
+
+function getPatientThreadEmail(record) {
+  const email = String(record?.email || record?.threadEmail || "").trim().toLowerCase();
+  if (email) return email;
+  const id = String(record?.id || `manual-${Date.now()}`).trim().toLowerCase().replace(/[^a-z0-9-]/g, "") || `manual-${Date.now()}`;
+  return `${id}@schedule.lofi.internal`;
 }
 
 async function readPatients() {
@@ -317,7 +391,9 @@ function extractPatientInfo(text) {
   const result = { name: null, phone: null };
   const namePatterns = [
     /(?:이름|성함)\s*[:：]\s*(.+)/i,
+    /(?:제\s*이름은|저는|나는)\s*([^\n,.。!?]{2,30})(?:입니다|이에요|예요|라고\s*합니다)/i,
     /name\s*[:：]\s*(.+)/i,
+    /my\s+name\s+is\s+([^\n,.!?]{2,50})/i,
   ];
   const phonePatterns = [
     /(?:전화|연락처|휴대폰|핸드폰)\s*번?호?\s*[:：]\s*([\d\s\-+().]+)/i,
@@ -326,7 +402,7 @@ function extractPatientInfo(text) {
   ];
   for (const p of namePatterns) {
     const m = text.match(p);
-    if (m) { result.name = m[1].trim().split(/\n/)[0].trim().slice(0, 80); break; }
+    if (m) { result.name = m[1].trim().split(/\n/)[0].replace(/(?:입니다|이에요|예요|라고\s*합니다)$/i, "").trim().slice(0, 80); break; }
   }
   for (const p of phonePatterns) {
     const m = text.match(p);
@@ -336,14 +412,18 @@ function extractPatientInfo(text) {
 }
 
 async function saveOrUpdatePatient(record, patientInfo) {
-  if (!patientInfo.name && !patientInfo.phone) return;
+  if (!patientInfo.name && !patientInfo.phone && !record.name && !record.phone) return;
   const now = new Date().toISOString();
+  const email = getPatientThreadEmail(record);
+  const name = patientInfo.name || record.name || null;
+  const phone = patientInfo.phone || record.phone || null;
+  const realEmail = record.email && !String(record.email).endsWith(".lofi.internal") ? record.email : null;
   const collection = await getPatientsCollection();
   if (collection) {
     await collection.updateOne(
-      { email: record.email },
+      { email },
       {
-        $set: { email: record.email, ...(patientInfo.name && { name: patientInfo.name }), ...(patientInfo.phone && { phone: patientInfo.phone }), updatedAt: now },
+        $set: { email, ...(realEmail && { realEmail }), ...(name && { name }), ...(phone && { phone }), updatedAt: now },
         $setOnInsert: { id: `patient-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, firstSeen: now },
         $addToSet: { reservationIds: record.id },
       },
@@ -352,19 +432,192 @@ async function saveOrUpdatePatient(record, patientInfo) {
     return;
   }
   const patients = await readPatients();
-  const idx = patients.findIndex((p) => p.email === record.email);
+  const idx = patients.findIndex((p) => p.email === email);
   if (idx >= 0) {
     const p = patients[idx];
-    if (patientInfo.name) p.name = patientInfo.name;
-    if (patientInfo.phone) p.phone = patientInfo.phone;
+    if (realEmail) p.realEmail = realEmail;
+    if (name) p.name = name;
+    if (phone) p.phone = phone;
     p.updatedAt = now;
     if (!p.reservationIds) p.reservationIds = [];
     if (!p.reservationIds.includes(record.id)) p.reservationIds.push(record.id);
   } else {
-    patients.unshift({ id: `patient-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, email: record.email, name: patientInfo.name || null, phone: patientInfo.phone || null, firstSeen: now, updatedAt: now, reservationIds: [record.id] });
+    patients.unshift({ id: `patient-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, email, realEmail, name, phone, firstSeen: now, updatedAt: now, reservationIds: [record.id] });
   }
   await mkdir(dataDir, { recursive: true });
   await writeFile(patientsPath, JSON.stringify(patients, null, 2), "utf-8");
+}
+
+async function saveInstagramDmMessage(senderId, content, receivedAt = new Date().toISOString()) {
+  const normalizedSenderId = String(senderId || "").trim();
+  const text = String(content || "").trim();
+  if (!normalizedSenderId || !text) return null;
+
+  const id = `instagram-${normalizedSenderId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  const email = `${id.toLowerCase()}@instagram.lofi.internal`;
+  const existingRecord = (await readInbox()).find((record) => record.id === id || String(record.email || "").toLowerCase() === email);
+  const patientInfo = extractPatientInfo(text);
+  const name = patientInfo.name || existingRecord?.name || `Instagram ${normalizedSenderId.slice(-6)}`;
+  const record = {
+    id,
+    date: "Instagram DM",
+    time: "Live",
+    email,
+    name,
+    concerns: text,
+    source: "instagram-dm",
+    channel: "instagram",
+    instagramSenderId: normalizedSenderId,
+    createdAt: existingRecord?.createdAt || receivedAt,
+    updatedAt: receivedAt,
+  };
+
+  if (patientInfo.phone || existingRecord?.phone) {
+    record.phone = patientInfo.phone || existingRecord.phone;
+  }
+
+  const savedRecord = await upsertInboxRecord(record);
+  await saveOrUpdateEmailThread(email, id, {
+    type: "customer-reply",
+    receivedAt,
+    content: text,
+    source: "instagram-dm",
+    channel: "instagram",
+    instagramSenderId: normalizedSenderId,
+  });
+  await saveOrUpdatePatient(savedRecord, { name, phone: record.phone || null });
+  return savedRecord;
+}
+
+async function sendInstagramDmReply(senderId, content) {
+  const config = await getInstagramMessagingConfig();
+  if (!config.businessAccountId || !config.accessToken) {
+    throw new Error("Instagram messaging is not configured");
+  }
+
+  const endpoint = `https://graph.instagram.com/${config.graphApiVersion}/${encodeURIComponent(config.businessAccountId)}/messages`;
+  const apiResponse = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${config.accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      recipient: { id: senderId },
+      message: { text: content },
+    }),
+  });
+
+  const data = await apiResponse.json().catch(() => ({}));
+  if (!apiResponse.ok) {
+    const message = data?.error?.message || "Failed to send Instagram reply";
+    const error = new Error(message);
+    error.statusCode = apiResponse.status;
+    throw error;
+  }
+
+  return data;
+}
+
+async function readInstagramSettings() {
+  try {
+    const data = await readFile(instagramSettingsPath, "utf-8");
+    const parsed = JSON.parse(data);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+async function saveInstagramSettings(settings) {
+  const saved = {
+    instagramUsername: String(settings.instagramUsername || "").trim().replace(/^@+/, ""),
+    businessAccountId: String(settings.businessAccountId || "").trim(),
+    accessToken: String(settings.accessToken || "").trim(),
+    graphApiVersion: String(settings.graphApiVersion || instagramGraphApiVersion).trim() || instagramGraphApiVersion,
+    updatedAt: new Date().toISOString(),
+  };
+  await mkdir(dataDir, { recursive: true });
+  await writeFile(instagramSettingsPath, JSON.stringify(saved, null, 2), "utf-8");
+  return saved;
+}
+
+async function getInstagramMessagingConfig() {
+  const saved = await readInstagramSettings();
+  return {
+    instagramUsername: String(saved.instagramUsername || "").trim().replace(/^@+/, ""),
+    businessAccountId: String(saved.businessAccountId || instagramBusinessAccountId || "").trim(),
+    accessToken: String(saved.accessToken || instagramAccessToken || "").trim(),
+    graphApiVersion: String(saved.graphApiVersion || instagramGraphApiVersion || "v21.0").trim(),
+  };
+}
+
+function publicInstagramSettings(config) {
+  return {
+    instagramUsername: config.instagramUsername || "",
+    businessAccountId: config.businessAccountId || "",
+    graphApiVersion: config.graphApiVersion || instagramGraphApiVersion,
+    accessTokenConfigured: Boolean(config.accessToken),
+    renderServiceIdDefault: renderDefaultServiceId,
+    renderApiKeyConfigured: Boolean(renderApiKey),
+  };
+}
+
+async function upsertRenderEnvVar(serviceId, apiKey, key, value) {
+  const baseUrl = `https://api.render.com/v1/services/${encodeURIComponent(serviceId)}/env-vars`;
+  const headers = {
+    "Authorization": `Bearer ${apiKey}`,
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+  };
+  const updateResponse = await fetch(`${baseUrl}/${encodeURIComponent(key)}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify({ value }),
+  });
+  if (updateResponse.ok) return { key, action: "updated" };
+
+  if (updateResponse.status !== 404) {
+    const body = await updateResponse.text().catch(() => "");
+    throw new Error(`Render env update failed for ${key}: ${body || updateResponse.status}`);
+  }
+
+  const createResponse = await fetch(baseUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ key, value }),
+  });
+  if (createResponse.ok) return { key, action: "created" };
+
+  const body = await createResponse.text().catch(() => "");
+  throw new Error(`Render env create failed for ${key}: ${body || createResponse.status}`);
+}
+
+async function syncInstagramSettingsToRender({ serviceId, apiKey, settings, triggerDeploy }) {
+  const results = [];
+  results.push(await upsertRenderEnvVar(serviceId, apiKey, "INSTAGRAM_BUSINESS_ACCOUNT_ID", settings.businessAccountId));
+  results.push(await upsertRenderEnvVar(serviceId, apiKey, "INSTAGRAM_ACCESS_TOKEN", settings.accessToken));
+  results.push(await upsertRenderEnvVar(serviceId, apiKey, "INSTAGRAM_GRAPH_API_VERSION", settings.graphApiVersion));
+
+  let deploy = null;
+  if (triggerDeploy) {
+    const deployResponse = await fetch(`https://api.render.com/v1/services/${encodeURIComponent(serviceId)}/deploys`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ clearCache: "do_not_clear" }),
+    });
+    if (!deployResponse.ok) {
+      const body = await deployResponse.text().catch(() => "");
+      throw new Error(`Render deploy trigger failed: ${body || deployResponse.status}`);
+    }
+    deploy = await deployResponse.json().catch(() => ({ ok: true }));
+  }
+
+  return { results, deploy };
 }
 
 function getJsonBody(request) {
@@ -388,6 +641,36 @@ function getJsonBody(request) {
 
     request.on("error", () => reject(new Error("Request failed")));
   });
+}
+
+function getRawBody(request) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+
+    request.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > 1024 * 1024) {
+        reject(new Error("Payload too large"));
+        return;
+      }
+      chunks.push(chunk);
+    });
+
+    request.on("end", () => resolve(Buffer.concat(chunks)));
+    request.on("error", () => reject(new Error("Request failed")));
+  });
+}
+
+function isValidMetaSignature(rawBody, signatureHeader) {
+  if (!instagramClientSecret) return true;
+  const signature = String(signatureHeader || "").trim();
+  if (!signature.startsWith("sha256=")) return false;
+  const expected = createHmac("sha256", instagramClientSecret).update(rawBody).digest("hex");
+  const received = signature.slice("sha256=".length);
+  const expectedBuffer = Buffer.from(expected, "hex");
+  const receivedBuffer = Buffer.from(received, "hex");
+  return expectedBuffer.length === receivedBuffer.length && timingSafeEqual(expectedBuffer, receivedBuffer);
 }
 
 function isAuthorized(request) {
@@ -428,6 +711,89 @@ function requestAuth(response) {
     "WWW-Authenticate": 'Basic realm="Admin Messages"',
   });
   response.end(JSON.stringify({ message: "Unauthorized" }));
+}
+
+function isInstagramLoginConfigured() {
+  return Boolean(instagramClientId && instagramClientSecret && (instagramAdminUsers.length || instagramAdminIds.length));
+}
+
+function getRequestOrigin(request) {
+  const proto = String(request.headers["x-forwarded-proto"] || "http").split(",")[0].trim() || "http";
+  const host = String(request.headers["x-forwarded-host"] || request.headers.host || `localhost:${port}`).split(",")[0].trim();
+  return `${proto}://${host}`;
+}
+
+function getInstagramRedirectUri(request) {
+  return instagramRedirectUri || `${getRequestOrigin(request)}/api/admin/instagram-callback`;
+}
+
+function cleanupInstagramAuthStates() {
+  const now = Date.now();
+  for (const [state, entry] of instagramAuthStates.entries()) {
+    if (entry.expiresAt <= now) {
+      instagramAuthStates.delete(state);
+    }
+  }
+}
+
+function createInstagramAuthState(nextPath) {
+  cleanupInstagramAuthStates();
+  const state = randomBytes(18).toString("base64url");
+  instagramAuthStates.set(state, {
+    next: nextPath && nextPath.startsWith("/") ? nextPath : "/admin",
+    expiresAt: Date.now() + instagramAuthStateTtlMs,
+  });
+  return state;
+}
+
+function consumeInstagramAuthState(state) {
+  cleanupInstagramAuthStates();
+  const entry = instagramAuthStates.get(state);
+  instagramAuthStates.delete(state);
+  return entry || null;
+}
+
+async function exchangeInstagramCodeForToken(code, redirectUri) {
+  const body = new URLSearchParams({
+    client_id: instagramClientId,
+    client_secret: instagramClientSecret,
+    grant_type: "authorization_code",
+    redirect_uri: redirectUri,
+    code,
+  });
+
+  const tokenResponse = await fetch("https://api.instagram.com/oauth/access_token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+
+  const tokenData = await tokenResponse.json().catch(() => ({}));
+  if (!tokenResponse.ok || !tokenData.access_token) {
+    throw new Error(tokenData.error_message || "Instagram token exchange failed");
+  }
+
+  return tokenData.access_token;
+}
+
+async function getInstagramProfile(accessToken) {
+  const profileUrl = new URL("https://graph.instagram.com/me");
+  profileUrl.searchParams.set("fields", "id,username");
+  profileUrl.searchParams.set("access_token", accessToken);
+
+  const profileResponse = await fetch(profileUrl);
+  const profile = await profileResponse.json().catch(() => ({}));
+  if (!profileResponse.ok || !profile.id) {
+    throw new Error(profile.error?.message || "Instagram profile lookup failed");
+  }
+
+  return profile;
+}
+
+function isAllowedInstagramAdmin(profile) {
+  const username = String(profile.username || "").trim().toLowerCase();
+  const id = String(profile.id || "").trim();
+  return (username && instagramAdminUsers.includes(username)) || (id && instagramAdminIds.includes(id));
 }
 
 function isValidEmail(value) {
@@ -791,6 +1157,8 @@ async function checkEmailReplies() {
                       type: "customer-reply",
                       receivedAt: new Date().toISOString(),
                       content: text.slice(0, 2000), // 텍스트 일부만 저장
+                      source: "email",
+                      channel: "email",
                     });
                     
                     break;
@@ -877,6 +1245,8 @@ async function migrateInboxToEmailThreads() {
         concerns: reservation.concerns,
         id: reservation.id,
         createdAt: reservation.createdAt,
+        source: "email",
+        channel: "email",
       });
       
       // 자동 회신 메시지 추가 (과거 데이터이므로 추정)
@@ -885,6 +1255,8 @@ async function migrateInboxToEmailThreads() {
         type: "auto-reply",
         sentAt: new Date(new Date(reservation.createdAt).getTime() + 10000).toISOString(),
         content: autoReplyMsg.text,
+        source: "email",
+        channel: "email",
       });
     }
     
@@ -1122,6 +1494,64 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname === "/api/consult-chat" && request.method === "OPTIONS") {
+    response.writeHead(204, reservationCorsHeaders);
+    response.end();
+    return;
+  }
+
+  if (pathname === "/api/instagram/webhook" && request.method === "GET") {
+    const mode = requestUrl.searchParams.get("hub.mode") || "";
+    const token = requestUrl.searchParams.get("hub.verify_token") || "";
+    const challenge = requestUrl.searchParams.get("hub.challenge") || "";
+
+    if (mode === "subscribe" && instagramWebhookVerifyToken && token === instagramWebhookVerifyToken) {
+      response.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+      response.end(challenge);
+      return;
+    }
+
+    response.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("Instagram webhook verification failed");
+    return;
+  }
+
+  if (pathname === "/api/instagram/webhook" && request.method === "POST") {
+    try {
+      const rawBody = await getRawBody(request);
+      if (!isValidMetaSignature(rawBody, request.headers["x-hub-signature-256"])) {
+        response.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
+        response.end("Invalid signature");
+        return;
+      }
+
+      const payload = JSON.parse(rawBody.toString("utf-8") || "{}");
+      const entries = Array.isArray(payload.entry) ? payload.entry : [];
+      let savedCount = 0;
+
+      for (const entry of entries) {
+        const messagingEvents = Array.isArray(entry.messaging) ? entry.messaging : [];
+        for (const event of messagingEvents) {
+          const senderId = event.sender?.id;
+          const text = event.message?.text || event.postback?.title || "";
+          if (!senderId || !text) continue;
+          const receivedAt = event.timestamp ? new Date(Number(event.timestamp)).toISOString() : new Date().toISOString();
+          const saved = await saveInstagramDmMessage(senderId, text, receivedAt);
+          if (saved) savedCount += 1;
+        }
+      }
+
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ ok: true, savedCount }));
+    } catch (error) {
+      console.error("Failed to process Instagram webhook", error);
+      const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+      response.writeHead(isPayloadError ? 400 : 500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: isPayloadError ? "Invalid webhook payload" : "Failed to process Instagram webhook" }));
+    }
+    return;
+  }
+
   if (pathname === "/api/reservation-email-code" && request.method === "POST") {
     try {
       const payload = await getJsonBody(request);
@@ -1281,6 +1711,8 @@ createServer(async (request, response) => {
           time: record.time,
           concerns: record.concerns,
           id: record.id,
+          source: "email",
+          channel: "email",
         });
       } catch (error) {
         console.error("Failed to save email thread (reservation)", error);
@@ -1306,6 +1738,8 @@ createServer(async (request, response) => {
               type: "auto-reply",
               sentAt: new Date().toISOString(),
               content: autoReplyMsg.text,
+              source: "email",
+              channel: "email",
             });
           } catch (error) {
             console.error("Failed to save email thread (auto-reply)", error);
@@ -1335,6 +1769,90 @@ createServer(async (request, response) => {
         ...reservationCorsHeaders,
       });
       response.end(JSON.stringify({ message: "Failed to save reservation" }));
+      return;
+    }
+  }
+
+  if (pathname === "/api/consult-chat" && request.method === "POST") {
+    try {
+      const payload = await getJsonBody(request);
+      const content = String(payload.content || "").trim();
+      const requestedSessionId = String(payload.sessionId || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, "")
+        .slice(0, 80);
+
+      if (!content) {
+        response.writeHead(400, {
+          "Content-Type": "application/json; charset=utf-8",
+          ...reservationCorsHeaders,
+        });
+        response.end(JSON.stringify({ message: "Message is required" }));
+        return;
+      }
+
+      if (content.length > 2000) {
+        response.writeHead(413, {
+          "Content-Type": "application/json; charset=utf-8",
+          ...reservationCorsHeaders,
+        });
+        response.end(JSON.stringify({ message: "Message is too long" }));
+        return;
+      }
+
+      const now = new Date().toISOString();
+      const sessionId = requestedSessionId || `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const chatEmail = `${sessionId}@chat.lofi.internal`;
+      const existingRecord = (await readInbox()).find((record) => record.id === sessionId);
+      const patientInfo = extractPatientInfo(content);
+      const displayName = patientInfo.name || existingRecord?.name || String(payload.displayName || "").trim() || `Visitor ${randomInt(1000, 10000)}`;
+      const phone = patientInfo.phone || existingRecord?.phone || null;
+      const record = {
+        id: sessionId,
+        date: "Chat",
+        time: "Live",
+        email: chatEmail,
+        name: displayName,
+        concerns: content,
+        source: "consult-chat",
+        chatSessionId: sessionId,
+        createdAt: existingRecord?.createdAt || now,
+        updatedAt: now,
+      };
+
+      if (phone) record.phone = phone;
+
+      const savedRecord = await upsertInboxRecord(record);
+
+      await saveOrUpdateEmailThread(chatEmail, sessionId, {
+        type: "customer-reply",
+        receivedAt: now,
+        content,
+        source: "consult-chat",
+        channel: "web",
+        displayName,
+      });
+
+      await saveOrUpdatePatient(savedRecord, {
+        name: displayName,
+        phone,
+      });
+
+      response.writeHead(201, {
+        "Content-Type": "application/json; charset=utf-8",
+        ...reservationCorsHeaders,
+      });
+      response.end(JSON.stringify({ ok: true, sessionId, displayName, email: chatEmail, patientInfo }));
+      return;
+    } catch (error) {
+      console.error("Failed to save consult chat", error);
+      const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+      response.writeHead(isPayloadError ? 400 : 500, {
+        "Content-Type": "application/json; charset=utf-8",
+        ...reservationCorsHeaders,
+      });
+      response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : "Failed to save chat message" }));
       return;
     }
   }
@@ -1395,6 +1913,8 @@ createServer(async (request, response) => {
           type: "customer-reply",
           receivedAt: new Date().toISOString(),
           content,
+          source: "web",
+          channel: "web",
         });
       } catch (err) {
         console.error("Failed to save email thread (patient reply)", err);
@@ -1440,6 +1960,175 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname === "/api/admin/instagram-dms" && request.method === "GET") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+
+    try {
+      const [threads, patients] = await Promise.all([readEmailThreads(), readPatients()]);
+      const patientByEmail = new Map(patients.map((patient) => [String(patient.email || "").toLowerCase(), patient]));
+      const conversations = threads
+        .map((thread) => {
+          const messages = (Array.isArray(thread.messages) ? thread.messages : [])
+            .filter((message) => message.channel === "instagram" || ["instagram", "instagram-dm", "instagram_dm"].includes(message.source))
+            .map((message) => ({
+              type: message.type || "customer-reply",
+              receivedAt: message.receivedAt || message.sentAt || thread.updatedAt || thread.createdAt,
+              content: message.content || message.concerns || "",
+              source: message.source || "instagram-dm",
+              instagramSenderId: message.instagramSenderId || null,
+            }))
+            .filter((message) => message.content);
+
+          if (!messages.length) return null;
+
+          const email = String(thread.email || "").toLowerCase();
+          const patient = patientByEmail.get(email);
+          const latestMessage = messages[messages.length - 1];
+          return {
+            email,
+            reservationId: thread.reservationId || null,
+            name: patient?.name || `Instagram ${String(latestMessage.instagramSenderId || email).slice(-6)}`,
+            phone: patient?.phone || null,
+            updatedAt: thread.updatedAt || latestMessage.receivedAt || thread.createdAt,
+            latest: latestMessage.content,
+            messages,
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ conversations }));
+    } catch (error) {
+      console.error("Failed to load Instagram DMs", error);
+      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Failed to load Instagram DMs" }));
+    }
+    return;
+  }
+
+  if (pathname === "/api/admin/instagram-settings" && request.method === "GET") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+
+    try {
+      const config = await getInstagramMessagingConfig();
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ settings: publicInstagramSettings(config) }));
+    } catch (error) {
+      console.error("Failed to load Instagram settings", error);
+      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Failed to load Instagram settings" }));
+    }
+    return;
+  }
+
+  if (pathname === "/api/admin/instagram-settings" && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+
+    try {
+      const payload = await getJsonBody(request);
+      const existing = await getInstagramMessagingConfig();
+      const instagramUsername = String(payload.instagramUsername || "").trim().replace(/^@+/, "");
+      const businessAccountId = String(payload.businessAccountId || "").trim() || existing.businessAccountId;
+      const accessToken = String(payload.accessToken || "").trim() || existing.accessToken;
+      const graphApiVersion = String(payload.graphApiVersion || "v21.0").trim();
+      const renderServiceId = String(payload.renderServiceId || "").trim() || renderDefaultServiceId;
+      const requestedRenderApiKey = String(payload.renderApiKey || "").trim() || renderApiKey;
+      const syncRender = Boolean(payload.syncRender);
+      const triggerDeploy = payload.triggerDeploy !== false;
+
+      if (!instagramUsername) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "Instagram ID is required" }));
+        return;
+      }
+
+      if (syncRender && (!businessAccountId || !accessToken || !graphApiVersion)) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "Business Account ID, Access Token, and Graph API Version are required to sync Render" }));
+        return;
+      }
+
+      if (syncRender && (!renderServiceId || !requestedRenderApiKey)) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "Render Service ID and Render API Key are required to sync Render" }));
+        return;
+      }
+
+      const saved = await saveInstagramSettings({ instagramUsername, businessAccountId, accessToken, graphApiVersion });
+      let render = null;
+      if (syncRender) {
+        render = await syncInstagramSettingsToRender({
+          serviceId: renderServiceId,
+          apiKey: requestedRenderApiKey,
+          settings: saved,
+          triggerDeploy,
+        });
+      }
+
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ ok: true, settings: publicInstagramSettings(saved), render }));
+    } catch (error) {
+      console.error("Failed to save Instagram settings", error);
+      const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+      response.writeHead(isPayloadError ? 400 : 500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : error.message || "Failed to save Instagram settings" }));
+    }
+    return;
+  }
+
+  if (pathname.startsWith("/api/admin/instagram-dms/") && pathname.endsWith("/reply") && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+
+    const senderId = decodeURIComponent(pathname.slice("/api/admin/instagram-dms/".length, -"/reply".length));
+    try {
+      const payload = await getJsonBody(request);
+      const content = String(payload.content || "").trim();
+
+      if (!senderId || !content) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "senderId and content are required" }));
+        return;
+      }
+
+      if (content.length > 1000) {
+        response.writeHead(413, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "Message is too long" }));
+        return;
+      }
+
+      const email = `instagram-${senderId.replace(/[^a-zA-Z0-9_-]/g, "").toLowerCase()}@instagram.lofi.internal`;
+      const threads = await readEmailThreads();
+      const thread = threads.find((item) => String(item.email || "").toLowerCase() === email);
+      if (!thread) {
+        response.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "Instagram conversation not found" }));
+        return;
+      }
+
+      const result = await sendInstagramDmReply(senderId, content);
+      const sentAt = new Date().toISOString();
+      await saveOrUpdateEmailThread(email, thread.reservationId || `instagram-${senderId}`, {
+        type: "admin-reply",
+        sentAt,
+        content,
+        source: "instagram-dm",
+        channel: "instagram",
+        instagramSenderId: senderId,
+      });
+
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ ok: true, sentAt, result }));
+    } catch (error) {
+      console.error("Failed to send Instagram reply", error);
+      const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+      const isConfigError = error instanceof Error && error.message === "Instagram messaging is not configured";
+      response.writeHead(isPayloadError ? 400 : isConfigError ? 503 : error.statusCode || 500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : isConfigError ? "Instagram messaging is not configured" : error.message || "Failed to send Instagram reply" }));
+    }
+    return;
+  }
+
   if (pathname === "/api/admin/reservations" && request.method === "POST") {
     if (!adminAuthorized) { requestAuth(response); return; }
 
@@ -1480,28 +2169,27 @@ createServer(async (request, response) => {
 
       await addInboxRecord(record);
 
-      // Keep thread/patient data in sync for admin-created reservations when email exists.
-      if (email) {
-        try {
-          await saveOrUpdateEmailThread(email, record.id, {
-            type: "reservation",
-            sentAt: record.createdAt,
-            date: record.date,
-            time: record.time,
-            concerns: record.concerns,
-            id: record.id,
-          });
-        } catch (error) {
-          console.error("Failed to save email thread (admin create)", error);
-        }
+      // Keep thread/patient data in sync for every admin-created schedule entry.
+      const threadEmail = getPatientThreadEmail(record);
+      try {
+        await saveOrUpdateEmailThread(threadEmail, record.id, {
+          type: "reservation",
+          sentAt: record.createdAt,
+          date: record.date,
+          time: record.time,
+          concerns: record.concerns || `Scheduled appointment for ${name}`,
+          id: record.id,
+          source: "schedule",
+          channel: "email",
+        });
+      } catch (error) {
+        console.error("Failed to save email thread (admin create)", error);
       }
 
-      if (email) {
-        try {
-          await saveOrUpdatePatient(record, { name: name || null, phone: phone || null });
-        } catch (error) {
-          console.error("Failed to save patient info (admin create)", error);
-        }
+      try {
+        await saveOrUpdatePatient(record, { name: name || null, phone: phone || null });
+      } catch (error) {
+        console.error("Failed to save patient info (admin create)", error);
       }
 
       response.writeHead(201, { "Content-Type": "application/json; charset=utf-8" });
@@ -1571,6 +2259,11 @@ createServer(async (request, response) => {
           createdAt: existing?.createdAt || nextRecord.createdAt,
         };
         await collection.replaceOne({ id }, merged, { upsert: true });
+        try {
+          await saveOrUpdatePatient(merged, { name: merged.name || null, phone: merged.phone || null });
+        } catch (error) {
+          console.error("Failed to save patient info (admin update)", error);
+        }
         response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
         response.end(JSON.stringify({ ok: true, record: merged }));
         return;
@@ -1593,8 +2286,15 @@ createServer(async (request, response) => {
       await mkdir(dataDir, { recursive: true });
       await writeFile(inboxPath, JSON.stringify(inbox, null, 2), "utf-8");
 
+      const savedRecord = idx >= 0 ? inbox[idx] : nextRecord;
+      try {
+        await saveOrUpdatePatient(savedRecord, { name: savedRecord.name || null, phone: savedRecord.phone || null });
+      } catch (error) {
+        console.error("Failed to save patient info (admin update)", error);
+      }
+
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify({ ok: true, record: idx >= 0 ? inbox[idx] : nextRecord }));
+      response.end(JSON.stringify({ ok: true, record: savedRecord }));
     } catch (error) {
       console.error("Failed to update reservation", error);
       const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
@@ -1670,6 +2370,8 @@ createServer(async (request, response) => {
         type: "admin-reply",
         sentAt: new Date().toISOString(),
         content,
+        source: "email",
+        channel: "email",
       };
 
       try {
@@ -1789,6 +2491,63 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname === "/api/admin/instagram-login" && request.method === "GET") {
+    if (!isInstagramLoginConfigured()) {
+      response.writeHead(503, { "Content-Type": "text/plain; charset=utf-8" });
+      response.end("Instagram login is not configured. Set INSTAGRAM_CLIENT_ID, INSTAGRAM_CLIENT_SECRET, and INSTAGRAM_ADMIN_USERS or INSTAGRAM_ADMIN_IDS.");
+      return;
+    }
+
+    const next = requestUrl.searchParams.get("next") || "/admin";
+    const state = createInstagramAuthState(next);
+    const authorizeUrl = new URL("https://api.instagram.com/oauth/authorize");
+    authorizeUrl.searchParams.set("client_id", instagramClientId);
+    authorizeUrl.searchParams.set("redirect_uri", getInstagramRedirectUri(request));
+    authorizeUrl.searchParams.set("scope", "user_profile");
+    authorizeUrl.searchParams.set("response_type", "code");
+    authorizeUrl.searchParams.set("state", state);
+
+    response.writeHead(302, { Location: authorizeUrl.toString() });
+    response.end();
+    return;
+  }
+
+  if (pathname === "/api/admin/instagram-callback" && request.method === "GET") {
+    try {
+      const error = requestUrl.searchParams.get("error") || "";
+      if (error) {
+        throw new Error(requestUrl.searchParams.get("error_description") || error);
+      }
+
+      const code = requestUrl.searchParams.get("code") || "";
+      const state = requestUrl.searchParams.get("state") || "";
+      const stateEntry = consumeInstagramAuthState(state);
+      if (!code || !stateEntry) {
+        throw new Error("Invalid Instagram login session");
+      }
+
+      const accessToken = await exchangeInstagramCodeForToken(code, getInstagramRedirectUri(request));
+      const profile = await getInstagramProfile(accessToken);
+      if (!isAllowedInstagramAdmin(profile)) {
+        response.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
+        response.end("This Instagram account is not allowed to access admin.");
+        return;
+      }
+
+      const cookie = `${adminSessionCookie}=${adminSessionValue}; Path=/; HttpOnly; SameSite=Lax`;
+      response.writeHead(302, {
+        Location: stateEntry.next || "/admin",
+        "Set-Cookie": cookie,
+      });
+      response.end();
+    } catch (error) {
+      console.error("Instagram admin login failed", error);
+      response.writeHead(401, { "Content-Type": "text/plain; charset=utf-8" });
+      response.end("Instagram login failed. Please return to admin and try again.");
+    }
+    return;
+  }
+
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
     if (!adminAuthorized) {
       const acceptHeader = String(request.headers.accept || "");
@@ -1835,6 +2594,16 @@ createServer(async (request, response) => {
       margin-top: 4px;
     }
     button:hover { opacity: .88; }
+    .instagram-login {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; margin-top: 12px; padding: 13px;
+      border: 1px solid rgba(90,111,218,.22); border-radius: 999px;
+      background: #fff; color: #1f2d66; text-decoration: none;
+      font-weight: 800; transition: opacity 150ms, transform 150ms;
+    }
+    .instagram-login:hover { opacity: .9; transform: translateY(-1px); }
+    .instagram-login.is-disabled { opacity: .55; pointer-events: none; }
+    .login-note { margin: 10px 0 0; min-height: 1em; color: #5a6fda; font-size: .78rem; text-align: center; }
     .err { color: #c0392b; font-size: .88rem; margin-top: 10px; text-align: center; min-height: 1.2em; }
   </style>
 </head>
@@ -1850,6 +2619,8 @@ createServer(async (request, response) => {
       <button type="submit">Sign in</button>
       <p class="err" id="errMsg"></p>
     </form>
+    <a class="instagram-login${isInstagramLoginConfigured() ? "" : " is-disabled"}" href="/api/admin/instagram-login?next=${encodeURIComponent(requestUrl.searchParams.get("next") || "/admin")}">Log in with Instagram</a>
+    <p class="login-note">${isInstagramLoginConfigured() ? "" : "Instagram login requires server configuration."}</p>
   </div>
   <script>
     const dest = new URLSearchParams(location.search).get("next") || "/admin";

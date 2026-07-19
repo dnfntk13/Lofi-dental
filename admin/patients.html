@@ -95,6 +95,10 @@
         margin: 0 0 4px; font-size: 1.05rem; font-weight: 700;
       }
 
+      .patient-name-row {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      }
+
       .patient-meta {
         display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px;
       }
@@ -108,6 +112,56 @@
       .chip.phone { color: var(--green); border-color: rgba(46,125,50,0.3); background: #f0faf0; }
       .chip.email { color: var(--accent); border-color: rgba(91,61,143,0.3); background: #f8f4ff; }
       .chip.date { color: #666; }
+
+      .message-icon {
+        width: 34px; height: 34px; display: inline-grid; place-items: center;
+        border: 1px solid rgba(91,61,143,0.22); border-radius: 999px;
+        background: #fff; color: var(--accent); font: inherit; font-weight: 800;
+        cursor: pointer; transition: 150ms;
+      }
+
+      .message-icon:hover { background: #f8f4ff; transform: translateY(-1px); }
+
+      .channel-tabs {
+        display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 18px;
+        border-bottom: 1px solid var(--line); background: #fbfcff;
+      }
+
+      .channel-tab.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+      .modal {
+        position: fixed; inset: 0; z-index: 1000;
+        display: none; align-items: center; justify-content: center;
+        padding: 18px; background: rgba(31, 45, 102, 0.28);
+      }
+
+      .modal.open { display: flex; }
+
+      .modal-card {
+        width: min(720px, 100%); max-height: min(720px, 88vh);
+        overflow: hidden; border: 1px solid var(--line); border-radius: 20px;
+        background: #fff; box-shadow: 0 24px 60px rgba(31, 45, 102, 0.2);
+      }
+
+      .modal-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--line);
+      }
+
+      .modal-title { margin: 0; font-size: 1.1rem; font-weight: 800; }
+
+      .thread-content {
+        max-height: 560px; overflow: auto; padding: 16px 18px;
+        display: grid; gap: 10px;
+      }
+
+      .thread-message {
+        padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px;
+        background: #f8faff; line-height: 1.55; white-space: pre-wrap;
+      }
+
+      .thread-message.admin { justify-self: end; background: #eef7f1; }
+      .thread-meta { display: block; margin-bottom: 5px; color: var(--soft); font-size: 0.82rem; font-weight: 800; }
 
       .no-name { color: #aaa; font-style: italic; }
 
@@ -143,8 +197,25 @@
       <section class="list" id="patientList" aria-live="polite"></section>
     </div>
 
+    <div class="modal" id="threadModal" role="dialog" aria-modal="true" aria-labelledby="threadTitle">
+      <div class="modal-card">
+        <div class="modal-head">
+          <p class="modal-title" id="threadTitle">Message threads</p>
+          <button class="btn" id="closeThreadBtn" type="button">Close</button>
+        </div>
+        <div class="channel-tabs" aria-label="Message channels">
+          <button class="btn channel-tab active" type="button" data-channel="web">Web</button>
+          <button class="btn channel-tab" type="button" data-channel="instagram">Instagram DM</button>
+          <button class="btn channel-tab" type="button" data-channel="email">Email</button>
+        </div>
+        <div class="thread-content" id="threadContent"></div>
+      </div>
+    </div>
+
     <script>
       let allPatients = [];
+      let currentThread = [];
+      let currentChannel = "web";
 
       function esc(v) {
         return String(v || "")
@@ -155,7 +226,81 @@
       function fmtDate(iso) {
         const d = new Date(iso);
         if (isNaN(d)) return iso;
-        return new Intl.DateTimeFormat("en-US", { year: "numeric", month: "short", day: "2-digit" }).format(d);
+        return new Intl.DateTimeFormat("en-US", { year: "numeric", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(d);
+      }
+
+      function threadLabel(message) {
+        if (message.type === "reservation") return "PATIENT REQUEST";
+        if (message.type === "customer-reply") return "PATIENT";
+        if (message.type === "admin-reply") return "LOFI ADMIN";
+        if (message.type === "auto-reply") return "LOFI AUTO REPLY";
+        return "MESSAGE";
+      }
+
+      function threadTime(message) {
+        return message.receivedAt || message.sentAt || message.createdAt || "";
+      }
+
+      function getMessageChannel(message) {
+        const channel = String(message.channel || "").toLowerCase();
+        if (channel === "web") return "web";
+        if (channel === "instagram" || channel === "instagram-dm" || channel === "instagram_dm") return "instagram";
+        if (channel === "email") return "email";
+        const source = String(message.source || "").toLowerCase();
+        if (source === "consult-chat" || source === "web") return "web";
+        if (source === "instagram" || source === "instagram-dm" || source === "instagram_dm") return "instagram";
+        return "email";
+      }
+
+      function renderThreadChannel() {
+        const content = document.getElementById("threadContent");
+        const filtered = currentThread.filter(message => getMessageChannel(message) === currentChannel);
+        if (!filtered.length) {
+          const label = currentChannel === "web" ? "Web" : currentChannel === "instagram" ? "Instagram DM" : "Email";
+          content.innerHTML = `<p class="empty">No ${esc(label)} messages yet.</p>`;
+          return;
+        }
+
+        content.innerHTML = filtered.map(message => {
+          const isAdmin = message.type === "admin-reply" || message.type === "auto-reply";
+          const text = message.content || message.concerns || "";
+          return `<article class="thread-message ${isAdmin ? "admin" : ""}"><span class="thread-meta">${esc(threadLabel(message))} · ${esc(fmtDate(threadTime(message)))}</span>${esc(text)}</article>`;
+        }).join("");
+      }
+
+      function setChannel(channel) {
+        currentChannel = channel;
+        document.querySelectorAll(".channel-tab").forEach(button => {
+          button.classList.toggle("active", button.dataset.channel === channel);
+        });
+        renderThreadChannel();
+      }
+
+      async function openThread(email) {
+        const modal = document.getElementById("threadModal");
+        const content = document.getElementById("threadContent");
+        modal.classList.add("open");
+        currentChannel = "web";
+        document.querySelectorAll(".channel-tab").forEach(button => {
+          button.classList.toggle("active", button.dataset.channel === "web");
+        });
+        content.innerHTML = '<p class="empty">Loading message threads…</p>';
+
+        try {
+          const res = await fetch(`/api/admin/email-thread/${encodeURIComponent(email)}`, { headers: { Accept: "application/json" } });
+          if (!res.ok) { content.innerHTML = '<p class="empty">Failed to load message threads.</p>'; return; }
+          const data = await res.json();
+          currentThread = Array.isArray(data.thread) ? data.thread : [];
+          renderThreadChannel();
+        } catch {
+          content.innerHTML = '<p class="empty">Failed to load message threads.</p>';
+        }
+      }
+
+      function closeThread() {
+        document.getElementById("threadModal").classList.remove("open");
+        document.getElementById("threadContent").innerHTML = "";
+        currentThread = [];
       }
 
       function render(patients) {
@@ -168,15 +313,22 @@
         list.innerHTML = patients.map(p => `
           <div class="patient-card">
             <div>
-              <p class="patient-name">${p.name ? esc(p.name) : '<span class="no-name">Name unknown</span>'}</p>
+              <div class="patient-name-row">
+                <p class="patient-name">${p.name ? esc(p.name) : '<span class="no-name">Name unknown</span>'}</p>
+                <button class="message-icon" type="button" data-email="${esc(p.email)}" aria-label="Open message threads for ${esc(p.name || "this patient")}">💬</button>
+              </div>
               <div class="patient-meta">
                 ${p.phone ? `<span class="chip phone">&#128222; ${esc(p.phone)}</span>` : ""}
-                <span class="chip email">&#9993; ${esc(p.email)}</span>
+                ${p.realEmail ? `<span class="chip email">&#9993; ${esc(p.realEmail)}</span>` : ""}
                 <span class="chip date">First seen: ${esc(fmtDate(p.firstSeen))}</span>
                 ${p.reservationIds && p.reservationIds.length ? `<span class="chip">${p.reservationIds.length} reservation${p.reservationIds.length > 1 ? "s" : ""}</span>` : ""}
               </div>
             </div>
           </div>`).join("");
+
+        list.querySelectorAll(".message-icon").forEach((button) => {
+          button.addEventListener("click", () => openThread(button.dataset.email || ""));
+        });
       }
 
       async function load() {
@@ -205,6 +357,13 @@
 
       document.getElementById("searchInput").addEventListener("input", applySearch);
       document.getElementById("refreshBtn").addEventListener("click", load);
+      document.getElementById("closeThreadBtn").addEventListener("click", closeThread);
+      document.querySelectorAll(".channel-tab").forEach((button) => {
+        button.addEventListener("click", () => setChannel(button.dataset.channel || "web"));
+      });
+      document.getElementById("threadModal").addEventListener("click", (event) => {
+        if (event.target.id === "threadModal") closeThread();
+      });
       load();
     </script>
   </body>
