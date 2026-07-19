@@ -154,6 +154,7 @@
         display: grid; grid-template-columns: repeat(7, 1fr);
         background: var(--accent-light);
         border-bottom: 1px solid var(--line);
+        width: 100%;
       }
 
       .cal-weekday {
@@ -161,6 +162,7 @@
         font-size: 0.78rem; font-weight: 700;
         letter-spacing: 0.08em; text-transform: uppercase;
         color: var(--soft-ink);
+        min-width: 0;
       }
 
       .cal-weekday.sun { color: #c0392b; }
@@ -169,11 +171,13 @@
       .cal-grid {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
+        width: 100%;
         user-select: none;
         -webkit-user-select: none;
       }
 
       .cal-cell {
+        min-width: 0;
         min-height: 110px;
         border-right: 1px solid var(--line);
         border-bottom: 1px solid var(--line);
@@ -207,12 +211,14 @@
         display: flex; align-items: center; justify-content: center;
       }
 
-      .day-events { margin-top: 4px; display: flex; flex-direction: column; gap: 3px; }
+      .day-events { margin-top: 4px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 
       .event-chip {
         background: var(--accent); color: #fff;
         border-radius: 6px; padding: 3px 7px;
         font-size: 0.74rem; font-weight: 600;
+        max-width: 100%;
+        min-width: 0;
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         line-height: 1.4;
       }
@@ -345,7 +351,7 @@
 
       .admin-workspace {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 380px;
+        grid-template-columns: minmax(760px, 1fr) minmax(280px, 340px);
         gap: 18px;
         align-items: start;
       }
@@ -666,9 +672,12 @@
         display: none;
       }
 
-      @media (max-width: 680px) {
+      @media (max-width: 1180px) {
         .admin-workspace { grid-template-columns: 1fr; }
         .instagram-panel { position: static; }
+      }
+
+      @media (max-width: 680px) {
         .cal-cell { min-height: 70px; padding: 4px; }
         .event-chip { font-size: 0.68rem; padding: 2px 5px; }
         .cal-weekday { font-size: 0.7rem; padding: 8px 2px; }
