@@ -1,0 +1,315 @@
+.tc-scene,
+.tc-photo-scene {
+  position: absolute;
+  inset: 0;
+}
+
+.tc-photo-scene {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #f6f3ef;
+}
+
+.tc-photo-frame {
+  position: relative;
+  width: min(92%, 390px);
+  aspect-ratio: 2 / 1;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(54, 35, 31, 0.16);
+}
+
+.tc-photo-track {
+  position: absolute;
+  display: block;
+  max-width: none;
+}
+
+.tc-whitening .tc-photo-track,
+.tc-veneers .tc-photo-track,
+.tc-implants .tc-photo-track,
+.tc-all-on-x .tc-photo-track {
+  inset: 0 0 auto;
+  width: 100%;
+  height: 200%;
+  object-fit: fill;
+}
+
+.tc-suresmile-sequence {
+  position: relative;
+  width: min(92%, 390px);
+  height: 100%;
+}
+
+.tc-suresmile-panel {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(86%, 335px);
+  aspect-ratio: 2.22 / 1;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(54, 35, 31, 0.16);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.96);
+}
+
+.tc-suresmile-panel img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+}
+
+.tc-suresmile-panel span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 6px 8px;
+  color: #fff;
+  font: 700 11px/1 "Trebuchet MS", sans-serif;
+  letter-spacing: 0;
+  text-align: center;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.7);
+  text-transform: uppercase;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.34));
+}
+
+.tc-suresmile-aligner {
+  width: min(76%, 285px);
+  aspect-ratio: 1.81 / 1;
+}
+
+.tc-filling .tc-photo-frame {
+  width: min(70%, 270px);
+  aspect-ratio: 0.72 / 1;
+}
+
+.tc-filling .tc-photo-track {
+  inset: 0 auto 0 0;
+  width: 200%;
+  height: 100%;
+}
+
+.tc-crown .tc-photo-frame {
+  width: min(44%, 205px);
+  aspect-ratio: 0.51 / 1;
+}
+
+.tc-crown .tc-photo-track {
+  inset: 0 auto 0 0;
+  width: 300%;
+  height: 100%;
+}
+
+.tc-phase-labels {
+  position: absolute;
+  left: 50%;
+  bottom: 11px;
+  width: min(92%, 390px);
+  height: 24px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.tc-phase-labels span {
+  position: absolute;
+  inset: 0;
+  color: #fff;
+  font: 700 11px/24px "Trebuchet MS", sans-serif;
+  letter-spacing: 0;
+  text-align: center;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.7);
+  text-transform: uppercase;
+  opacity: 0;
+}
+
+.tc-phase-labels span:first-child { opacity: 1; }
+
+.tc-light-sweep,
+.tc-ceramic-sheen {
+  position: absolute;
+  inset: -35% auto -35% -45%;
+  width: 30%;
+  opacity: 0;
+  background: linear-gradient(90deg, transparent, rgba(183, 220, 255, 0.68), rgba(255, 255, 255, 0.92), transparent);
+  filter: blur(3px);
+  transform: skewX(-10deg);
+}
+
+.tc-ceramic-sheen {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.92), transparent);
+}
+
+.tc-focus-ring,
+.tc-implant-pulse {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  width: 34%;
+  aspect-ratio: 1;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  box-shadow: 0 0 0 5px rgba(58, 120, 136, 0.24);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.72);
+}
+
+.tc-implant-pulse {
+  left: 49%;
+  top: 56%;
+  width: 23%;
+}
+
+.tc-aligner {
+  position: absolute;
+  left: 50%;
+  top: 7%;
+  width: 66%;
+  max-width: none;
+  mix-blend-mode: screen;
+  filter: contrast(1.12) drop-shadow(0 6px 6px rgba(34, 68, 95, 0.28));
+  opacity: 0;
+  transform: translate(-50%, -42%) scale(1.08);
+}
+
+.clip-overlay.is-playing .tc-whitening .tc-photo-track,
+.clip-overlay.is-playing .tc-veneers .tc-photo-track,
+.clip-overlay.is-playing .tc-implants .tc-photo-track,
+.clip-overlay.is-playing .tc-all-on-x .tc-photo-track {
+  animation: tc-pan-vertical 3s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+.clip-overlay.is-playing .tc-suresmile-before {
+  animation: tc-suresmile-before 3s ease forwards;
+}
+
+.clip-overlay.is-playing .tc-suresmile-aligner {
+  animation: tc-suresmile-aligner 3s ease forwards;
+}
+
+.clip-overlay.is-playing .tc-suresmile-after {
+  animation: tc-suresmile-after 3s ease forwards;
+}
+
+.clip-overlay.is-playing .tc-filling .tc-photo-track {
+  animation: tc-pan-horizontal 3s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+.clip-overlay.is-playing .tc-crown .tc-photo-track {
+  animation: tc-pan-three-stages 3s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+.clip-overlay.is-playing .tc-phase-labels span:first-child {
+  animation: tc-label-out 3s ease forwards;
+}
+
+.clip-overlay.is-playing .tc-phase-labels span:last-child {
+  animation: tc-label-in 3s ease forwards;
+}
+
+.clip-overlay.is-playing .tc-crown .tc-phase-labels span:nth-child(2) {
+  animation: tc-label-middle 3s ease forwards;
+}
+
+.clip-overlay.is-playing .tc-light-sweep,
+.clip-overlay.is-playing .tc-ceramic-sheen {
+  animation: tc-sweep 3s ease forwards;
+}
+
+.clip-overlay.is-playing .tc-focus-ring,
+.clip-overlay.is-playing .tc-implant-pulse {
+  animation: tc-focus 3s ease forwards;
+}
+
+.clip-overlay.is-playing .tc-aligner {
+  animation: tc-aligner-seat 3s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+
+@keyframes tc-pan-vertical {
+  0%, 35% { transform: translateY(0); }
+  68%, 100% { transform: translateY(-50%); }
+}
+
+@keyframes tc-pan-horizontal {
+  0%, 35% { transform: translateX(0); }
+  68%, 100% { transform: translateX(-50%); }
+}
+
+@keyframes tc-pan-three-stages {
+  0%, 22% { transform: translateX(0); }
+  38%, 58% { transform: translateX(-33.333%); }
+  76%, 100% { transform: translateX(-66.666%); }
+}
+
+@keyframes tc-label-out {
+  0%, 35% { opacity: 1; }
+  52%, 100% { opacity: 0; }
+}
+
+@keyframes tc-label-in {
+  0%, 58% { opacity: 0; }
+  76%, 100% { opacity: 1; }
+}
+
+@keyframes tc-label-middle {
+  0%, 30%, 66%, 100% { opacity: 0; }
+  42%, 56% { opacity: 1; }
+}
+
+@keyframes tc-sweep {
+  0%, 38% { left: -45%; opacity: 0; }
+  52% { opacity: 0.9; }
+  82%, 100% { left: 118%; opacity: 0; }
+}
+
+@keyframes tc-focus {
+  0%, 42% { opacity: 0; transform: translate(-50%, -50%) scale(0.72); }
+  60% { opacity: 1; }
+  78%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.18); }
+}
+
+@keyframes tc-aligner-seat {
+  0%, 12% { opacity: 0; transform: translate(-50%, -42%) scale(1.08); }
+  30%, 58% { opacity: 0.72; transform: translate(-50%, 22%) scale(1); }
+  74%, 100% { opacity: 0.12; transform: translate(-50%, 30%) scale(0.98); }
+}
+
+@keyframes tc-suresmile-before {
+  0%, 24% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  38%, 100% { opacity: 0; transform: translate(-62%, -50%) scale(0.96); }
+}
+
+@keyframes tc-suresmile-aligner {
+  0%, 25% { opacity: 0; transform: translate(-38%, -50%) scale(0.96); }
+  40%, 60% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  74%, 100% { opacity: 0; transform: translate(-62%, -50%) scale(0.96); }
+}
+
+@keyframes tc-suresmile-after {
+  0%, 62% { opacity: 0; transform: translate(-38%, -50%) scale(0.96); }
+  78%, 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@media (max-width: 480px) {
+  .tc-photo-frame,
+  .tc-phase-labels {
+    width: 94%;
+  }
+
+  .tc-filling .tc-photo-frame { width: 66%; }
+  .tc-crown .tc-photo-frame { width: 42%; }
+  .tc-suresmile-panel { width: 88%; }
+  .tc-suresmile-aligner { width: 76%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clip-overlay.is-playing [data-scene] * {
+    animation-duration: 1ms !important;
+  }
+}

@@ -380,6 +380,1057 @@
         line-height: 1.7;
       }
 
+      .price-guide-button {
+        margin-top: 14px;
+        width: 100%;
+        border: 1px solid rgba(90, 111, 218, 0.18);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.92);
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.94rem;
+        font-weight: 700;
+        padding: 12px 14px;
+        cursor: pointer;
+        transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+      }
+
+      .price-guide-button:hover {
+        transform: translateY(-1px);
+        border-color: rgba(90, 111, 218, 0.34);
+        background: #fff;
+      }
+
+      .price-guide {
+        margin-top: 12px;
+        padding: 16px;
+        border: 1px solid rgba(90, 111, 218, 0.12);
+        border-radius: 16px;
+        background: rgba(248, 250, 255, 0.94);
+      }
+
+      .price-guide.is-hidden { display: none; }
+
+      .price-guide-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 0 0 14px;
+        flex-wrap: wrap;
+      }
+
+      .price-guide-title {
+        margin: 0;
+        color: var(--ink);
+        font-size: 1.02rem;
+        font-weight: 700;
+      }
+
+      .price-guide-subtitle {
+        color: var(--soft);
+        font-size: 0.84rem;
+        line-height: 1.4;
+      }
+
+      .price-guide-section {
+        margin-top: 12px;
+        padding: 12px;
+        border: 1px solid rgba(90, 111, 218, 0.1);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.78);
+      }
+
+      .price-guide-section:first-of-type {
+        margin-top: 0;
+      }
+
+      .price-guide-heading {
+        margin: 0 0 10px;
+        color: var(--ink);
+        font-size: 0.92rem;
+        font-weight: 700;
+      }
+
+      .price-guide-subsection {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(90, 111, 218, 0.08);
+      }
+
+      .price-guide-subsection:first-of-type {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: 0;
+      }
+
+      .price-guide-subheading {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 0 0 7px;
+        color: #4d64d8;
+        font-size: 0.86rem;
+        font-weight: 700;
+      }
+
+      .price-guide-subheading span:last-child {
+        color: #4d64d8;
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .price-guide-description {
+        margin: 4px 0 0;
+        color: var(--ink);
+        font-size: 0.84rem;
+        line-height: 1.5;
+      }
+
+      .price-guide-bullets {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--soft);
+        font-size: 0.9rem;
+        line-height: 1.75;
+      }
+
+      .price-guide-list {
+        display: grid;
+        gap: 7px;
+        margin: 0;
+      }
+
+      .price-guide-list.is-nested {
+        margin-left: 12px;
+        padding-left: 12px;
+        border-left: 2px solid rgba(90, 111, 218, 0.12);
+      }
+
+      .price-guide-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: baseline;
+        padding: 9px 10px;
+        border: 1px solid rgba(90, 111, 218, 0.08);
+        border-radius: 10px;
+        background: rgba(248, 250, 255, 0.72);
+        font-size: 0.9rem;
+      }
+
+      .price-guide-row span:first-child {
+        color: var(--ink);
+        font-weight: 700;
+      }
+
+      .clip-trigger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 6px;
+        width: 20px;
+        height: 20px;
+        border: 1px solid rgba(90, 111, 218, 0.2);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.92);
+        color: #4d64d8;
+        font: inherit;
+        font-size: 0.78rem;
+        font-weight: 700;
+        line-height: 1;
+        padding: 0;
+        cursor: pointer;
+        vertical-align: middle;
+      }
+
+      .clip-trigger:hover {
+        background: #fff;
+        border-color: rgba(90, 111, 218, 0.36);
+      }
+
+      .price-guide-row span:last-child {
+        color: #4d64d8;
+        font-weight: 700;
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .price-guide-row:last-child {
+        border-bottom: 0;
+      }
+
+      .price-guide-note {
+        margin: 12px 0 0;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.72);
+        color: var(--soft);
+        font-size: 0.84rem;
+        line-height: 1.55;
+      }
+
+      .clip-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+        background: rgba(31, 45, 102, 0.18);
+        opacity: 1;
+        visibility: visible;
+      }
+
+      .clip-overlay.is-hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      .clip-card {
+        width: min(380px, 100%);
+        border: 1px solid rgba(90, 111, 218, 0.18);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.97);
+        box-shadow: 0 18px 44px rgba(31, 45, 102, 0.18);
+        overflow: hidden;
+      }
+
+      .clip-body {
+        padding: 18px;
+      }
+
+      .clip-stage {
+        position: relative;
+        height: 150px;
+        margin-bottom: 14px;
+        border: 1px solid rgba(90, 111, 218, 0.12);
+        border-radius: 16px;
+        background:
+          radial-gradient(circle at 25% 20%, rgba(220, 200, 237, 0.28), transparent 32%),
+          linear-gradient(180deg, #ffffff 0%, #f5f7ff 100%);
+        overflow: hidden;
+      }
+
+      .mini-tooth {
+        position: absolute;
+        left: 50%;
+        bottom: 24px;
+        width: 64px;
+        height: 78px;
+        transform: translateX(-50%);
+        border: 2px solid rgba(31, 45, 102, 0.16);
+        border-radius: 28px 28px 22px 22px;
+        background: #f4f0df;
+        box-shadow: inset 0 -12px 0 rgba(90, 111, 218, 0.06);
+      }
+
+      .mini-tooth::before,
+      .mini-tooth::after {
+        content: "";
+        position: absolute;
+        bottom: -20px;
+        width: 23px;
+        height: 34px;
+        background: inherit;
+        border: 2px solid rgba(31, 45, 102, 0.16);
+        border-top: 0;
+      }
+
+      .mini-tooth::before { left: 8px; border-radius: 0 0 14px 18px; }
+      .mini-tooth::after { right: 8px; border-radius: 0 0 18px 14px; }
+
+      .mini-shine {
+        position: absolute;
+        inset: 18px auto auto 16px;
+        width: 12px;
+        height: 24px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .mini-beam {
+        position: absolute;
+        left: 25%;
+        top: 36px;
+        width: 52px;
+        height: 18px;
+        border-radius: 999px;
+        background: rgba(77, 100, 216, 0.18);
+        transform-origin: 100% 50%;
+      }
+
+      .mini-chip,
+      .mini-fill,
+      .mini-crown,
+      .mini-veneer,
+      .mini-implant,
+      .mini-arch,
+      .mini-aligner {
+        position: absolute;
+      }
+
+      .mini-chip {
+        right: 16px;
+        bottom: 12px;
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        background: rgba(77, 100, 216, 0.18);
+      }
+
+      .mini-fill {
+        left: 50%;
+        bottom: 48px;
+        width: 22px;
+        height: 18px;
+        border-radius: 999px;
+        background: #dcc8ed;
+        transform: translateX(18px) scale(0.2);
+        opacity: 0;
+      }
+
+      .mini-crown {
+        left: 50%;
+        top: 28px;
+        width: 74px;
+        height: 50px;
+        border-radius: 26px 26px 18px 18px;
+        background: rgba(255, 255, 255, 0.88);
+        border: 2px solid rgba(77, 100, 216, 0.22);
+        transform: translate(-50%, -72px);
+      }
+
+      .mini-veneer {
+        left: 50%;
+        top: 42px;
+        width: 44px;
+        height: 68px;
+        border-radius: 20px 20px 16px 16px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 2px solid rgba(77, 100, 216, 0.18);
+        transform: translateX(-88px) rotate(-8deg);
+        opacity: 0;
+      }
+
+      .mini-implant {
+        left: 50%;
+        bottom: 24px;
+        width: 15px;
+        height: 78px;
+        border-radius: 999px;
+        background: linear-gradient(180deg, #8fa0ef, #4d64d8);
+        transform: translateX(-50%) translateY(72px);
+      }
+
+      .mini-implant::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: -24px;
+        width: 48px;
+        height: 32px;
+        border-radius: 18px 18px 12px 12px;
+        background: #fff;
+        border: 2px solid rgba(77, 100, 216, 0.18);
+        transform: translateX(-50%);
+      }
+
+      .mini-arch {
+        left: 50%;
+        top: 42px;
+        width: 168px;
+        height: 82px;
+        border: 8px solid rgba(77, 100, 216, 0.2);
+        border-top: 0;
+        border-radius: 0 0 88px 88px;
+        transform: translateX(-50%);
+      }
+
+      .mini-arch-dot {
+        position: absolute;
+        top: 58px;
+        width: 14px;
+        height: 36px;
+        border-radius: 999px;
+        background: #4d64d8;
+        opacity: 0;
+      }
+
+      .mini-arch-dot:nth-child(2) { left: 35%; }
+      .mini-arch-dot:nth-child(3) { left: 46%; }
+      .mini-arch-dot:nth-child(4) { left: 57%; }
+      .mini-arch-dot:nth-child(5) { left: 68%; }
+
+      .mini-aligner {
+        left: 50%;
+        top: 44px;
+        width: 140px;
+        height: 58px;
+        border: 3px solid rgba(77, 100, 216, 0.32);
+        border-radius: 30px;
+        background: rgba(255, 255, 255, 0.42);
+        transform: translateX(-50%) scale(0.84);
+        opacity: 0;
+      }
+
+      .mini-arrow {
+        position: absolute;
+        right: 38px;
+        top: 62px;
+        width: 46px;
+        height: 2px;
+        background: #4d64d8;
+        opacity: 0;
+      }
+
+      .mini-arrow::after {
+        content: "";
+        position: absolute;
+        right: 0;
+        top: -5px;
+        width: 10px;
+        height: 10px;
+        border-top: 2px solid #4d64d8;
+        border-right: 2px solid #4d64d8;
+        transform: rotate(45deg);
+      }
+
+      .smile-scene {
+        position: absolute;
+        inset: 0;
+      }
+
+      .gumline {
+        position: absolute;
+        left: 50%;
+        width: 178px;
+        height: 22px;
+        border-radius: 999px;
+        background: linear-gradient(180deg, rgba(240, 167, 178, 0.5), rgba(255, 214, 219, 0.78));
+        transform: translateX(-50%);
+      }
+
+      .gumline.upper { top: 22px; }
+      .gumline.lower { bottom: 22px; }
+
+      .anterior-arch {
+        position: absolute;
+        left: 50%;
+        z-index: 2;
+        display: grid;
+        grid-template-columns: 20px 17px 23px 23px 17px 20px;
+        gap: 2px;
+        align-items: end;
+        transform: translateX(-50%);
+      }
+
+      .anterior-arch.upper { top: 36px; }
+      .anterior-arch.lower {
+        bottom: 34px;
+        align-items: start;
+      }
+
+      .front-tooth {
+        position: relative;
+        width: 100%;
+        height: var(--tooth-height, 34px);
+        border: 1px solid rgba(31, 45, 102, 0.16);
+        border-bottom-color: rgba(31, 45, 102, 0.1);
+        border-radius: 45% 45% 34% 34% / 36% 36% 28% 28%;
+        background: linear-gradient(135deg, #d9c87e 0%, #efe4a7 45%, #cbb864 100%);
+        box-shadow:
+          inset 2px 0 4px rgba(255, 255, 255, 0.58),
+          inset -3px -5px 5px rgba(96, 74, 22, 0.1),
+          0 1px 2px rgba(31, 45, 102, 0.08);
+        transform-origin: 50% 20%;
+      }
+
+      .front-tooth::after {
+        content: "";
+        position: absolute;
+        left: 28%;
+        top: 18%;
+        width: 18%;
+        height: 48%;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.42);
+      }
+
+      .front-tooth:nth-child(1),
+      .front-tooth:nth-child(6) { --tooth-height: 31px; border-radius: 52% 52% 38% 38%; }
+      .front-tooth:nth-child(2),
+      .front-tooth:nth-child(5) { --tooth-height: 29px; }
+      .front-tooth:nth-child(3),
+      .front-tooth:nth-child(4) { --tooth-height: 38px; }
+
+      .anterior-arch.lower .front-tooth {
+        border-radius: 34% 34% 45% 45% / 28% 28% 36% 36%;
+        box-shadow:
+          inset 2px 0 4px rgba(255, 255, 255, 0.52),
+          inset -3px 5px 5px rgba(96, 74, 22, 0.1),
+          0 -1px 2px rgba(31, 45, 102, 0.08);
+        transform-origin: 50% 80%;
+      }
+
+      .is-crooked .front-tooth:nth-child(1) { transform: translateY(6px) translateX(-2px) rotate(-13deg); }
+      .is-crooked .front-tooth:nth-child(2) { transform: translateY(-6px) translateX(2px) rotate(10deg); }
+      .is-crooked .front-tooth:nth-child(3) { transform: translateY(4px) translateX(-1px) rotate(-7deg); }
+      .is-crooked .front-tooth:nth-child(4) { transform: translateY(-5px) translateX(1px) rotate(8deg); }
+      .is-crooked .front-tooth:nth-child(5) { transform: translateY(6px) translateX(-2px) rotate(-9deg); }
+      .is-crooked .front-tooth:nth-child(6) { transform: translateY(-4px) translateX(2px) rotate(12deg); }
+
+      .whitening-light {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 170px;
+        height: 98px;
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.94), rgba(77, 100, 216, 0.2) 52%, transparent 72%);
+        transform: translate(-50%, -50%) scale(0.42);
+        opacity: 0;
+      }
+
+      .whitening-lamp {
+        position: absolute;
+        right: 18px;
+        top: 28px;
+        z-index: 4;
+        width: 42px;
+        height: 26px;
+        border-radius: 18px 10px 10px 18px;
+        background: linear-gradient(135deg, #5b70df, #a9b5ff);
+        box-shadow: 0 5px 16px rgba(77, 100, 216, 0.24);
+      }
+
+      .whitening-lamp::before {
+        content: "";
+        position: absolute;
+        right: 34px;
+        top: 7px;
+        width: 112px;
+        height: 30px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(116, 136, 232, 0.28));
+        transform: rotate(8deg);
+        transform-origin: right center;
+      }
+
+      .veneer-final,
+      .aligner-tray {
+        position: absolute;
+        left: 50%;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .veneer-final {
+        top: 0;
+        width: 100%;
+        height: 100%;
+        transform: translateX(-50%) scale(0.96);
+      }
+
+      .veneer-final .front-tooth {
+        background: linear-gradient(135deg, #ffffff 0%, #f8fbff 48%, #e9efff 100%);
+        border-color: rgba(77, 100, 216, 0.13);
+        box-shadow:
+          inset 2px 0 5px rgba(255, 255, 255, 0.88),
+          inset -2px -5px 5px rgba(77, 100, 216, 0.08),
+          0 1px 2px rgba(31, 45, 102, 0.08);
+      }
+
+      .aligner-tray {
+        top: 26px;
+        z-index: 5;
+        width: 184px;
+        height: 98px;
+        border: 2px solid rgba(77, 100, 216, 0.34);
+        border-radius: 50px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.48), rgba(170, 184, 247, 0.2)),
+          repeating-linear-gradient(90deg, rgba(77, 100, 216, 0.18) 0 1px, transparent 1px 24px);
+        box-shadow: inset 0 0 12px rgba(77, 100, 216, 0.16), 0 6px 18px rgba(77, 100, 216, 0.12);
+        transform: translateX(-50%) scale(0.88);
+      }
+
+      .dental-svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .svg-gum {
+        fill: url(#gumShade);
+      }
+
+      .svg-papilla {
+        fill: url(#gumShade);
+        stroke: rgba(160, 62, 88, 0.1);
+        stroke-width: 0.5;
+      }
+
+      .svg-tooth {
+        fill: url(#yellowEnamel);
+        stroke: rgba(70, 74, 92, 0.4);
+        stroke-width: 1.5;
+        transform-box: fill-box;
+        transform-origin: center;
+        filter: drop-shadow(0 1px 0 rgba(31, 45, 102, 0.08));
+      }
+
+      .svg-tooth.is-white,
+      .svg-tooth.is-final {
+        fill: url(#whiteEnamel);
+      }
+
+      .svg-tooth.is-crooked.t1 { transform: rotate(-12deg); }
+      .svg-tooth.is-crooked.t2 { transform: rotate(9deg); }
+      .svg-tooth.is-crooked.t3 { transform: rotate(-6deg); }
+      .svg-tooth.is-crooked.t4 { transform: rotate(7deg); }
+      .svg-tooth.is-crooked.t5 { transform: rotate(-9deg); }
+      .svg-tooth.is-crooked.t6 { transform: rotate(12deg); }
+      .svg-tooth.is-crooked.t7 { transform: rotate(9deg); }
+      .svg-tooth.is-crooked.t8 { transform: rotate(-7deg); }
+      .svg-tooth.is-crooked.t9 { transform: rotate(6deg); }
+      .svg-tooth.is-crooked.t10 { transform: rotate(-6deg); }
+      .svg-tooth.is-crooked.t11 { transform: rotate(8deg); }
+      .svg-tooth.is-crooked.t12 { transform: rotate(-11deg); }
+
+      .svg-tooth.t1, .svg-tooth.t2, .svg-tooth.t3, .svg-tooth.t4, .svg-tooth.t5, .svg-tooth.t6 {
+        transform-origin: 50% 0%;
+      }
+
+      .svg-tooth.t7, .svg-tooth.t8, .svg-tooth.t9, .svg-tooth.t10, .svg-tooth.t11, .svg-tooth.t12 {
+        transform-origin: 50% 100%;
+      }
+
+      .svg-highlight {
+        fill: none;
+        stroke: rgba(255, 255, 255, 0.64);
+        stroke-width: 1.4;
+        stroke-linecap: round;
+      }
+
+      .svg-midline {
+        stroke: rgba(46, 53, 86, 0.13);
+        stroke-width: 0.8;
+        stroke-linecap: round;
+      }
+
+      .svg-before,
+      .svg-after,
+      .svg-aligner {
+        transform-box: fill-box;
+        transform-origin: center;
+      }
+
+      .svg-after,
+      .svg-aligner {
+        opacity: 0;
+      }
+
+      .svg-aligner-body {
+        fill: rgba(245, 250, 255, 0.42);
+        stroke: rgba(77, 100, 216, 0.48);
+        stroke-width: 2;
+      }
+
+      .svg-aligner-ridge {
+        fill: none;
+        stroke: rgba(77, 100, 216, 0.25);
+        stroke-width: 1;
+        stroke-linecap: round;
+      }
+
+      .svg-lamp-head {
+        fill: url(#lampShade);
+      }
+
+      .svg-light-cone {
+        fill: url(#lightCone);
+        opacity: 0;
+      }
+
+      .procedure-svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .svg-bone { fill: url(#boneShade); }
+      .svg-gum-section { fill: url(#gumShade); }
+      .svg-natural-tooth {
+        fill: url(#whiteEnamel);
+        stroke: rgba(70, 74, 92, 0.42);
+        stroke-width: 1.5;
+      }
+      .svg-dentin { fill: #f3d68b; stroke: rgba(132, 100, 43, 0.28); stroke-width: 1; }
+      .svg-pulp { fill: #d9787f; opacity: 0.7; }
+      .svg-cavity { fill: #66544d; }
+      .svg-resin { fill: url(#resinShade); opacity: 0; transform-box: fill-box; transform-origin: center; }
+      .svg-prepared-tooth { fill: #f1d58d; stroke: rgba(115, 89, 44, 0.34); stroke-width: 1.2; }
+      .svg-crown-shell { fill: url(#whiteEnamel); stroke: rgba(70, 74, 92, 0.38); stroke-width: 1.5; transform-box: fill-box; transform-origin: center; }
+      .svg-implant { fill: url(#metalShade); stroke: rgba(48, 61, 115, 0.46); stroke-width: 1; transform-box: fill-box; transform-origin: center; }
+      .svg-implant-thread { fill: none; stroke: rgba(255, 255, 255, 0.65); stroke-width: 1.2; }
+      .svg-abutment { fill: #b9c4dc; stroke: rgba(48, 61, 115, 0.42); stroke-width: 1; }
+      .svg-prosthesis { fill: url(#whiteEnamel); stroke: rgba(70, 74, 92, 0.4); stroke-width: 1.5; transform-box: fill-box; transform-origin: center; }
+      .svg-prosthetic-gum { fill: url(#gumShade); stroke: rgba(160, 62, 88, 0.16); stroke-width: 1; }
+      .svg-procedure-arrow { fill: none; stroke: #4d64d8; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+
+      .clip-overlay.is-playing [data-scene="filling"] .svg-cavity {
+        animation: cavityClear 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="filling"] .svg-resin {
+        animation: resinPlace 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="crown"] .svg-crown-shell {
+        animation: crownSeatSvg 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="crown"] .svg-procedure-arrow,
+      .clip-overlay.is-playing [data-scene="implants"] .svg-procedure-arrow,
+      .clip-overlay.is-playing [data-scene="allOnX"] .svg-procedure-arrow {
+        animation: procedureArrow 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="implants"] .svg-implant {
+        animation: implantSeatSvg 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="implants"] .svg-abutment,
+      .clip-overlay.is-playing [data-scene="implants"] .svg-crown-shell {
+        animation: restorationAppear 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="allOnX"] .svg-implant {
+        animation: allOnXImplants 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="allOnX"] .svg-prosthesis {
+        animation: fullArchSeat 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="whitening"] .mini-tooth {
+        animation: whitenTooth 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="whitening"] .mini-beam {
+        animation: sweepBeam 3s ease-in-out forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="filling"] .mini-chip {
+        animation: chipFade 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="filling"] .mini-fill {
+        animation: placeFill 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="crown"] .mini-crown {
+        animation: crownDrop 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="veneers"] .mini-veneer {
+        animation: veneerSlide 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="implants"] .mini-implant {
+        animation: implantRise 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="allOnX"] .mini-arch-dot {
+        animation: archDot 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="sureSmile"] .mini-aligner,
+      .clip-overlay.is-playing [data-scene="sureSmile"] .mini-arrow {
+        animation: alignerMove 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="whitening"] .front-tooth {
+        animation: whitenAnterior 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="whitening"] .whitening-light {
+        animation: whiteningLight 3s ease-in-out forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="whitening"] .whitening-lamp {
+        animation: lampPulse 3s ease-in-out forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="veneers"] .is-crooked {
+        animation: fadeCrookedTeeth 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="veneers"] .veneer-final {
+        animation: revealFinalTeeth 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="sureSmile"] .aligner-tray {
+        animation: traySeat 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="sureSmile"] .anterior-arch.is-crooked .front-tooth {
+        animation: straightenTeeth 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="whitening"] .svg-light-cone {
+        animation: svgLightCone 3s ease-in-out forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="whitening"] .svg-lamp-head {
+        animation: lampPulse 3s ease-in-out forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="whitening"] .svg-tooth {
+        animation: svgWhitenTooth 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="veneers"] .svg-before {
+        animation: svgBeforeOut 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="veneers"] .svg-after {
+        animation: svgAfterIn 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="sureSmile"] .svg-aligner {
+        animation: svgAlignerSeat 3s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="sureSmile"] .svg-tooth {
+        animation: svgStraightenTooth 3s ease forwards;
+      }
+
+      @keyframes whitenTooth {
+        0% { background: #f4f0df; }
+        70%, 100% { background: #fff; }
+      }
+
+      @keyframes sweepBeam {
+        0% { transform: translateX(-20px) rotate(10deg); opacity: 0; }
+        25%, 75% { opacity: 1; }
+        100% { transform: translateX(132px) rotate(10deg); opacity: 0; }
+      }
+
+      @keyframes chipFade {
+        0%, 35% { opacity: 1; transform: scale(1); }
+        100% { opacity: 0; transform: scale(0.2); }
+      }
+
+      @keyframes placeFill {
+        0%, 25% { opacity: 0; transform: translateX(18px) scale(0.2); }
+        55%, 100% { opacity: 1; transform: translateX(18px) scale(1); }
+      }
+
+      @keyframes crownDrop {
+        0% { transform: translate(-50%, -72px); }
+        58%, 100% { transform: translate(-50%, 22px); }
+      }
+
+      @keyframes veneerSlide {
+        0% { opacity: 0; transform: translateX(-88px) rotate(-8deg); }
+        62%, 100% { opacity: 1; transform: translateX(-50%) rotate(0); }
+      }
+
+      @keyframes implantRise {
+        0% { transform: translateX(-50%) translateY(72px); }
+        62%, 100% { transform: translateX(-50%) translateY(0); }
+      }
+
+      @keyframes archDot {
+        0%, 20% { opacity: 0; transform: translateY(28px); }
+        60%, 100% { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes alignerMove {
+        0% { opacity: 0; transform: translateX(-50%) scale(0.84); }
+        35% { opacity: 1; transform: translateX(-50%) scale(1); }
+        100% { opacity: 1; transform: translateX(-40%) scale(1); }
+      }
+
+      @keyframes whitenAnterior {
+        0%, 30% { background: linear-gradient(135deg, #d9c87e 0%, #efe4a7 45%, #cbb864 100%); }
+        100% { background: linear-gradient(135deg, #ffffff 0%, #fbfdff 50%, #e9efff 100%); }
+      }
+
+      @keyframes whiteningLight {
+        0% { opacity: 0; transform: translate(-50%, -50%) scale(0.42); }
+        22%, 70% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        100% { opacity: 0; transform: translate(-50%, -50%) scale(1.16); }
+      }
+
+      @keyframes lampPulse {
+        0%, 100% { filter: brightness(1); }
+        25%, 72% { filter: brightness(1.28); }
+      }
+
+      @keyframes fadeCrookedTeeth {
+        0%, 48% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+
+      @keyframes revealFinalTeeth {
+        0%, 42% { opacity: 0; transform: translateX(-50%) translateY(14px) scale(0.92); }
+        70%, 100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+      }
+
+      @keyframes traySeat {
+        0% { opacity: 0; transform: translateX(-50%) translateY(-20px) scale(0.82); }
+        24%, 72% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+        100% { opacity: 0.3; transform: translateX(-50%) translateY(0) scale(1); }
+      }
+
+      @keyframes straightenTeeth {
+        0%, 30% { background: linear-gradient(135deg, #d9c87e 0%, #efe4a7 45%, #cbb864 100%); }
+        100% { transform: translateY(0) translateX(0) rotate(0); background: linear-gradient(135deg, #ffffff 0%, #fbfdff 50%, #e9efff 100%); }
+      }
+
+      @keyframes svgLightCone {
+        0% { opacity: 0; transform: translateX(16px); }
+        18%, 76% { opacity: 0.9; transform: translateX(0); }
+        100% { opacity: 0; transform: translateX(-10px); }
+      }
+
+      @keyframes svgWhitenTooth {
+        0%, 36% { fill: url(#yellowEnamel); }
+        100% { fill: url(#whiteEnamel); }
+      }
+
+      @keyframes svgBeforeOut {
+        0%, 46% { opacity: 1; transform: scale(1); }
+        100% { opacity: 0; transform: scale(0.985); }
+      }
+
+      @keyframes svgAfterIn {
+        0%, 45% { opacity: 0; transform: translateY(8px) scale(0.985); }
+        72%, 100% { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      @keyframes svgAlignerSeat {
+        0% { opacity: 0; transform: translateY(-18px) scale(0.94); }
+        25%, 78% { opacity: 1; transform: translateY(0) scale(1); }
+        100% { opacity: 0.58; transform: translateY(0) scale(1); }
+      }
+
+      @keyframes svgStraightenTooth {
+        0%, 26% { fill: url(#yellowEnamel); }
+        100% { transform: translate(0, 0) rotate(0deg); fill: url(#whiteEnamel); }
+      }
+
+      @keyframes cavityClear {
+        0%, 30% { opacity: 1; }
+        55%, 100% { opacity: 0; }
+      }
+
+      @keyframes resinPlace {
+        0%, 38% { opacity: 0; transform: translateY(-14px) scale(0.55); }
+        68%, 100% { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      @keyframes crownSeatSvg {
+        0%, 20% { transform: translateY(-42px); }
+        68%, 100% { transform: translateY(0); }
+      }
+
+      @keyframes procedureArrow {
+        0%, 15% { opacity: 0; }
+        28%, 68% { opacity: 0.85; }
+        82%, 100% { opacity: 0; }
+      }
+
+      @keyframes implantSeatSvg {
+        0%, 15% { opacity: 0; transform: translateY(-30px); }
+        58%, 100% { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes restorationAppear {
+        0%, 52% { opacity: 0; transform: translateY(-14px); }
+        78%, 100% { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes allOnXImplants {
+        0%, 12% { opacity: 0; transform: translateY(-18px); }
+        48%, 100% { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes fullArchSeat {
+        0%, 45% { opacity: 0; transform: translateY(-28px); }
+        78%, 100% { opacity: 1; transform: translateY(0); }
+      }
+
+      .clip-label {
+        margin: 0 0 8px;
+        color: var(--soft);
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .clip-title {
+        margin: 0;
+        color: var(--ink);
+        font-size: 1.18rem;
+        font-weight: 700;
+      }
+
+      .clip-copy {
+        margin: 10px 0 0;
+        color: var(--ink);
+        font-size: 0.94rem;
+        line-height: 1.58;
+      }
+
+      .clip-progress {
+        height: 4px;
+        background: rgba(90, 111, 218, 0.12);
+      }
+
+      .clip-progress-bar {
+        height: 100%;
+        width: 0;
+        background: #4d64d8;
+      }
+
+      .clip-overlay.is-playing .clip-progress-bar {
+        animation: clipProgress 3s linear forwards;
+      }
+
+      @keyframes clipProgress {
+        from { width: 0; }
+        to { width: 100%; }
+      }
+
+      @media (max-width: 520px) {
+        .price-guide-row {
+          grid-template-columns: 1fr;
+          gap: 4px;
+        }
+
+        .price-guide-row span:last-child {
+          text-align: left;
+        }
+
+        .price-guide-subheading {
+          display: grid;
+          gap: 2px;
+        }
+
+        .price-guide-subheading span:last-child {
+          text-align: left;
+        }
+      }
+
       @media (max-width: 760px) {
         .page { padding: 96px 14px 14px; }
         .site-logo { top: 18px; left: 14px; }
@@ -390,6 +1441,7 @@
         .time-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
     </style>
+    <link rel="stylesheet" href="../assets/treatment-clips.css" />
   </head>
   <body>
     <div class="page">
@@ -441,15 +1493,99 @@
             <li id="usageStepDetails">Enter your details on the next page to finish the request.</li>
             <li id="usageStepClosed">If today is closed, the next available day is selected automatically.</li>
           </ol>
+          <button class="price-guide-button" id="priceGuideButton" type="button" aria-expanded="false" aria-controls="priceGuidePanel">Price Guide</button>
+          <div class="price-guide is-hidden" id="priceGuidePanel">
+            <div class="price-guide-head">
+              <p class="price-guide-title" id="priceGuideTitle">Price Guide</p>
+              <span class="price-guide-subtitle">Most can be paid in multiple installments</span>
+            </div>
+            <div class="price-guide-section">
+              <p class="price-guide-heading">Covered by Korean National Health Insurance</p>
+              <ul class="price-guide-bullets">
+                <li>Checkups</li>
+                <li>X-rays</li>
+                <li>Cleanings</li>
+                <li>Root canal treatment</li>
+                <li>Tooth extractions</li>
+                <li>Wisdom tooth extractions</li>
+                <li>2 dental implants for patients aged 65 or older</li>
+              </ul>
+            </div>
+
+            <div class="price-guide-section">
+              <p class="price-guide-heading">Not Covered by Korean National Health Insurance</p>
+              <div class="price-guide-subsection">
+                <p class="price-guide-subheading"><span>Teeth Whitening <button class="clip-trigger" type="button" data-clip="whitening" aria-label="Play Teeth Whitening 3 second clip">?</button></span><span>₩89,000 per whitening cycle</span></p>
+              </div>
+
+              <div class="price-guide-subsection">
+                <p class="price-guide-subheading"><span>Simple Composite Filling <button class="clip-trigger" type="button" data-clip="filling" aria-label="Play Simple Composite Filling 3 second clip">?</button></span><span>₩99,000 per tooth</span></p>
+              </div>
+
+              <div class="price-guide-subsection">
+                <p class="price-guide-subheading"><span>Dental Crown <button class="clip-trigger" type="button" data-clip="crown" aria-label="Play Dental Crown 3 second clip">?</button></span><span>₩350,000 per tooth</span></p>
+              </div>
+
+              <div class="price-guide-subsection">
+                <p class="price-guide-subheading"><span>Veneers <button class="clip-trigger" type="button" data-clip="veneers" aria-label="Play Veneers 3 second clip">?</button></span></p>
+                <div class="price-guide-list is-nested">
+                  <div class="price-guide-row"><span>Minimal-prep Resin Veneers</span><span>₩99,000 per tooth</span></div>
+                  <div class="price-guide-row"><span>Standard Porcelain Veneer · Rosetta</span><span>₩259,000 per tooth</span></div>
+                  <div class="price-guide-row"><span>Premium Porcelain Veneer · IPS e.max</span><span>₩399,000 per tooth</span></div>
+                </div>
+              </div>
+
+              <div class="price-guide-subsection">
+                <p class="price-guide-subheading"><span>Dental Implants <button class="clip-trigger" type="button" data-clip="implants" aria-label="Play Dental Implants 3 second clip">?</button></span></p>
+                <div class="price-guide-list is-nested">
+                  <div class="price-guide-row"><span>Standard Implant · MegaGen</span><span>₩599,000 per tooth</span></div>
+                  <div class="price-guide-row"><span>Premium Implant · Osstem</span><span>₩799,000 per tooth</span></div>
+                </div>
+              </div>
+
+              <div class="price-guide-subsection">
+                <p class="price-guide-subheading"><span>All on X <button class="clip-trigger" type="button" data-clip="allOnX" aria-label="Play All on X 3 second clip">?</button></span><span>₩4,990,000 per arch</span></p>
+                <p class="price-guide-description">Full mouth restoration for multiple missing teeth</p>
+              </div>
+
+              <div class="price-guide-subsection">
+                <p class="price-guide-subheading"><span>SureSmile Clear Aligners <button class="clip-trigger" type="button" data-clip="sureSmile" aria-label="Play SureSmile Clear Aligners 3 second clip">?</button></span></p>
+                <div class="price-guide-list is-nested">
+                  <div class="price-guide-row"><span>Front Teeth Only</span><span>₩1,500,000</span></div>
+                  <div class="price-guide-row"><span>Full Treatment</span><span>₩3,500,000</span></div>
+                </div>
+              </div>
+            </div>
+
+            <p class="price-guide-note" id="priceGuideNote">These prices are general guidelines and may vary depending on your clinical condition and the complexity of your case. Final treatment fees will be confirmed after an examination.</p>
+          </div>
         </div>
       </section>
     </div>
 
     <div id="cursorTooltip" class="cursor-tooltip" aria-hidden="true"></div>
+    <div class="clip-overlay is-hidden" id="clipOverlay" role="dialog" aria-live="polite" aria-modal="false" aria-labelledby="clipTitle">
+      <div class="clip-card">
+        <div class="clip-body">
+          <div class="clip-stage" id="clipStage" aria-hidden="true"></div>
+          <p class="clip-label">3 second guide</p>
+          <p class="clip-title" id="clipTitle"></p>
+          <p class="clip-copy" id="clipCopy"></p>
+        </div>
+        <div class="clip-progress" aria-hidden="true"><div class="clip-progress-bar"></div></div>
+      </div>
+    </div>
 
     <script>
       const selectedDayText = document.getElementById("selectedDayText");
       const cursorTooltip = document.getElementById("cursorTooltip");
+      const priceGuideButton = document.getElementById("priceGuideButton");
+      const priceGuidePanel = document.getElementById("priceGuidePanel");
+      const clipOverlay = document.getElementById("clipOverlay");
+      const clipStage = document.getElementById("clipStage");
+      const clipTitle = document.getElementById("clipTitle");
+      const clipCopy = document.getElementById("clipCopy");
+      let clipTimer = null;
       const params = new URLSearchParams(window.location.search);
       const isKorean = params.get("lang") === "ko";
       const locale = isKorean ? "ko-KR" : "en-US";
@@ -465,6 +1601,8 @@
         usageStepTime: isKorean ? "달력 아래에서 시간을 선택하세요." : "Select a time below the calendar.",
         usageStepDetails: isKorean ? "다음 페이지에서 정보를 입력하면 예약 요청이 완료됩니다." : "Enter your details on the next page to finish the request.",
         usageStepClosed: isKorean ? "오늘이 휴진일이면 다음 예약 가능일이 자동으로 선택됩니다." : "If today is closed, the next available day is selected automatically.",
+        priceGuideButton: isKorean ? "가격 안내" : "Price Guide",
+        priceGuideTitle: isKorean ? "가격 안내" : "Price Guide",
         weekdays: isKorean ? ["일", "월", "화", "수", "목", "금", "토"] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
       };
 
@@ -478,6 +1616,216 @@
       document.getElementById("usageStepTime").textContent = text.usageStepTime;
       document.getElementById("usageStepDetails").textContent = text.usageStepDetails;
       document.getElementById("usageStepClosed").textContent = text.usageStepClosed;
+      priceGuideButton.textContent = text.priceGuideButton;
+      document.getElementById("priceGuideTitle").textContent = text.priceGuideTitle;
+      priceGuideButton.addEventListener("click", () => {
+        const isOpen = priceGuideButton.getAttribute("aria-expanded") === "true";
+        priceGuideButton.setAttribute("aria-expanded", String(!isOpen));
+        priceGuidePanel.classList.toggle("is-hidden", isOpen);
+      });
+      const toothScene = '<div class="mini-tooth"><span class="mini-shine"></span></div>';
+      const anteriorArch = (extraClass = "") => `
+        <div class="anterior-arch upper ${extraClass}">
+          <span class="front-tooth"></span><span class="front-tooth"></span><span class="front-tooth"></span><span class="front-tooth"></span><span class="front-tooth"></span><span class="front-tooth"></span>
+        </div>
+        <div class="anterior-arch lower ${extraClass}">
+          <span class="front-tooth"></span><span class="front-tooth"></span><span class="front-tooth"></span><span class="front-tooth"></span><span class="front-tooth"></span><span class="front-tooth"></span>
+        </div>`;
+      const smileFrame = (content) => `<span class="gumline upper"></span><span class="gumline lower"></span>${content}`;
+      const svgDentalDefs = `
+        <defs>
+          <linearGradient id="yellowEnamel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff4bd"/><stop offset="0.48" stop-color="#dcc56f"/><stop offset="1" stop-color="#b8993d"/></linearGradient>
+          <linearGradient id="whiteEnamel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="0.58" stop-color="#f8fbff"/><stop offset="1" stop-color="#dfe8ff"/></linearGradient>
+          <linearGradient id="gumShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0a9b5"/><stop offset="1" stop-color="#ffd7dc"/></linearGradient>
+          <linearGradient id="lampShade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3e55cc"/><stop offset="1" stop-color="#aebcff"/></linearGradient>
+          <linearGradient id="boneShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4d9b1"/><stop offset="1" stop-color="#e4bb82"/></linearGradient>
+          <linearGradient id="metalShade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7182a8"/><stop offset="0.5" stop-color="#d9e1ef"/><stop offset="1" stop-color="#64769f"/></linearGradient>
+          <linearGradient id="resinShade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#dfe8ff"/></linearGradient>
+          <radialGradient id="lightCone" cx="0.85" cy="0.35" r="0.92"><stop offset="0" stop-color="rgba(255,255,255,0.96)"/><stop offset="0.52" stop-color="rgba(116,136,232,0.28)"/><stop offset="1" stop-color="rgba(116,136,232,0)"/></radialGradient>
+        </defs>`;
+      const procedureDentalSvg = (content) => `<svg class="procedure-svg" viewBox="0 0 380 150" aria-hidden="true">${svgDentalDefs}${content}</svg>`;
+      const singleToothTissue = `
+        <path class="svg-bone" d="M86 77 Q190 66 294 77 L294 132 L86 132 Z"/>
+        <path class="svg-gum-section" d="M76 69 Q132 57 169 68 Q190 75 211 68 Q248 57 304 69 L304 84 Q245 75 211 84 Q190 90 169 84 Q135 75 76 84 Z"/>`;
+      const naturalToothAnatomy = `
+        <path class="svg-natural-tooth" d="M158 31 Q190 14 222 31 L218 65 Q213 79 207 88 L202 124 Q199 136 190 138 Q181 136 178 124 L173 88 Q167 79 162 65 Z"/>
+        <path class="svg-dentin" d="M166 37 Q190 24 214 37 L210 64 Q205 76 200 84 L197 121 Q195 129 190 131 Q185 129 183 121 L180 84 Q175 76 170 64 Z"/>
+        <path class="svg-pulp" d="M185 48 Q190 43 195 48 L196 76 L193 116 Q192 122 190 124 Q188 122 187 116 L184 76 Z"/>`;
+      const fillingScene = procedureDentalSvg(`${singleToothTissue}${naturalToothAnatomy}
+        <path class="svg-cavity" d="M176 28 Q190 22 202 29 L198 46 Q190 50 181 45 Z"/>
+        <path class="svg-resin" d="M176 28 Q190 22 202 29 L198 46 Q190 50 181 45 Z"/>
+        <path class="svg-procedure-arrow" d="M190 7 L190 21 M184 16 L190 22 L196 16"/>`);
+      const crownScene = procedureDentalSvg(`${singleToothTissue}
+        <path class="svg-prepared-tooth" d="M174 55 L206 55 L202 82 L198 124 Q196 134 190 136 Q184 134 182 124 L178 82 Z"/>
+        <path class="svg-crown-shell" d="M156 30 Q190 12 224 30 L219 65 Q216 78 207 84 L173 84 Q164 78 161 65 Z"/>
+        <path class="svg-procedure-arrow" d="M190 8 L190 23 M184 18 L190 24 L196 18"/>`);
+      const implantScene = procedureDentalSvg(`${singleToothTissue}
+        <g class="svg-implant"><path d="M180 69 L200 69 L197 125 Q196 136 190 140 Q184 136 183 125 Z"/><path class="svg-implant-thread" d="M181 78 L199 84 M181 88 L198 94 M182 98 L198 104 M183 108 L197 114 M184 118 L196 124"/></g>
+        <path class="svg-abutment" d="M182 58 L198 58 L202 72 L178 72 Z"/>
+        <path class="svg-crown-shell" d="M159 31 Q190 15 221 31 L217 61 Q214 72 205 77 L175 77 Q166 72 163 61 Z"/>
+        <path class="svg-procedure-arrow" d="M190 7 L190 22 M184 17 L190 23 L196 17"/>`);
+      const allOnXScene = procedureDentalSvg(`
+        <path class="svg-bone" d="M66 79 Q190 61 314 79 L314 133 L66 133 Z"/>
+        <path class="svg-gum-section" d="M58 69 Q190 48 322 69 L322 86 Q190 68 58 86 Z"/>
+        <g transform="rotate(-12 126 92)"><g class="svg-implant"><path d="M119 70 L133 70 L131 124 Q129 133 126 136 Q123 133 121 124 Z"/><path class="svg-implant-thread" d="M120 80 L132 85 M120 91 L132 96 M121 102 L131 107 M122 113 L130 118"/></g></g>
+        <g class="svg-implant"><path d="M157 68 L171 68 L169 124 Q167 133 164 136 Q161 133 159 124 Z"/><path class="svg-implant-thread" d="M158 79 L170 84 M158 90 L170 95 M159 101 L169 106 M160 112 L168 117"/></g>
+        <g class="svg-implant"><path d="M209 68 L223 68 L221 124 Q219 133 216 136 Q213 133 211 124 Z"/><path class="svg-implant-thread" d="M210 79 L222 84 M210 90 L222 95 M211 101 L221 106 M212 112 L220 117"/></g>
+        <g transform="rotate(12 254 92)"><g class="svg-implant"><path d="M247 70 L261 70 L259 124 Q257 133 254 136 Q251 133 249 124 Z"/><path class="svg-implant-thread" d="M248 80 L260 85 M248 91 L260 96 M249 102 L259 107 M250 113 L258 118"/></g></g>
+        <g class="svg-prosthesis">
+          <path class="svg-prosthetic-gum" d="M89 36 Q190 7 291 36 L287 50 Q190 30 93 50 Z"/>
+          <path d="M94 45 Q105 39 116 41 L114 67 Q111 76 103 77 Q95 75 94 65 Z"/>
+          <path d="M117 40 Q129 34 141 36 L139 66 Q136 77 128 78 Q119 76 118 64 Z"/>
+          <path d="M142 35 Q156 29 170 30 L168 66 Q165 80 155 81 Q144 78 143 64 Z"/>
+          <path d="M171 30 Q190 25 190 25 L190 67 Q187 82 180 82 Q173 79 172 65 Z"/>
+          <path d="M190 25 Q190 25 209 30 L208 65 Q207 79 200 82 Q193 82 190 67 Z"/>
+          <path d="M210 30 Q224 29 238 35 L237 64 Q236 78 225 81 Q215 80 212 66 Z"/>
+          <path d="M239 36 Q251 34 263 40 L262 64 Q261 76 252 78 Q244 77 241 66 Z"/>
+          <path d="M264 41 Q275 39 286 45 L286 65 Q285 75 277 77 Q269 76 266 67 Z"/>
+        </g>
+        <path class="svg-procedure-arrow" d="M190 4 L190 18 M184 13 L190 19 L196 13"/>`);
+      const ARCH_CENTER_X = 190;
+      const TOOTH_GAP = 3;
+      const TOOTH_WIDTHS = [19, 16, 22, 22, 16, 19];
+      const UPPER_LENGTHS = [24, 21, 30, 30, 21, 24];
+      const LOWER_LENGTHS = [22, 19, 26, 26, 19, 22];
+      const UPPER_GUM_Y = 46;
+      const LOWER_GUM_Y = 104;
+      const computeToothBoxes = (widths) => {
+        const total = widths.reduce((sum, w) => sum + w, 0) + TOOTH_GAP * (widths.length - 1);
+        let x = ARCH_CENTER_X - total / 2;
+        return widths.map((w) => {
+          const left = x;
+          const right = x + w;
+          x = right + TOOTH_GAP;
+          return { left, right };
+        });
+      };
+      const TOOTH_BOXES = computeToothBoxes(TOOTH_WIDTHS);
+      const ARCH_LEFT = TOOTH_BOXES[0].left;
+      const ARCH_RIGHT = TOOTH_BOXES[TOOTH_BOXES.length - 1].right;
+      const toothRectPath = (left, right, gumY, length, isUpper) => {
+        const dir = isUpper ? 1 : -1;
+        const tipY = gumY + dir * length;
+        const r = Math.min((right - left) * 0.42, length * 0.6);
+        const preTip = tipY - dir * r;
+        return `M${left} ${gumY} L${left} ${preTip} Q${left} ${tipY} ${left + r} ${tipY} L${right - r} ${tipY} Q${right} ${tipY} ${right} ${preTip} L${right} ${gumY} Z`;
+      };
+      const upperTeeth = (toothClass = "svg-tooth") => TOOTH_BOXES
+        .map(({ left, right }, i) => `<path class="${toothClass} t${i + 1}" d="${toothRectPath(left, right, UPPER_GUM_Y, UPPER_LENGTHS[i], true)}"/>`)
+        .join("");
+      const lowerTeeth = (toothClass = "svg-tooth") => TOOTH_BOXES
+        .map(({ left, right }, i) => `<path class="${toothClass} t${i + 7}" d="${toothRectPath(left, right, LOWER_GUM_Y, LOWER_LENGTHS[i], false)}"/>`)
+        .join("");
+      const buildPapillae = (gumY, isUpper) => {
+        const dir = isUpper ? 1 : -1;
+        const dipY = gumY + dir * 10;
+        let out = "";
+        for (let i = 0; i < TOOTH_BOXES.length - 1; i++) {
+          const gapLeft = TOOTH_BOXES[i].right;
+          const gapRight = TOOTH_BOXES[i + 1].left;
+          const gx = (gapLeft + gapRight) / 2;
+          const gw = Math.max((gapRight - gapLeft) / 2 + 3, 4);
+          out += `<path class="svg-papilla" d="M${gx - gw} ${gumY - dir * 1.5} Q${gx} ${dipY} ${gx + gw} ${gumY - dir * 1.5} Z"/>`;
+        }
+        return out;
+      };
+      const gumPapillae = `${buildPapillae(UPPER_GUM_Y, true)}${buildPapillae(LOWER_GUM_Y, false)}`;
+      const svgMouthBase = `
+        <path class="svg-gum" d="M${ARCH_LEFT - 9} ${UPPER_GUM_Y} Q${ARCH_CENTER_X} ${UPPER_GUM_Y - 13} ${ARCH_RIGHT + 9} ${UPPER_GUM_Y} Z"/>
+        <path class="svg-gum" d="M${ARCH_LEFT - 9} ${LOWER_GUM_Y} Q${ARCH_CENTER_X} ${LOWER_GUM_Y + 13} ${ARCH_RIGHT + 9} ${LOWER_GUM_Y} Z"/>`;
+      const toothHighlights = `
+        <path class="svg-highlight" d="M${ARCH_CENTER_X - 14} ${UPPER_GUM_Y + 6} C${ARCH_CENTER_X - 12} ${UPPER_GUM_Y + 3} ${ARCH_CENTER_X - 7} ${UPPER_GUM_Y + 3} ${ARCH_CENTER_X - 5} ${UPPER_GUM_Y + 7}"/>
+        <path class="svg-highlight" d="M${ARCH_CENTER_X + 5} ${UPPER_GUM_Y + 7} C${ARCH_CENTER_X + 7} ${UPPER_GUM_Y + 3} ${ARCH_CENTER_X + 12} ${UPPER_GUM_Y + 3} ${ARCH_CENTER_X + 14} ${UPPER_GUM_Y + 6}"/>`;
+      const realisticDentalSvg = (content) => `<svg class="dental-svg" viewBox="0 0 380 150" aria-hidden="true">${svgDentalDefs}${svgMouthBase}${content}</svg>`;
+      const lampX = ARCH_RIGHT + 46;
+      const lampY = (UPPER_GUM_Y + LOWER_GUM_Y) / 2 - 40;
+      const whiteningLampScene = `
+        <path class="svg-light-cone" d="M${lampX} ${lampY + 10} L${ARCH_LEFT - 4} ${UPPER_GUM_Y - 6} L${ARCH_LEFT - 4} ${LOWER_GUM_Y + 6} Z"/>
+        <g class="svg-lamp-head"><rect x="${lampX - 4}" y="${lampY - 14}" width="34" height="24" rx="10"/><rect x="${lampX + 26}" y="${lampY - 8}" width="16" height="10" rx="5"/></g>`;
+      const shellLeft = ARCH_LEFT - 18;
+      const shellRight = ARCH_RIGHT + 18;
+      const shellTop = UPPER_GUM_Y - 14;
+      const shellBottom = LOWER_GUM_Y + 14;
+      const shellMidY = (shellTop + shellBottom) / 2;
+      const alignerRidges = TOOTH_BOXES.slice(0, -1)
+        .map((box, i) => {
+          const gx = (box.right + TOOTH_BOXES[i + 1].left) / 2;
+          return `M${gx} ${shellTop + 10} L${gx} ${shellBottom - 10}`;
+        })
+        .join(" ");
+      const alignerShell = `
+        <path class="svg-aligner-body" d="M${shellLeft} ${shellMidY} Q${shellLeft} ${shellTop} ${ARCH_CENTER_X} ${shellTop} Q${shellRight} ${shellTop} ${shellRight} ${shellMidY} Q${shellRight} ${shellBottom} ${ARCH_CENTER_X} ${shellBottom} Q${shellLeft} ${shellBottom} ${shellLeft} ${shellMidY} Z"/>
+        <path class="svg-aligner-ridge" d="M${shellLeft + 10} ${shellTop + 16} Q${ARCH_CENTER_X} ${shellTop + 6} ${shellRight - 10} ${shellTop + 16}"/>
+        <path class="svg-aligner-ridge" d="M${shellLeft + 10} ${shellBottom - 16} Q${ARCH_CENTER_X} ${shellBottom - 6} ${shellRight - 10} ${shellBottom - 16}"/>
+        <path class="svg-aligner-ridge" d="${alignerRidges}"/>`;
+      const treatmentClips = {
+        whitening: {
+          title: "Teeth Whitening",
+          copy: "Light is applied to the upper and lower six front teeth, and the yellow shade brightens.",
+          visual: `<div class="smile-scene" data-scene="whitening">${realisticDentalSvg(`<g>${upperTeeth()}${lowerTeeth()}${toothHighlights}</g>${gumPapillae}${whiteningLampScene}`)}</div>`,
+        },
+        filling: {
+          title: "Simple Composite Filling",
+          copy: "Repairs a small cavity or chip with tooth-colored resin in one visit.",
+          visual: `<div data-scene="filling">${fillingScene}</div>`,
+        },
+        crown: {
+          title: "Dental Crown",
+          copy: "Covers and protects a weakened tooth when a larger restoration is needed.",
+          visual: `<div data-scene="crown">${crownScene}</div>`,
+        },
+        veneers: {
+          title: "Veneers",
+          copy: "Yellow, uneven front teeth are redesigned into a whiter and more balanced anterior smile.",
+          visual: `<div class="smile-scene" data-scene="veneers">${realisticDentalSvg(`<g class="svg-before">${upperTeeth("svg-tooth is-crooked")}${lowerTeeth("svg-tooth is-crooked")}</g><g class="svg-after">${upperTeeth("svg-tooth is-final")}${lowerTeeth("svg-tooth is-final")}${toothHighlights}</g>${gumPapillae}`)}</div>`,
+        },
+        implants: {
+          title: "Dental Implants",
+          copy: "Replaces a missing tooth with an implant fixture and a crown-like restoration.",
+          visual: `<div data-scene="implants">${implantScene}</div>`,
+        },
+        allOnX: {
+          title: "All on X",
+          copy: "Full-arch implant restoration for multiple missing teeth in one arch.",
+          visual: `<div data-scene="allOnX">${allOnXScene}</div>`,
+        },
+        sureSmile: {
+          title: "SureSmile Clear Aligners",
+          copy: "A clear tray guides crowded front teeth toward a cleaner, more even arrangement.",
+          visual: `<div class="smile-scene" data-scene="sureSmile">${realisticDentalSvg(`<g>${upperTeeth("svg-tooth is-crooked")}${lowerTeeth("svg-tooth is-crooked")}</g>${gumPapillae}<g class="svg-aligner">${alignerShell}</g>`)}</div>`,
+        },
+      };
+
+      function closeTreatmentClip() {
+        clipOverlay.classList.add("is-hidden");
+        clipOverlay.classList.remove("is-playing");
+        clearTimeout(clipTimer);
+      }
+
+      function playTreatmentClip(key) {
+        const clip = treatmentClips[key];
+        if (!clip) return;
+        clearTimeout(clipTimer);
+        clipStage.innerHTML = clip.visual;
+        clipTitle.textContent = clip.title;
+        clipCopy.textContent = clip.copy;
+        clipOverlay.classList.remove("is-hidden", "is-playing");
+        void clipOverlay.offsetWidth;
+        clipOverlay.classList.add("is-playing");
+        clipTimer = setTimeout(closeTreatmentClip, 3000);
+      }
+
+      document.querySelectorAll(".clip-trigger[data-clip]").forEach((button) => {
+        button.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          playTreatmentClip(button.dataset.clip);
+        });
+      });
+
+      clipOverlay.addEventListener("click", (event) => {
+        if (event.target === clipOverlay) closeTreatmentClip();
+      });
       document.querySelectorAll("[data-weekday]").forEach((element) => {
         element.textContent = text.weekdays[Number(element.dataset.weekday)];
       });
@@ -786,6 +2134,7 @@
       renderCalendar();
       buildTimeSlots();
     </script>
+    <script src="../assets/treatment-clips.js"></script>
   </body>
 </html>
 
