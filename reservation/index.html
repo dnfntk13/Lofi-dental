@@ -357,6 +357,29 @@
         line-height: 1.55;
       }
 
+      .usage-guide {
+        margin-top: 18px;
+        padding: 16px;
+        border: 1px solid rgba(90, 111, 218, 0.12);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.72);
+        color: var(--soft);
+      }
+
+      .usage-title {
+        margin: 0 0 8px;
+        color: var(--ink);
+        font-size: 0.98rem;
+        font-weight: 700;
+      }
+
+      .usage-list {
+        margin: 0;
+        padding-left: 18px;
+        font-size: 0.9rem;
+        line-height: 1.7;
+      }
+
       @media (max-width: 760px) {
         .page { padding: 96px 14px 14px; }
         .site-logo { top: 18px; left: 14px; }
@@ -409,6 +432,16 @@
           <p class="time-title" id="timeTitle">Available times</p>
           <div class="time-grid" id="timeGrid"></div>
         </div>
+
+        <div class="usage-guide" aria-label="How to use this reservation form">
+          <p class="usage-title" id="usageTitle">How to book</p>
+          <ol class="usage-list">
+            <li id="usageStepDate">Choose an available date on the calendar.</li>
+            <li id="usageStepTime">Select a time below the calendar.</li>
+            <li id="usageStepDetails">Enter your details on the next page to finish the request.</li>
+            <li id="usageStepClosed">If today is closed, the next available day is selected automatically.</li>
+          </ol>
+        </div>
       </section>
     </div>
 
@@ -427,6 +460,11 @@
         closedBanner: isKorean ? "일요일과 공휴일은 휴진입니다." : "Closed on Sundays and Korean public holidays.",
         holiday: isKorean ? "공휴일" : "Korean holiday",
         closedHint: isKorean ? "휴진" : "Closed",
+        usageTitle: isKorean ? "예약 방법" : "How to book",
+        usageStepDate: isKorean ? "달력에서 예약 가능한 날짜를 선택하세요." : "Choose an available date on the calendar.",
+        usageStepTime: isKorean ? "달력 아래에서 시간을 선택하세요." : "Select a time below the calendar.",
+        usageStepDetails: isKorean ? "다음 페이지에서 정보를 입력하면 예약 요청이 완료됩니다." : "Enter your details on the next page to finish the request.",
+        usageStepClosed: isKorean ? "오늘이 휴진일이면 다음 예약 가능일이 자동으로 선택됩니다." : "If today is closed, the next available day is selected automatically.",
         weekdays: isKorean ? ["일", "월", "화", "수", "목", "금", "토"] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
       };
 
@@ -435,6 +473,11 @@
       document.getElementById("homeLink").href = isKorean ? "/korean" : "/english";
       document.getElementById("siteLogoImage").src = isKorean ? "../assets/한글로고.png" : "../assets/영문로고.png";
       document.getElementById("dateLabel").textContent = text.date;
+      document.getElementById("usageTitle").textContent = text.usageTitle;
+      document.getElementById("usageStepDate").textContent = text.usageStepDate;
+      document.getElementById("usageStepTime").textContent = text.usageStepTime;
+      document.getElementById("usageStepDetails").textContent = text.usageStepDetails;
+      document.getElementById("usageStepClosed").textContent = text.usageStepClosed;
       document.querySelectorAll("[data-weekday]").forEach((element) => {
         element.textContent = text.weekdays[Number(element.dataset.weekday)];
       });
@@ -535,6 +578,16 @@
         );
       }
 
+      function getDefaultDate(minDate, maxDate) {
+        const candidate = new Date(minDate);
+        while (candidate <= maxDate) {
+          const iso = formatISODate(candidate);
+          if (!getClosedType(iso)) return candidate;
+          candidate.setDate(candidate.getDate() + 1);
+        }
+        return minDate;
+      }
+
       function buildTimeSlots() {
         timeGrid.innerHTML = "";
 
@@ -595,10 +648,11 @@
       const minDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       const maxDate = new Date(minDate);
       maxDate.setMonth(maxDate.getMonth() + 3);
+      const defaultDate = getDefaultDate(minDate, maxDate);
 
-      let selectedDateISO = formatISODate(minDate);
-      let viewYear = minDate.getFullYear();
-      let viewMonth = minDate.getMonth();
+      let selectedDateISO = formatISODate(defaultDate);
+      let viewYear = defaultDate.getFullYear();
+      let viewMonth = defaultDate.getMonth();
 
       function canGoPrevMonth() {
         const currentMonthStart = new Date(viewYear, viewMonth, 1);
