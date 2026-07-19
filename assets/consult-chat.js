@@ -121,6 +121,15 @@
       color: #fff;
     }
 
+    .consult-chat-status {
+      display: block;
+      margin-top: 4px;
+      font-size: 0.72rem;
+      line-height: 1;
+      opacity: 0.72;
+      text-align: right;
+    }
+
     .consult-chat-form {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -243,15 +252,24 @@
     message.textContent = text;
     log.appendChild(message);
     log.scrollTop = log.scrollHeight;
+    return message;
+  }
+
+  function setMessageStatus(message, status) {
+    let statusNode = message.querySelector(".consult-chat-status");
+    if (!statusNode) {
+      statusNode = document.createElement("span");
+      statusNode.className = "consult-chat-status";
+      message.appendChild(statusNode);
+    }
+    statusNode.textContent = status;
+    log.scrollTop = log.scrollHeight;
   }
 
   function openChat() {
     isOpen = true;
     panel.classList.add("open");
     launch.setAttribute("aria-expanded", "true");
-    if (!log.childElementCount) {
-      addMessage("Hi, I am here to help. Share your concern, and if you include your name or phone number, we will save it with your patient profile.");
-    }
     input.focus();
   }
 
@@ -283,7 +301,8 @@
     if (!content) return;
 
     input.value = "";
-    addMessage(content, "user");
+    const message = addMessage(content, "user");
+    setMessageStatus(message, "Sending...");
     sendButton.disabled = true;
 
     try {
@@ -298,16 +317,17 @@
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        addMessage(data.message || "Message could not be sent. Please try again.");
+        setMessageStatus(message, data.message || "Not sent");
         return;
       }
 
       sessionId = data.sessionId || sessionId;
       displayName = data.displayName || displayName;
       saveSession();
-      addMessage("Thank you. Your message has been sent to our team.");
+      setMessageStatus(message, "Sent");
+      window.setTimeout(() => setMessageStatus(message, "Read"), 900);
     } catch {
-      addMessage("Message could not be sent. Please check your connection and try again.");
+      setMessageStatus(message, "Not sent");
     } finally {
       sendButton.disabled = false;
       input.focus();
