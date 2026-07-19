@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { Resolver } from "node:dns/promises";
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { MongoClient } from "mongodb";
@@ -35,7 +35,6 @@ const instagramAdminIds = (process.env.INSTAGRAM_ADMIN_IDS || "")
   .map((value) => value.trim())
   .filter(Boolean);
 const dataDir = path.join(rootDir, ".data");
-const instagramImporterProfileDir = path.join(dataDir, "instagram-importer-profile");
 const inboxPath = path.join(dataDir, "reservation-inbox.json");
 const emailThreadsPath = path.join(dataDir, "email-threads.json");
 const imapProcessedPath = path.join(dataDir, "imap-processed.json");
@@ -65,7 +64,6 @@ const emailDnsServers = (process.env.EMAIL_DNS_SERVERS || "8.8.8.8,1.1.1.1")
   .map((server) => server.trim())
   .filter(Boolean);
 let inboxCollectionPromise;
-let instagramImporterContextPromise;
 const emailVerificationCodes = new Map();
 const verifiedEmails = new Map();
 const instagramAuthStates = new Map();
@@ -491,6 +489,17 @@ async function saveInstagramDmMessage(senderId, content, receivedAt = new Date()
   return savedRecord;
 }
 
+async function instagramDmContentExists(senderId, content) {
+  const normalizedSenderId = String(senderId || "").trim().replace(/[^a-zA-Z0-9_-]/g, "");
+  const text = String(content || "").trim();
+  if (!normalizedSenderId || !text) return false;
+
+  const email = `instagram-${normalizedSenderId.toLowerCase()}@instagram.lofi.internal`;
+  const threads = await readEmailThreads();
+  const thread = threads.find((item) => String(item.email || "").toLowerCase() === email);
+  return Array.isArray(thread?.messages) && thread.messages.some((message) => String(message.content || "").trim() === text);
+}
+
 async function sendInstagramDmReply(senderId, content) {
   const config = await getInstagramMessagingConfig();
   if (!config.businessAccountId || !config.accessToken) {
@@ -523,162 +532,6 @@ async function sendInstagramDmReply(senderId, content) {
 
 function isLocalImporterHost(requestHost) {
   return ["localhost", "127.0.0.1", "::1", "0.0.0.0"].includes(requestHost);
-}
-
-async function findLocalBrowserExecutable() {
-  if (process.env.INSTAGRAM_IMPORT_BROWSER_PATH) {
-    return process.env.INSTAGRAM_IMPORT_BROWSER_PATH;
-  }
-
-  const candidates = process.platform === "win32" ? [
-    path.join(process.env.PROGRAMFILES || "C:\\Program Files", "Google", "Chrome", "Application", "chrome.exe"),
-    path.join(process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)", "Google", "Chrome", "Application", "chrome.exe"),
-    path.join(process.env.PROGRAMFILES || "C:\\Program Files", "Microsoft", "Edge", "Application", "msedge.exe"),
-    path.join(process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)", "Microsoft", "Edge", "Application", "msedge.exe"),
-  ] : [
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-    "/usr/bin/google-chrome",
-    "/usr/bin/chromium-browser",
-    "/usr/bin/microsoft-edge",
-  ];
-
-  for (const candidate of candidates) {
-    try {
-      await access(candidate);
-      return candidate;
-    } catch {}
-  }
-
-  throw new Error("Chrome or Edge was not found. Set INSTAGRAM_IMPORT_BROWSER_PATH to your browser executable.");
-}
-
-async function getInstagramImporterPage() {
-  let chromium;
-  try {
-    ({ chromium } = await import("playwright-core"));
-  } catch {
-    throw new Error("playwright-core is not installed. Run npm install first.");
-  }
-
-  if (!instagramImporterContextPromise) {
-    instagramImporterContextPromise = (async () => {
-      await mkdir(instagramImporterProfileDir, { recursive: true });
-      const executablePath = await findLocalBrowserExecutable();
-      const context = await chromium.launchPersistentContext(instagramImporterProfileDir, {
-        executablePath,
-        headless: false,
-        viewport: null,
-      });
-      context.on("close", () => { instagramImporterContextPromise = undefined; });
-      return context;
-    })().catch((error) => {
-      instagramImporterContextPromise = undefined;
-      throw error;
-    });
-  }
-
-  const context = await instagramImporterContextPromise;
-  const page = context.pages().find((candidate) => !candidate.isClosed() && candidate.url().includes("instagram.com/direct"))
-    || context.pages().find((candidate) => !candidate.isClosed())
-    || await context.newPage();
-  await page.bringToFront().catch(() => {});
-  return page;
-}
-
-async function openInstagramImporter() {
-  const page = await getInstagramImporterPage();
-  if (!page.url().includes("instagram.com/direct")) {
-    await page.goto("https://www.instagram.com/direct/inbox/", { waitUntil: "domcontentloaded", timeout: 60000 });
-  }
-  await page.bringToFront().catch(() => {});
-  return { url: page.url() };
-}
-
-async function collectInstagramThreadUrls(page, maxThreads, maxScrolls) {
-  const urls = new Set();
-
-  for (let index = 0; index < maxScrolls && urls.size < maxThreads; index += 1) {
-    await page.waitForTimeout(700);
-    const found = await page.evaluate(() => Array.from(document.querySelectorAll('a[href*="/direct/t/"]'))
-      .map((anchor) => anchor.href)
-      .filter(Boolean));
-    found.forEach((url) => urls.add(url));
-
-    if (urls.size >= maxThreads) break;
-
-    await page.evaluate(() => {
-      const scrollables = Array.from(document.querySelectorAll("main, section, div"))
-        .filter((element) => element.scrollHeight > element.clientHeight + 120)
-        .sort((a, b) => (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight));
-      const target = scrollables[0];
-      if (target) target.scrollTop += Math.max(260, target.clientHeight * 0.75);
-      else window.scrollBy(0, window.innerHeight * 0.75);
-    });
-  }
-
-  return Array.from(urls).slice(0, maxThreads);
-}
-
-async function scrollInstagramThreadToTop(page, maxScrolls) {
-  for (let index = 0; index < maxScrolls; index += 1) {
-    await page.evaluate(() => {
-      const scrollables = Array.from(document.querySelectorAll("main, section, div"))
-        .filter((element) => element.scrollHeight > element.clientHeight + 160)
-        .sort((a, b) => (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight));
-      const target = scrollables[0];
-      if (target) target.scrollTop = 0;
-      else window.scrollTo(0, 0);
-    });
-    await page.waitForTimeout(650);
-  }
-}
-
-async function scanInstagramImporterDms({ maxThreads = 20, maxScrolls = 8 } = {}) {
-  const page = await getInstagramImporterPage();
-  if (!page.url().includes("instagram.com/direct")) {
-    await page.goto("https://www.instagram.com/direct/inbox/", { waitUntil: "domcontentloaded", timeout: 60000 });
-  }
-
-  await page.waitForLoadState("domcontentloaded", { timeout: 60000 }).catch(() => {});
-  await page.waitForTimeout(1200);
-
-  const bodyText = await page.locator("body").innerText({ timeout: 5000 }).catch(() => "");
-  const loginLikely = /log in|sign up|로그인|가입/i.test(bodyText) && !page.url().includes("/direct/");
-  const threadUrls = loginLikely ? [] : await collectInstagramThreadUrls(page, maxThreads, maxScrolls);
-  if (!threadUrls.length) {
-    return { needsLogin: loginLikely, savedCount: 0, conversations: [] };
-  }
-
-  const conversations = [];
-  for (const threadUrl of threadUrls) {
-    const senderId = decodeURIComponent(threadUrl.match(/\/direct\/t\/([^/?#]+)/)?.[1] || `screen-${conversations.length + 1}`);
-    await page.goto(threadUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
-    await page.waitForTimeout(1200);
-    await scrollInstagramThreadToTop(page, maxScrolls);
-
-    const extracted = await page.evaluate(() => {
-      const header = document.querySelector('main header h1, main header h2, [role="main"] h1, [role="main"] h2, header h1, header h2')?.textContent?.trim() || "";
-      const lines = (document.body.innerText || "")
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .filter((line) => !/^(instagram|home|search|explore|reels|messages|notifications|create|profile|threads|meta|send message|message|new message)$/i.test(line));
-      return { header, text: Array.from(new Set(lines)).join("\n") };
-    });
-
-    const content = [
-      "Imported from Instagram screen automation.",
-      extracted.header ? `Conversation: ${extracted.header}` : "",
-      extracted.text,
-    ].filter(Boolean).join("\n\n").trim();
-
-    if (content.length < 30) continue;
-    const saved = await saveInstagramDmMessage(senderId, content, new Date().toISOString());
-    conversations.push({ senderId, name: saved?.name || extracted.header || `Instagram ${senderId.slice(-6)}`, textLength: content.length });
-  }
-
-  return { needsLogin: false, savedCount: conversations.length, conversations };
 }
 
 async function readInstagramSettings() {
@@ -2223,45 +2076,76 @@ createServer(async (request, response) => {
     return;
   }
 
-  if (pathname === "/api/admin/instagram-importer/open" && request.method === "POST") {
-    if (!adminAuthorized) { requestAuth(response); return; }
+  if (pathname === "/api/local/instagram-extension/import" && request.method === "POST") {
     if (!isLocalImporterHost(requestHost)) {
       response.writeHead(403, { "Content-Type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify({ message: "Instagram screen control is available only on the local admin computer." }));
+      response.end(JSON.stringify({ message: "Instagram extension import is available only on the local admin computer." }));
+      return;
+    }
+
+    if (request.headers["x-lofi-instagram-importer"] !== "extension-v1") {
+      response.writeHead(403, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Invalid Instagram extension importer header" }));
       return;
     }
 
     try {
-      const result = await openInstagramImporter();
-      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify({ ok: true, ...result }));
-    } catch (error) {
-      console.error("Failed to open Instagram importer", error);
-      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify({ message: error.message || "Failed to open Instagram importer" }));
-    }
-    return;
-  }
+      const payload = await getJsonBody(request);
+      const conversations = Array.isArray(payload.conversations) ? payload.conversations : [];
+      if (!conversations.length) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "No Instagram conversations were provided" }));
+        return;
+      }
 
-  if (pathname === "/api/admin/instagram-importer/scan" && request.method === "POST") {
-    if (!adminAuthorized) { requestAuth(response); return; }
-    if (!isLocalImporterHost(requestHost)) {
-      response.writeHead(403, { "Content-Type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify({ message: "Instagram screen control is available only on the local admin computer." }));
-      return;
-    }
+      const limitedConversations = conversations.slice(0, 120);
+      let savedCount = 0;
+      let skippedCount = 0;
 
-    try {
-      const payload = await getJsonBody(request).catch(() => ({}));
-      const maxThreads = Math.min(Math.max(Number(payload.maxThreads || 20), 1), 80);
-      const maxScrolls = Math.min(Math.max(Number(payload.maxScrolls || 8), 1), 30);
-      const result = await scanInstagramImporterDms({ maxThreads, maxScrolls });
+      for (const conversation of limitedConversations) {
+        const senderId = String(conversation.senderId || conversation.threadId || conversation.url || "").trim();
+        const title = String(conversation.title || "").trim();
+        const url = String(conversation.url || "").trim();
+        const capturedAt = String(conversation.capturedAt || "").trim() || new Date().toISOString();
+        const messages = Array.isArray(conversation.messages) ? conversation.messages : [];
+        const messageText = messages
+          .map((message) => {
+            const author = String(message.author || "").trim();
+            const text = String(message.text || "").trim();
+            return text ? `${author ? `${author}: ` : ""}${text}` : "";
+          })
+          .filter(Boolean)
+          .join("\n");
+        const fallbackText = String(conversation.text || "").trim();
+        const content = [
+          "Imported from Instagram Chrome Extension.",
+          title ? `Conversation: ${title}` : "",
+          url ? `URL: ${url}` : "",
+          messageText || fallbackText,
+        ].filter(Boolean).join("\n\n").trim().slice(0, 20000);
+
+        if (!senderId || !content || content.length < 20) {
+          skippedCount += 1;
+          continue;
+        }
+
+        if (await instagramDmContentExists(senderId, content)) {
+          skippedCount += 1;
+          continue;
+        }
+
+        const saved = await saveInstagramDmMessage(senderId, content, capturedAt);
+        if (saved) savedCount += 1;
+        else skippedCount += 1;
+      }
+
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify({ ok: true, ...result }));
+      response.end(JSON.stringify({ ok: true, savedCount, skippedCount }));
     } catch (error) {
-      console.error("Failed to scan Instagram importer", error);
-      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify({ message: error.message || "Failed to scan Instagram DMs" }));
+      console.error("Failed to import Instagram extension conversations", error);
+      const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+      response.writeHead(isPayloadError ? 400 : 500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : "Failed to import Instagram extension conversations" }));
     }
     return;
   }

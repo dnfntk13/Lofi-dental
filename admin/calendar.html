@@ -753,10 +753,8 @@
             <h2 class="instagram-title">Instagram DM</h2>
             <div class="instagram-actions">
               <button class="instagram-btn primary" type="button" id="instagramOpen">Open Instagram</button>
-              <button class="instagram-btn" type="button" id="instagramControlOpen">Controlled browser</button>
-              <button class="instagram-btn primary" type="button" id="instagramScan">Scan & save DMs</button>
             </div>
-            <div class="instagram-status" id="instagramStatus">Open the controlled browser, log in to Instagram there, then scan to move DMs into Messages and Patients.</div>
+            <div class="instagram-status" id="instagramStatus">Use the Lofi Instagram DM Importer Chrome Extension on Instagram Direct to scan and save DMs into Messages and Patients.</div>
           </div>
         </aside>
       </div>
@@ -914,8 +912,6 @@
       const undoBtn = document.getElementById("undoBtn");
       const instagramStatus = document.getElementById("instagramStatus");
       const instagramOpen = document.getElementById("instagramOpen");
-      const instagramControlOpen = document.getElementById("instagramControlOpen");
-      const instagramScan = document.getElementById("instagramScan");
 
       const today = new Date();
       let viewYear = today.getFullYear();
@@ -964,48 +960,6 @@
 
         popup.focus();
         instagramStatus.textContent = "Instagram opened. Log in there with any Instagram account.";
-      }
-
-      async function postInstagramImporter(path, body = {}) {
-        const res = await fetch(path, {
-          method: "POST",
-          headers: { "Accept": "application/json", "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.message || "Instagram importer failed.");
-        return data;
-      }
-
-      async function openControlledInstagram() {
-        instagramControlOpen.disabled = true;
-        instagramStatus.textContent = "Opening controlled Instagram browser...";
-        try {
-          await postInstagramImporter("/api/admin/instagram-importer/open");
-          instagramStatus.textContent = "Controlled browser is open. Log in to Instagram there, then click Scan & save DMs.";
-        } catch (error) {
-          instagramStatus.textContent = error.message || "Failed to open controlled browser.";
-        } finally {
-          instagramControlOpen.disabled = false;
-        }
-      }
-
-      async function scanControlledInstagram() {
-        instagramScan.disabled = true;
-        instagramStatus.textContent = "Scanning Instagram DMs. Keep the controlled browser open.";
-        try {
-          const data = await postInstagramImporter("/api/admin/instagram-importer/scan", { maxThreads: 80, maxScrolls: 30 });
-          if (data.needsLogin) {
-            instagramStatus.textContent = "Instagram login is needed in the controlled browser before scanning.";
-            return;
-          }
-          instagramStatus.textContent = `Saved ${data.savedCount || 0} Instagram conversation${data.savedCount === 1 ? "" : "s"} to Messages and Patients.`;
-          await loadReservations();
-        } catch (error) {
-          instagramStatus.textContent = error.message || "Failed to scan Instagram DMs.";
-        } finally {
-          instagramScan.disabled = false;
-        }
       }
 
       function pushUndo(action) {
@@ -1949,8 +1903,6 @@
       });
 
       instagramOpen.addEventListener("click", openInstagramWindow);
-      instagramControlOpen.addEventListener("click", openControlledInstagram);
-      instagramScan.addEventListener("click", scanControlledInstagram);
 
       loadReservations();
     </script>

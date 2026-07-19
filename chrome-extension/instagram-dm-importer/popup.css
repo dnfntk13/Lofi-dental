@@ -1,0 +1,60 @@
+body {
+  margin: 0;
+  width: 300px;
+  font-family: Georgia, "Times New Roman", serif;
+  color: #1f2d66;
+  background: #f5f7ff;
+}
+
+.panel {
+  padding: 16px;
+}
+
+h1 {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+  line-height: 1.1;
+}
+
+.status {
+  min-height: 42px;
+  margin: 0 0 12px;
+  color: #5a6fda;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.controls {
+  display: grid;
+  gap: 8px;
+}
+
+button {
+  border: 1px solid rgba(90, 111, 218, 0.28);
+  border-radius: 8px;
+  background: #fff;
+  color: #1f2d66;
+  cursor: pointer;
+  font: 700 0.86rem "Segoe UI", sans-serif;
+  padding: 9px 10px;
+}
+
+button.primary {
+  background: #5b3d8f;
+  border-color: #5b3d8f;
+  color: #fff;
+}
+
+button:disabled {
+  opacity: 0.56;
+  cursor: wait;
+}
+
+.note {
+  margin: 12px 0 0;
+  color: #5a6fda;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
