@@ -3,3 +3,4 @@ node_modules/
 dist/
 ios/
 .data/instagram-settings.json
+.data/instagram-importer-profile/
