@@ -375,6 +375,21 @@ function getPatientThreadEmail(record) {
   return `${id}@schedule.lofi.internal`;
 }
 
+function normalizeConsultAttachments(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 1).flatMap((attachment) => {
+    const name = String(attachment?.name || "photo.jpg").replace(/[\\/]/g, "").slice(0, 80) || "photo.jpg";
+    const type = String(attachment?.type || "").toLowerCase();
+    const dataUrl = String(attachment?.dataUrl || "");
+
+    if (!type.startsWith("image/") || !dataUrl.startsWith("data:image/") || dataUrl.length > 900000) {
+      return [];
+    }
+
+    return [{ name, type, dataUrl }];
+  });
+}
+
 async function readPatients() {
   const collection = await getPatientsCollection();
   if (collection) {
@@ -1792,13 +1807,14 @@ createServer(async (request, response) => {
     try {
       const payload = await getJsonBody(request);
       const content = String(payload.content || "").trim();
+      const attachments = normalizeConsultAttachments(payload.attachments);
       const requestedSessionId = String(payload.sessionId || "")
         .trim()
         .toLowerCase()
         .replace(/[^a-z0-9-]/g, "")
         .slice(0, 80);
 
-      if (!content) {
+      if (!content && !attachments.length) {
         response.writeHead(400, {
           "Content-Type": "application/json; charset=utf-8",
           ...reservationCorsHeaders,
@@ -1829,7 +1845,7 @@ createServer(async (request, response) => {
         time: "Live",
         email: chatEmail,
         name: displayName,
-        concerns: content,
+        concerns: content || "[Photo]",
         source: "consult-chat",
         chatSessionId: sessionId,
         createdAt: existingRecord?.createdAt || now,
@@ -1844,6 +1860,7 @@ createServer(async (request, response) => {
         type: "customer-reply",
         receivedAt: now,
         content,
+        attachments,
         source: "consult-chat",
         channel: "web",
         displayName,

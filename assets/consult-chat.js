@@ -132,10 +132,74 @@
 
     .consult-chat-form {
       display: grid;
-      grid-template-columns: 1fr auto;
       gap: 8px;
       padding: 12px;
       border-top: 1px solid rgba(90, 111, 218, 0.16);
+    }
+
+    .consult-chat-tools,
+    .consult-chat-row {
+      display: grid;
+      grid-template-columns: auto auto 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .consult-chat-row {
+      grid-template-columns: 1fr auto;
+    }
+
+    .consult-chat-tool {
+      min-height: 34px;
+      border: 1px solid rgba(90, 111, 218, 0.22);
+      border-radius: 999px;
+      padding: 0 10px;
+      background: #fff;
+      color: #1f2d66;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .consult-chat-emoji-panel {
+      display: none;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 4px;
+      padding: 8px;
+      border: 1px solid rgba(90, 111, 218, 0.16);
+      border-radius: 12px;
+      background: #f8faff;
+    }
+
+    .consult-chat-emoji-panel.open {
+      display: grid;
+    }
+
+    .consult-chat-emoji {
+      min-height: 30px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      cursor: pointer;
+      font-size: 1.1rem;
+    }
+
+    .consult-chat-attachment {
+      min-width: 0;
+      color: #5f688f;
+      font-size: 0.82rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .consult-chat-photo {
+      display: block;
+      width: min(220px, 100%);
+      margin-top: 8px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      background: rgba(255, 255, 255, 0.12);
     }
 
     .consult-chat-input {
@@ -226,8 +290,17 @@
     </div>
     <div class="consult-chat-log" aria-live="polite"></div>
     <form class="consult-chat-form">
-      <input class="consult-chat-input" type="text" maxlength="2000" autocomplete="off" placeholder="Type your message" />
-      <button class="consult-chat-send" type="submit">Send</button>
+      <div class="consult-chat-tools">
+        <button class="consult-chat-tool consult-chat-emoji-toggle" type="button" aria-label="Add emoji">☺</button>
+        <button class="consult-chat-tool consult-chat-photo-button" type="button">Photo</button>
+        <span class="consult-chat-attachment" aria-live="polite"></span>
+        <input class="consult-chat-file" type="file" accept="image/*" hidden />
+      </div>
+      <div class="consult-chat-emoji-panel" aria-label="Emoji picker"></div>
+      <div class="consult-chat-row">
+        <input class="consult-chat-input" type="text" maxlength="2000" autocomplete="off" placeholder="Type your message" />
+        <button class="consult-chat-send" type="submit">Send</button>
+      </div>
     </form>
   `;
 
@@ -241,15 +314,32 @@
   const form = panel.querySelector(".consult-chat-form");
   const input = panel.querySelector(".consult-chat-input");
   const sendButton = panel.querySelector(".consult-chat-send");
+  const emojiToggle = panel.querySelector(".consult-chat-emoji-toggle");
+  const emojiPanel = panel.querySelector(".consult-chat-emoji-panel");
+  const photoButton = panel.querySelector(".consult-chat-photo-button");
+  const fileInput = panel.querySelector(".consult-chat-file");
+  const attachmentLabel = panel.querySelector(".consult-chat-attachment");
+  const emojis = ["😀", "😊", "🙏", "❤️", "👍", "✨", "🥹", "😄", "😬", "🦷", "📷", "✅", "🙌", "🤍", "😌", "🤝"];
+  let pendingAttachment = null;
 
   function saveSession() {
     localStorage.setItem(storageKey, JSON.stringify({ sessionId, displayName }));
   }
 
-  function addMessage(text, type) {
+  function addMessage(text, type, attachments = []) {
     const message = document.createElement("div");
     message.className = `consult-chat-message ${type || "system"}`.trim();
-    message.textContent = text;
+    if (text) {
+      message.appendChild(document.createTextNode(text));
+    }
+    attachments.forEach((attachment) => {
+      if (!String(attachment?.type || "").startsWith("image/") || !attachment.dataUrl) return;
+      const image = document.createElement("img");
+      image.className = "consult-chat-photo";
+      image.src = attachment.dataUrl;
+      image.alt = attachment.name || "Attached photo";
+      message.appendChild(image);
+    });
     log.appendChild(message);
     log.scrollTop = log.scrollHeight;
     return message;
@@ -295,13 +385,84 @@
 
   closeButton.addEventListener("click", closeChat);
 
+  emojiPanel.innerHTML = emojis.map((emoji) => `<button class="consult-chat-emoji" type="button">${emoji}</button>`).join("");
+  emojiToggle.addEventListener("click", () => {
+    emojiPanel.classList.toggle("open");
+  });
+  emojiPanel.addEventListener("click", (event) => {
+    const button = event.target.closest(".consult-chat-emoji");
+    if (!button) return;
+    const start = input.selectionStart || input.value.length;
+    const end = input.selectionEnd || start;
+    input.value = `${input.value.slice(0, start)}${button.textContent}${input.value.slice(end)}`;
+    input.focus();
+    input.setSelectionRange(start + button.textContent.length, start + button.textContent.length);
+    emojiPanel.classList.remove("open");
+  });
+
+  photoButton.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files && fileInput.files[0];
+    pendingAttachment = null;
+    attachmentLabel.textContent = "";
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      attachmentLabel.textContent = "Choose an image file.";
+      fileInput.value = "";
+      return;
+    }
+
+    try {
+      attachmentLabel.textContent = "Preparing photo...";
+      pendingAttachment = await resizePhoto(file);
+      attachmentLabel.textContent = pendingAttachment.name;
+    } catch {
+      attachmentLabel.textContent = "Photo is too large.";
+      pendingAttachment = null;
+    } finally {
+      fileInput.value = "";
+    }
+  });
+
+  function resizePhoto(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = () => {
+        const image = new Image();
+        image.onerror = reject;
+        image.onload = () => {
+          const maxSide = 1200;
+          const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(image.width * scale));
+          canvas.height = Math.max(1, Math.round(image.height * scale));
+          const context = canvas.getContext("2d");
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.76);
+          if (dataUrl.length > 900000) {
+            reject(new Error("Photo is too large"));
+            return;
+          }
+          resolve({ name: file.name || "photo.jpg", type: "image/jpeg", dataUrl });
+        };
+        image.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const content = input.value.trim();
-    if (!content) return;
+    const attachments = pendingAttachment ? [pendingAttachment] : [];
+    if (!content && !attachments.length) return;
 
     input.value = "";
-    const message = addMessage(content, "user");
+    pendingAttachment = null;
+    attachmentLabel.textContent = "";
+    const message = addMessage(content, "user", attachments);
     setMessageStatus(message, "Sending...");
     sendButton.disabled = true;
 
@@ -312,7 +473,7 @@
           Accept: "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ sessionId, displayName, content }),
+        body: JSON.stringify({ sessionId, displayName, content, attachments }),
       });
       const data = await response.json().catch(() => ({}));
 

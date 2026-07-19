@@ -448,6 +448,16 @@
           .replaceAll('"', "&quot;");
       }
 
+      function renderAttachments(attachments) {
+        if (!Array.isArray(attachments) || !attachments.length) return "";
+        return attachments.map((attachment) => {
+          const type = String(attachment?.type || "").toLowerCase();
+          const dataUrl = String(attachment?.dataUrl || "");
+          if (!type.startsWith("image/") || !dataUrl.startsWith("data:image/")) return "";
+          return `<a href="${escapeHtml(dataUrl)}" target="_blank" rel="noopener"><img src="${escapeHtml(dataUrl)}" alt="${escapeHtml(attachment.name || "Attached photo")}" style="display:block;max-width:220px;width:100%;margin-top:10px;border-radius:12px;border:1px solid var(--line);" /></a>`;
+        }).join("");
+      }
+
       let currentMessageData = null;
       let currentThreadEmail = "";
       let currentThreadReservationId = null;
@@ -687,6 +697,7 @@ ${text}
                 <div class="message-type">${typeLabel}</div>
                 <div class="message-date">${dateLabel}</div>
                 <div class="message-text">${escapeHtml(msg.content || msg.concerns || "")}</div>
+                ${renderAttachments(msg.attachments)}
               </div>
             </div>
           `;
