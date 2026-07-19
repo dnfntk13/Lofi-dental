@@ -159,22 +159,28 @@
 
     @media (max-width: 640px) {
       body.lofi-floating-ctas {
-        padding-bottom: 0;
+        padding-bottom: 172px;
       }
 
       .consult-chat-launch {
-        position: static;
+        position: fixed;
+        right: 18px;
+        bottom: 84px;
+        left: 18px;
         display: flex;
-        width: calc(100% - 36px);
-        margin: 12px 18px 0;
+        width: auto;
+        margin: 0;
         justify-content: center;
       }
 
       .sticky-appointment {
-        position: static !important;
+        position: fixed !important;
+        right: 18px !important;
+        bottom: 18px !important;
+        left: 18px !important;
         display: flex;
         width: auto;
-        margin: 12px 18px 18px;
+        margin: 0;
         justify-content: center;
       }
 
@@ -190,12 +196,13 @@
 
   if (appointmentButton) {
     document.body.classList.add("lofi-floating-ctas");
+    document.body.appendChild(appointmentButton);
   }
 
   const launch = document.createElement("button");
   launch.type = "button";
   launch.className = "consult-chat-launch";
-  launch.textContent = "Consult with Dr. Kim";
+  launch.textContent = "Consult with us";
   launch.setAttribute("aria-expanded", "false");
   launch.setAttribute("aria-controls", "consultChatPanel");
 
