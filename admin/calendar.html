@@ -137,6 +137,11 @@
 
       .btn-today:hover { background: var(--mint); }
 
+      .btn-undo:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+
       .cal-wrap {
         border: 1px solid var(--line);
         border-radius: 24px;
@@ -218,6 +223,36 @@
 
       .event-chip.dragging {
         opacity: 0.55;
+      }
+
+      .reservation-drag-preview {
+        position: fixed;
+        left: -10000px;
+        top: -10000px;
+        z-index: 1000;
+        width: 190px;
+        padding: 7px;
+        border: 1px solid rgba(29, 78, 216, 0.3);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 12px 30px rgba(31, 45, 102, 0.24);
+        pointer-events: none;
+      }
+
+      .reservation-drag-preview .event-chip {
+        margin-top: 3px;
+        background: #1d4ed8;
+      }
+
+      .reservation-drag-preview .event-chip:first-child { margin-top: 0; }
+
+      .drag-preview-count {
+        display: block;
+        margin-top: 5px;
+        color: #1d4ed8;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-align: right;
       }
 
       .event-chip.selected {
@@ -425,18 +460,21 @@
         .event-chip { font-size: 0.68rem; padding: 2px 5px; }
         .cal-weekday { font-size: 0.7rem; padding: 8px 2px; }
         .detail-panel { padding: 22px; }
+        .cal-nav { width: 100%; justify-content: center; flex-wrap: wrap; }
+        .cal-month-label { min-width: 150px; }
+      }
+
+      @media (pointer: coarse) {
+        .event-chip[draggable="true"] { touch-action: none; }
+        .detail-item { touch-action: pan-y; }
+        .cal-cell { -webkit-touch-callout: none; }
       }
 
       @media (max-width: 420px) {
-        .cal-cell { min-height: 52px; }
-        .day-events { display: none; }
-        .cal-cell.has-events::after {
-          content: '';
-          position: absolute; bottom: 6px; left: 50%;
-          transform: translateX(-50%);
-          width: 6px; height: 6px; border-radius: 999px;
-          background: var(--accent);
-        }
+        .cal-wrap { overflow-x: auto; }
+        .cal-weekdays, .cal-grid { min-width: 630px; }
+        .cal-cell { min-height: 78px; }
+        .day-events { display: flex; }
       }
     </style>
   </head>
@@ -461,6 +499,7 @@
           <span class="cal-month-label" id="monthLabel"></span>
           <button class="cal-nav-btn" id="nextBtn" aria-label="Next month">&#8250;</button>
           <button class="btn-today" id="todayBtn">Today</button>
+          <button class="btn-today btn-undo" id="undoBtn" disabled>Undo</button>
         </div>
       </div>
 
@@ -490,7 +529,7 @@
         <button class="detail-close" id="detailClose" aria-label="Close">&#x2715;</button>
         <h2 class="detail-date" id="detailDate"></h2>
         <div class="detail-list" id="detailList"></div>
-        <p class="undo-hint">Tip: Press Ctrl+Z to undo your last edit/delete.</p>
+        <p class="undo-hint">Tip: Press Ctrl+Z or tap Undo to reverse your last change.</p>
       </div>
     </div>
 
@@ -634,6 +673,7 @@
       const createConcerns = document.getElementById("createConcerns");
       const calWrap = document.getElementById("calWrap");
       const selectionBox = document.getElementById("selectionBox");
+      const undoBtn = document.getElementById("undoBtn");
 
       const today = new Date();
       let viewYear = today.getFullYear();
@@ -651,6 +691,9 @@
       let suppressNextClick = false;
       let dragMoveState = null;
       let activeDropTarget = null;
+      let touchGesture = null;
+      let suppressTouchClickUntil = 0;
+      const longPressMs = 800;
 
       function flashStatus(message, ms = 2200) {
         clearTimeout(statusTimer);
@@ -664,7 +707,8 @@
       function pushUndo(action) {
         undoStack.push(action);
         if (undoStack.length > maxUndoStack) undoStack.shift();
-        flashStatus("Saved. Press Ctrl+Z to undo.", 1800);
+        undoBtn.disabled = false;
+        flashStatus("Saved. Press Ctrl+Z or tap Undo.", 1800);
       }
 
       function getReservationById(id) {
@@ -695,6 +739,175 @@
         selectedReservationIds.clear();
         ids.forEach((id) => selectedReservationIds.add(String(id)));
         applySelectionStyles();
+      }
+
+      function createReservationDragPreview(ids) {
+        const preview = document.createElement("div");
+        preview.className = "reservation-drag-preview";
+        const records = ids.map((id) => getReservationById(id)).filter(Boolean);
+        const visibleRecords = records.slice(0, 5);
+        preview.innerHTML = visibleRecords.map((record) => {
+          const label = extractNameFromRecord(record) || String(record.email || "").trim() || "Patient";
+          return `<div class="event-chip">${escHtml(record.time)} ${escHtml(label)}</div>`;
+        }).join("");
+        if (records.length > 1) {
+          const hiddenCount = records.length - visibleRecords.length;
+          preview.insertAdjacentHTML(
+            "beforeend",
+            `<span class="drag-preview-count">${records.length} reservations${hiddenCount > 0 ? ` · +${hiddenCount} more` : ""}</span>`
+          );
+        }
+        document.body.appendChild(preview);
+        return preview;
+      }
+
+      function isTouchPointer(event) {
+        return event.pointerType === "touch" || event.pointerType === "pen";
+      }
+
+      function bindTouchLongPress(element, callback) {
+        let press = null;
+
+        element.addEventListener("pointerdown", (event) => {
+          if (!isTouchPointer(event) || !event.isPrimary) return;
+          press = {
+            startX: event.clientX,
+            startY: event.clientY,
+            timer: setTimeout(() => {
+              if (!press) return;
+              suppressTouchClickUntil = Date.now() + 700;
+              navigator.vibrate?.(35);
+              callback({ clientX: press.startX, clientY: press.startY });
+              press = null;
+            }, longPressMs),
+          };
+        });
+
+        element.addEventListener("pointermove", (event) => {
+          if (!press) return;
+          if (Math.hypot(event.clientX - press.startX, event.clientY - press.startY) > 10) {
+            clearTimeout(press.timer);
+            press = null;
+          }
+        });
+
+        const cancelPress = () => {
+          if (!press) return;
+          clearTimeout(press.timer);
+          press = null;
+        };
+        element.addEventListener("pointerup", cancelPress);
+        element.addEventListener("pointercancel", cancelPress);
+        element.addEventListener("click", (event) => {
+          if (Date.now() < suppressTouchClickUntil) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        });
+      }
+
+      function positionTouchDragPreview(preview, clientX, clientY) {
+        preview.style.left = `${Math.min(clientX + 14, window.innerWidth - 205)}px`;
+        preview.style.top = `${Math.max(8, clientY - 24)}px`;
+      }
+
+      function clearTouchReservationGesture() {
+        if (!touchGesture) return;
+        clearTimeout(touchGesture.timer);
+        touchGesture.preview?.remove();
+        touchGesture.dropTarget?.classList.remove("drop-target");
+        document.querySelectorAll(".event-chip.dragging").forEach((chip) => chip.classList.remove("dragging"));
+        touchGesture = null;
+      }
+
+      function bindReservationTouchDrag(chip) {
+        chip.addEventListener("pointerdown", (event) => {
+          if (!isTouchPointer(event) || !event.isPrimary) return;
+          const draggedId = String(chip.dataset.resId || "");
+          touchGesture = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            draggedId,
+            armed: false,
+            dragging: false,
+            preview: null,
+            dropTarget: null,
+            timer: setTimeout(() => {
+              if (!touchGesture || touchGesture.pointerId !== event.pointerId) return;
+              if (!selectedReservationIds.has(draggedId)) setSelectionFromIds([draggedId]);
+              const ids = Array.from(selectedReservationIds);
+              touchGesture.ids = ids;
+              touchGesture.armed = true;
+              touchGesture.preview = createReservationDragPreview(ids);
+              positionTouchDragPreview(touchGesture.preview, touchGesture.clientX, touchGesture.clientY);
+              document.querySelectorAll(".event-chip[data-res-id]").forEach((eventChip) => {
+                if (selectedReservationIds.has(String(eventChip.dataset.resId || ""))) eventChip.classList.add("dragging");
+              });
+              navigator.vibrate?.(35);
+            }, longPressMs),
+          };
+          try {
+            chip.setPointerCapture?.(event.pointerId);
+          } catch {}
+        });
+
+        chip.addEventListener("pointermove", (event) => {
+          if (!touchGesture || touchGesture.pointerId !== event.pointerId) return;
+          touchGesture.clientX = event.clientX;
+          touchGesture.clientY = event.clientY;
+          const distance = Math.hypot(event.clientX - touchGesture.startX, event.clientY - touchGesture.startY);
+          if (!touchGesture.armed) {
+            if (distance > 10) clearTouchReservationGesture();
+            return;
+          }
+
+          event.preventDefault();
+          touchGesture.dragging = distance > 6;
+          positionTouchDragPreview(touchGesture.preview, event.clientX, event.clientY);
+          const nextTarget = document.elementFromPoint(event.clientX, event.clientY)?.closest(".cal-cell[data-date]");
+          if (nextTarget !== touchGesture.dropTarget) {
+            touchGesture.dropTarget?.classList.remove("drop-target");
+            touchGesture.dropTarget = nextTarget;
+            touchGesture.dropTarget?.classList.add("drop-target");
+          }
+        });
+
+        chip.addEventListener("pointerup", async (event) => {
+          if (!touchGesture || touchGesture.pointerId !== event.pointerId) return;
+          clearTimeout(touchGesture.timer);
+          const { armed, dragging, ids, dropTarget, draggedId } = touchGesture;
+
+          if (!armed) {
+            const nextSelection = new Set(selectedReservationIds);
+            if (nextSelection.has(draggedId)) nextSelection.delete(draggedId);
+            else nextSelection.add(draggedId);
+            setSelectionFromIds(nextSelection);
+            suppressTouchClickUntil = Date.now() + 500;
+            flashStatus(`Selected ${selectedReservationIds.size} reservation${selectedReservationIds.size === 1 ? "" : "s"}.`, 1100);
+            clearTouchReservationGesture();
+            return;
+          }
+
+          suppressTouchClickUntil = Date.now() + 700;
+          const targetDate = dropTarget?.dataset.date;
+          clearTouchReservationGesture();
+          if (dragging && targetDate) {
+            await moveReservationsToDate(ids || [], targetDate);
+          } else {
+            showReservationMenu(event, draggedId);
+          }
+        });
+
+        chip.addEventListener("pointercancel", clearTouchReservationGesture);
+        chip.addEventListener("click", (event) => {
+          if (Date.now() < suppressTouchClickUntil) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        });
       }
 
       function updateSelectionBox(x1, y1, x2, y2) {
@@ -949,6 +1162,7 @@
             e.stopPropagation();
             showReservationMenu(e, chip.dataset.resId);
           });
+          bindReservationTouchDrag(chip);
 
           chip.addEventListener("dragstart", (e) => {
             const draggedId = String(chip.dataset.resId || "");
@@ -956,7 +1170,8 @@
               setSelectionFromIds([draggedId]);
             }
             const ids = Array.from(selectedReservationIds);
-            dragMoveState = { ids };
+            const preview = createReservationDragPreview(ids);
+            dragMoveState = { ids, preview };
             document.querySelectorAll(".event-chip[data-res-id]").forEach((eventChip) => {
               if (selectedReservationIds.has(String(eventChip.dataset.resId || ""))) {
                 eventChip.classList.add("dragging");
@@ -965,11 +1180,13 @@
             if (e.dataTransfer) {
               e.dataTransfer.effectAllowed = "move";
               e.dataTransfer.setData("text/plain", JSON.stringify(ids));
+              e.dataTransfer.setDragImage(preview, 20, 16);
             }
           });
 
           chip.addEventListener("dragend", () => {
             document.querySelectorAll(".event-chip.dragging").forEach((eventChip) => eventChip.classList.remove("dragging"));
+            dragMoveState?.preview?.remove();
             dragMoveState = null;
             document.querySelectorAll(".cal-cell.drop-target").forEach((cell) => cell.classList.remove("drop-target"));
           });
@@ -1004,6 +1221,7 @@
             e.stopPropagation();
             showEmptyCellMenu(e, cell.dataset.date);
           });
+          bindTouchLongPress(cell, (event) => showEmptyCellMenu(event, cell.dataset.date));
         });
 
         applySelectionStyles();
@@ -1044,6 +1262,7 @@
             e.stopPropagation();
             showReservationMenu(e, item.dataset.resId);
           });
+          bindTouchLongPress(item, (event) => showReservationMenu(event, item.dataset.resId));
         });
 
         applySelectionStyles();
@@ -1195,6 +1414,7 @@
 
       async function undoLastAction() {
         const last = undoStack.pop();
+        undoBtn.disabled = undoStack.length === 0;
         if (!last) {
           flashStatus("Nothing to undo.", 1400);
           return;
@@ -1276,6 +1496,7 @@
       document.getElementById("editSave").addEventListener("click", saveEditReservation);
       document.getElementById("createCancel").addEventListener("click", closeCreateModal);
       document.getElementById("createSave").addEventListener("click", createReservationFromModal);
+      undoBtn.addEventListener("click", undoLastAction);
 
       editOverlay.addEventListener("click", (e) => {
         if (e.target === e.currentTarget) closeEditModal();
