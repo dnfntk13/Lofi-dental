@@ -1966,36 +1966,57 @@ createServer(async (request, response) => {
     try {
       const [threads, patients] = await Promise.all([readEmailThreads(), readPatients()]);
       const patientByEmail = new Map(patients.map((patient) => [String(patient.email || "").toLowerCase(), patient]));
-      const conversations = threads
-        .map((thread) => {
-          const messages = (Array.isArray(thread.messages) ? thread.messages : [])
-            .filter((message) => message.channel === "instagram" || ["instagram", "instagram-dm", "instagram_dm"].includes(message.source))
-            .map((message) => ({
-              type: message.type || "customer-reply",
-              receivedAt: message.receivedAt || message.sentAt || thread.updatedAt || thread.createdAt,
-              content: message.content || message.concerns || "",
-              source: message.source || "instagram-dm",
-              instagramSenderId: message.instagramSenderId || null,
-            }))
-            .filter((message) => message.content);
+      const conversations = [];
+      for (const thread of threads) {
+        const messages = (Array.isArray(thread.messages) ? thread.messages : [])
+          .filter((message) => message.channel === "instagram" || ["instagram", "instagram-dm", "instagram_dm"].includes(message.source))
+          .map((message) => ({
+            type: message.type || "customer-reply",
+            receivedAt: message.receivedAt || message.sentAt || thread.updatedAt || thread.createdAt,
+            content: message.content || message.concerns || "",
+            source: message.source || "instagram-dm",
+            instagramSenderId: message.instagramSenderId || null,
+          }))
+          .filter((message) => message.content);
 
-          if (!messages.length) return null;
+        if (!messages.length) continue;
 
-          const email = String(thread.email || "").toLowerCase();
-          const patient = patientByEmail.get(email);
-          const latestMessage = messages[messages.length - 1];
-          return {
+        const email = String(thread.email || "").toLowerCase();
+        const latestMessage = messages[messages.length - 1];
+        const patientInfo = extractPatientInfo(messages.map((message) => message.content).join("\n"));
+        const fallbackName = `Instagram ${String(latestMessage.instagramSenderId || email).slice(-6)}`;
+        let patient = patientByEmail.get(email);
+
+        if (!patient) {
+          const record = {
+            id: thread.reservationId || email.replace(/@instagram\.lofi\.internal$/, ""),
             email,
-            reservationId: thread.reservationId || null,
-            name: patient?.name || `Instagram ${String(latestMessage.instagramSenderId || email).slice(-6)}`,
-            phone: patient?.phone || null,
-            updatedAt: thread.updatedAt || latestMessage.receivedAt || thread.createdAt,
-            latest: latestMessage.content,
-            messages,
+            name: patientInfo.name || fallbackName,
+            phone: patientInfo.phone || null,
+            concerns: latestMessage.content,
+            source: "instagram-dm",
+            channel: "instagram",
+            instagramSenderId: latestMessage.instagramSenderId || null,
+            createdAt: thread.createdAt || latestMessage.receivedAt || new Date().toISOString(),
+            updatedAt: thread.updatedAt || latestMessage.receivedAt || new Date().toISOString(),
           };
-        })
-        .filter(Boolean)
-        .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+          await saveOrUpdatePatient(record, { name: record.name, phone: record.phone });
+          patient = { email, name: record.name, phone: record.phone };
+          patientByEmail.set(email, patient);
+        }
+
+        conversations.push({
+          email,
+          reservationId: thread.reservationId || null,
+          name: patient?.name || patientInfo.name || fallbackName,
+          phone: patient?.phone || patientInfo.phone || null,
+          updatedAt: thread.updatedAt || latestMessage.receivedAt || thread.createdAt,
+          latest: latestMessage.content,
+          messages,
+        });
+      }
+
+      conversations.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
 
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ conversations }));
