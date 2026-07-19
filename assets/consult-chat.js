@@ -2,7 +2,8 @@
   const storageKey = "lofiConsultChat";
 
   const appointmentButton = document.querySelector(".sticky-appointment");
-  if (!appointmentButton) return;
+  const consultTriggers = document.querySelectorAll("[data-consult-trigger]");
+  if (!appointmentButton && !consultTriggers.length) return;
 
   const savedSession = (() => {
     try {
@@ -18,6 +19,10 @@
 
   const style = document.createElement("style");
   style.textContent = `
+    body.lofi-floating-ctas {
+      padding-bottom: 156px;
+    }
+
     .consult-chat-launch {
       position: fixed;
       right: 28px;
@@ -153,11 +158,24 @@
     }
 
     @media (max-width: 640px) {
+      body.lofi-floating-ctas {
+        padding-bottom: 0;
+      }
+
       .consult-chat-launch {
-        right: 18px;
-        bottom: 84px;
-        left: 18px;
+        position: static;
+        display: flex;
+        width: calc(100% - 36px);
+        margin: 12px 18px 0;
+        justify-content: center;
+      }
+
+      .sticky-appointment {
+        position: static !important;
+        display: flex;
         width: auto;
+        margin: 12px 18px 18px;
+        justify-content: center;
       }
 
       .consult-chat-panel {
@@ -169,6 +187,10 @@
     }
   `;
   document.head.appendChild(style);
+
+  if (appointmentButton) {
+    document.body.classList.add("lofi-floating-ctas");
+  }
 
   const launch = document.createElement("button");
   launch.type = "button";
@@ -193,7 +215,9 @@
     </form>
   `;
 
-  document.body.appendChild(launch);
+  if (appointmentButton) {
+    document.body.appendChild(launch);
+  }
   document.body.appendChild(panel);
 
   const closeButton = panel.querySelector(".consult-chat-close");
@@ -230,12 +254,14 @@
     launch.setAttribute("aria-expanded", "false");
   }
 
-  launch.addEventListener("click", () => {
-    if (isOpen) closeChat();
-    else openChat();
-  });
+  if (appointmentButton) {
+    launch.addEventListener("click", () => {
+      if (isOpen) closeChat();
+      else openChat();
+    });
+  }
 
-  document.querySelectorAll("[data-consult-trigger]").forEach((trigger) => {
+  consultTriggers.forEach((trigger) => {
     trigger.addEventListener("click", (event) => {
       event.preventDefault();
       openChat();

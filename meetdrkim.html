@@ -161,10 +161,9 @@
 
       .cta-row {
         display: flex;
-        position: fixed;
-        right: 28px;
-        bottom: 28px;
-        z-index: 20;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 18px;
       }
 
       .btn {
@@ -195,6 +194,11 @@
       .btn:hover {
         transform: translateY(-1px);
         box-shadow: 0 16px 30px rgba(31, 45, 102, 0.22);
+      }
+
+      .btn-secondary {
+        background: rgba(255, 255, 255, 0.96);
+        color: var(--ink);
       }
 
       .video-frame {
@@ -255,9 +259,7 @@
         }
 
         .cta-row {
-          right: 18px;
-          bottom: 18px;
-          left: 18px;
+          display: grid;
         }
 
         .btn {
@@ -333,10 +335,11 @@
                 <p class="career-text">Founder and lead doctor at lofi dental</p>
               </article>
             </div>
+            <div class="cta-row">
+              <a class="btn btn-secondary" href="#consult" data-consult-trigger>Consult with us</a>
+              <a class="btn" href="/reservation/index.html">Book your appointment</a>
+            </div>
           </section>
-        </div>
-        <div class="cta-row">
-          <a class="btn sticky-appointment" href="/reservation/index.html">Book your appointment</a>
         </div>
       </main>
     </div>
