@@ -57,6 +57,10 @@ const imapHost = process.env.IMAP_HOST || "";
 const imapPort = Number(process.env.IMAP_PORT || 993);
 const imapUser = process.env.IMAP_USER || smtpUser;
 const imapPass = process.env.IMAP_PASS || smtpPass;
+const imapSentMailboxes = (process.env.IMAP_SENT_MAILBOXES || "[Gmail]/Sent Mail,Sent,Sent Items")
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
 const reservationNotifyTo = process.env.RESERVATION_NOTIFY_TO || "";
 const resendApiKey = process.env.RESEND_API_KEY || "";
 const resendFrom = process.env.RESEND_FROM || smtpFrom;
@@ -386,6 +390,10 @@ async function saveOrUpdateEmailThread(email, reservationId, messageData) {
   }
   
   if (collection) {
+    if (message.messageId) {
+      const existing = await collection.findOne({ email, "messages.messageId": message.messageId }, { projection: { _id: 1 } });
+      if (existing) return;
+    }
     // Note: $setOnInsert and $push cannot target the same field ("messages").
     // Use $setOnInsert only for non-array fields; $push handles the array for both insert and update.
     await collection.updateOne(
@@ -403,6 +411,7 @@ async function saveOrUpdateEmailThread(email, reservationId, messageData) {
   const threads = await readEmailThreads();
   const idx = threads.findIndex((t) => t.email === email);
   if (idx >= 0) {
+    if (message.messageId && Array.isArray(threads[idx].messages) && threads[idx].messages.some((item) => item.messageId === message.messageId)) return;
     threads[idx].messages.push(message);
     threads[idx].updatedAt = now;
   } else {
@@ -1514,111 +1523,196 @@ async function sendReservationNotification(record) {
   return true;
 }
 
-async function checkEmailReplies() {
-  if (!imapHost || !imapUser || !imapPass) {
-    return;
+function parseEmailAddress(value) {
+  const text = String(value || "").trim().toLowerCase();
+  const match = text.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
+  return match ? match[0].toLowerCase() : "";
+}
+
+function getAddressEmails(addressField) {
+  const values = Array.isArray(addressField?.value) ? addressField.value : [];
+  const emails = values.map((item) => parseEmailAddress(item?.address)).filter(Boolean);
+  const textEmails = String(addressField?.text || "")
+    .split(/[;,]/)
+    .map(parseEmailAddress)
+    .filter(Boolean);
+  return [...new Set([...emails, ...textEmails])];
+}
+
+function getClinicEmailSet() {
+  return new Set([imapUser, smtpUser, smtpFrom, resendFrom, reservationNotifyTo, "lofidentalcs@lofiesthetic.com"]
+    .flatMap((value) => String(value || "").split(/[;,]/))
+    .map(parseEmailAddress)
+    .filter(Boolean));
+}
+
+function isClinicEmail(email) {
+  return getClinicEmailSet().has(parseEmailAddress(email));
+}
+
+function getMessageIdentity(parsed) {
+  return String(parsed.messageId || parsed.headers?.get("message-id") || "").trim().toLowerCase();
+}
+
+async function findEmailConversationTarget(parsed) {
+  const fromEmails = getAddressEmails(parsed.from);
+  const toEmails = [...getAddressEmails(parsed.to), ...getAddressEmails(parsed.cc), ...getAddressEmails(parsed.bcc)];
+  const clinicEmails = getClinicEmailSet();
+  const inbox = await readInbox();
+  const threads = await readEmailThreads();
+  const knownEmails = new Set([
+    ...inbox.map((record) => normalizePatientEmail(record.email)),
+    ...threads.map((thread) => normalizePatientEmail(thread.email)),
+  ].filter(Boolean));
+
+  const fromPatient = fromEmails.find((email) => knownEmails.has(email) && !clinicEmails.has(email));
+  if (fromPatient) {
+    const record = inbox.find((item) => normalizePatientEmail(item.email) === fromPatient);
+    const thread = threads.find((item) => normalizePatientEmail(item.email) === fromPatient);
+    return { patientEmail: fromPatient, reservationId: record?.id || thread?.reservationId || `email-${Date.now()}`, type: "customer-reply", inboxRecord: record || null };
   }
 
-  return new Promise((resolve) => {
-    const imap = new Imap({
-      user: imapUser,
-      password: imapPass,
-      host: imapHost,
-      port: imapPort,
-      tls: imapPort === 993,
-      tlsOptions: { rejectUnauthorized: false },
-      connTimeout: 10000,
-      authTimeout: 10000,
-    });
+  const fromClinic = fromEmails.some((email) => clinicEmails.has(email));
+  if (fromClinic) {
+    const toPatient = toEmails.find((email) => knownEmails.has(email) && !clinicEmails.has(email));
+    if (toPatient) {
+      const record = inbox.find((item) => normalizePatientEmail(item.email) === toPatient);
+      const thread = threads.find((item) => normalizePatientEmail(item.email) === toPatient);
+      return { patientEmail: toPatient, reservationId: record?.id || thread?.reservationId || `email-${Date.now()}`, type: "admin-reply", inboxRecord: record || null };
+    }
+  }
 
-    imap.openBox("INBOX", false, async (err) => {
+  return null;
+}
+
+async function saveParsedEmailToThread(parsed, mailboxName) {
+  const text = String(parsed.text || "").trim();
+  if (!text) return false;
+  const target = await findEmailConversationTarget(parsed);
+  if (!target) return false;
+  const sentAt = new Date(parsed.date || Date.now()).toISOString();
+
+  if (target.type === "customer-reply" && target.inboxRecord) {
+    const patientInfo = extractPatientInfo(text);
+    if (patientInfo.name || patientInfo.phone) await saveOrUpdatePatient(target.inboxRecord, patientInfo);
+  }
+
+  await saveOrUpdateEmailThread(target.patientEmail, target.reservationId, {
+    type: target.type,
+    receivedAt: target.type === "customer-reply" ? sentAt : undefined,
+    sentAt: target.type === "admin-reply" ? sentAt : undefined,
+    content: text.slice(0, 4000),
+    subject: String(parsed.subject || "").slice(0, 240),
+    messageId: getMessageIdentity(parsed) || undefined,
+    mailbox: mailboxName,
+    source: "email",
+    channel: "email",
+  });
+  return true;
+}
+
+function createImapClient() {
+  return new Imap({
+    user: imapUser,
+    password: imapPass,
+    host: imapHost,
+    port: imapPort,
+    tls: imapPort === 993,
+    tlsOptions: { rejectUnauthorized: false },
+    connTimeout: 10000,
+    authTimeout: 10000,
+  });
+}
+
+async function fetchAndProcessImapMailbox(imap, mailboxName, criteria, processed, options = {}) {
+  return new Promise((resolve) => {
+    imap.openBox(mailboxName, false, (err) => {
       if (err) {
-        console.error("Failed to open IMAP inbox", err);
-        imap.end();
-        resolve();
+        if (!options.optional) console.error(`Failed to open IMAP mailbox ${mailboxName}`, err);
+        resolve(0);
         return;
       }
 
-      try {
-        imap.search(["UNSEEN"], async (searchErr, results) => {
-          if (searchErr || !results || results.length === 0) {
-            imap.end();
-            resolve();
-            return;
-          }
+      imap.search(criteria, (searchErr, results) => {
+        if (searchErr || !results || results.length === 0) {
+          resolve(0);
+          return;
+        }
 
-          const f = imap.fetch(results, { bodies: "" });
-          f.on("message", (msg) => {
-            simpleParser(msg, async (parseErr, parsed) => {
-              if (parseErr) {
-                console.error("Failed to parse email", parseErr);
-                return;
-              }
+        let savedCount = 0;
+        const messageTasks = [];
+        const fetcher = imap.fetch(results, { bodies: "" });
 
+        fetcher.on("message", (msg, seqno) => {
+          const chunks = [];
+          let uid = seqno;
+          msg.on("body", (stream) => {
+            stream.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+          });
+          msg.once("attributes", (attrs) => {
+            if (attrs?.uid) uid = attrs.uid;
+          });
+          msg.once("end", () => {
+            messageTasks.push((async () => {
+              const processedKey = `${mailboxName}:${uid}`;
+              if (processed[processedKey]) return;
               try {
-                const fromEmail = parsed.from?.text?.toLowerCase() || "";
-                const text = parsed.text || "";
-                const inReplyTo = parsed.inReplyTo || parsed.headers?.get("in-reply-to") || "";
-
-                if (!text) return;
-
-                const inbox = await readInbox();
-
-                for (const record of inbox) {
-                  if (record.email.toLowerCase() === fromEmail) {
-                    const patientInfo = extractPatientInfo(text);
-                    if (patientInfo.name || patientInfo.phone) {
-                      await saveOrUpdatePatient(record, patientInfo);
-                      console.log(`Updated patient info from reply: ${record.email}`);
-                    }
-                    
-                    // 이메일 스레드에 환자 회신 추가
-                    await saveOrUpdateEmailThread(record.email, record.id, {
-                      type: "customer-reply",
-                      receivedAt: new Date().toISOString(),
-                      content: text.slice(0, 2000), // 텍스트 일부만 저장
-                      source: "email",
-                      channel: "email",
-                    });
-                    
-                    break;
-                  }
-                }
+                const parsed = await simpleParser(Buffer.concat(chunks));
+                const saved = await saveParsedEmailToThread(parsed, mailboxName);
+                processed[processedKey] = true;
+                if (saved) savedCount += 1;
               } catch (error) {
-                console.error("Error processing reply email", error);
+                console.error(`Failed to process IMAP message from ${mailboxName}`, error);
               }
-            });
-          });
-
-          f.on("error", (err) => {
-            console.error("IMAP fetch error", err);
-          });
-
-          f.on("end", () => {
-            imap.end();
-            resolve();
+            })());
           });
         });
-      } catch (error) {
-        console.error("Error in checkEmailReplies", error);
-        imap.end();
-        resolve();
-      }
-    });
 
-    imap.on("error", (err) => {
-      console.error("IMAP error", err);
-      resolve();
-    });
+        fetcher.on("error", (fetchErr) => {
+          console.error(`IMAP fetch error in ${mailboxName}`, fetchErr);
+        });
 
-    imap.on("end", () => {
-      resolve();
-    });
-
-    imap.openBox("INBOX", false, () => {
-      imap.end();
+        fetcher.on("end", async () => {
+          await Promise.all(messageTasks);
+          resolve(savedCount);
+        });
+      });
     });
   });
+}
+
+async function processImapMailboxes({ historical = false } = {}) {
+  if (!imapHost || !imapUser || !imapPass) return 0;
+  const processed = await readProcessedImapUids();
+  let savedCount = 0;
+
+  return new Promise((resolve) => {
+    const imap = createImapClient();
+    imap.once("ready", async () => {
+      try {
+        savedCount += await fetchAndProcessImapMailbox(imap, "INBOX", historical ? ["ALL"] : ["UNSEEN"], processed);
+        for (const mailbox of imapSentMailboxes) {
+          savedCount += await fetchAndProcessImapMailbox(imap, mailbox, ["ALL"], processed, { optional: true });
+        }
+        await saveProcessedImapUids(processed);
+      } catch (error) {
+        console.error("Error processing IMAP mailboxes", error);
+      } finally {
+        imap.end();
+        resolve(savedCount);
+      }
+    });
+    imap.once("error", (err) => {
+      console.error("IMAP error", err);
+      resolve(savedCount);
+    });
+    imap.connect();
+  });
+}
+
+async function checkEmailReplies() {
+  const savedCount = await processImapMailboxes({ historical: false });
+  if (savedCount) console.log(`Saved ${savedCount} email messages from IMAP`);
 }
 
 function startEmailReplyChecker() {
@@ -1709,150 +1803,10 @@ async function migrateInboxToEmailThreads() {
       console.log("IMAP not configured, skipping historical email migration");
       return;
     }
-    
+
     try {
-      const inbox = await readInbox();
-      const patientEmails = new Set(inbox.map(r => r.email?.toLowerCase()).filter(Boolean));
-      
-      if (patientEmails.size === 0) {
-        console.log("No patient emails found for IMAP migration");
-        return;
-      }
-      
-      const processed = await readProcessedImapUids();
-      const currentProcessed = { ...processed };
-      let migratedCount = 0;
-      
-      console.log(`Starting historical IMAP email migration for ${patientEmails.size} patient emails...`);
-      
-      return new Promise((resolve) => {
-        const imap = new Imap({
-          user: imapUser,
-          password: imapPass,
-          host: imapHost,
-          port: imapPort,
-          tls: imapPort === 993,
-          tlsOptions: { rejectUnauthorized: false },
-          connTimeout: 10000,
-          authTimeout: 10000,
-        });
-        
-        imap.openBox("INBOX", false, async (err) => {
-          if (err) {
-            console.error("Failed to open IMAP inbox for historical migration:", err);
-            imap.end();
-            resolve();
-            return;
-          }
-          
-          try {
-            imap.search(["ALL"], async (searchErr, results) => {
-              if (searchErr || !results || results.length === 0) {
-                console.log("No emails found in IMAP inbox");
-                imap.end();
-                resolve();
-                return;
-              }
-              
-              console.log(`Found ${results.length} emails in IMAP inbox, checking for patient emails...`);
-              
-              const f = imap.fetch(results, { bodies: "" });
-              const emailsToProcess = [];
-              
-              f.on("message", (msg, seqno) => {
-                emailsToProcess.push({ msg, seqno });
-              });
-              
-              f.on("error", (err) => {
-                console.error("IMAP fetch error during migration:", err);
-              });
-              
-              f.on("end", async () => {
-                // Process all fetched emails
-                for (const { msg, seqno } of emailsToProcess) {
-                  const uidKey = `uid-${seqno}`;
-                  
-                  // Skip if already processed
-                  if (processed[uidKey]) {
-                    continue;
-                  }
-                  
-                  await new Promise((resolveMsg) => {
-                    simpleParser(msg, async (parseErr, parsed) => {
-                      if (parseErr) {
-                        console.error("Failed to parse email:", parseErr);
-                        resolveMsg();
-                        return;
-                      }
-                      
-                      try {
-                        const fromEmail = parsed.from?.text?.toLowerCase() || "";
-                        const toEmail = parsed.to?.text?.toLowerCase() || "";
-                        const text = parsed.text || "";
-                        const sentDate = parsed.date || new Date();
-                        
-                        // Check if this email is from a patient or sent to a patient
-                        for (const patientEmail of patientEmails) {
-                          if (fromEmail === patientEmail) {
-                            // Email FROM patient - add as customer-reply
-                            const reservation = inbox.find(r => r.email?.toLowerCase() === patientEmail);
-                            if (reservation && text) {
-                              await saveOrUpdateEmailThread(patientEmail, reservation.id, {
-                                type: "customer-reply",
-                                receivedAt: new Date(sentDate).toISOString(),
-                                content: text.slice(0, 2000),
-                              });
-                              migratedCount++;
-                              currentProcessed[uidKey] = true;
-                              break;
-                            }
-                          } else if (toEmail.includes(patientEmail)) {
-                            // Email TO patient from admin - add as admin-sent
-                            const reservation = inbox.find(r => r.email?.toLowerCase() === patientEmail);
-                            if (reservation && text) {
-                              await saveOrUpdateEmailThread(patientEmail, reservation.id, {
-                                type: "customer-reply", // Reusing customer-reply type for admin messages
-                                receivedAt: new Date(sentDate).toISOString(),
-                                content: text.slice(0, 2000),
-                              });
-                              migratedCount++;
-                              currentProcessed[uidKey] = true;
-                              break;
-                            }
-                          }
-                        }
-                      } catch (error) {
-                        console.error("Error processing IMAP email during migration:", error);
-                      }
-                      
-                      resolveMsg();
-                    });
-                  });
-                }
-                
-                // Save progress
-                await saveProcessedImapUids(currentProcessed);
-                imap.end();
-                console.log(`Successfully migrated ${migratedCount} emails from IMAP`);
-                resolve();
-              });
-            });
-          } catch (error) {
-            console.error("Error in migrateImapToEmailThreads:", error);
-            imap.end();
-            resolve();
-          }
-        });
-        
-        imap.on("error", (err) => {
-          console.error("IMAP error during migration:", err);
-          resolve();
-        });
-        
-        imap.on("end", () => {
-          resolve();
-        });
-      });
+      const migratedCount = await processImapMailboxes({ historical: true });
+      console.log(`Successfully migrated ${migratedCount} emails from IMAP`);
     } catch (error) {
       console.error("Migration error:", error);
     }
