@@ -100,6 +100,14 @@
 
       .patient-name {
         margin: 0 0 4px; font-size: 1.05rem; font-weight: 700;
+        cursor: context-menu;
+      }
+
+      .patient-name:hover { color: var(--accent); }
+
+      .patient-name.editing {
+        cursor: text; outline: 2px solid rgba(91,61,143,0.22);
+        border-radius: 8px; padding: 3px 6px; background: #fff;
       }
 
       .patient-name-row {
@@ -119,6 +127,18 @@
         border-radius: 14px; background: rgba(248, 250, 255, 0.82);
         color: var(--ink); line-height: 1.55; white-space: pre-wrap;
       }
+
+      .reservation-list {
+        margin-top: 10px; display: grid; gap: 6px;
+      }
+
+      .reservation-row {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px;
+        background: rgba(255,255,255,0.72); color: var(--soft); font-size: 0.86rem;
+      }
+
+      .reservation-row strong { color: var(--ink); }
 
       .detail-label {
         display: block; margin-bottom: 4px; color: var(--soft);
@@ -485,17 +505,24 @@
         }
 
         list.innerHTML = patients.map(p => {
-          const latestReservation = p.latestReservation || (Array.isArray(p.reservations) && p.reservations.length ? p.reservations[p.reservations.length - 1] : null);
+          const reservations = Array.isArray(p.reservations) ? [...p.reservations] : [];
+          reservations.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
+          const latestReservation = p.latestReservation || (reservations.length ? reservations[0] : null);
           const appointment = latestReservation && latestReservation.date && latestReservation.time
             ? `${latestReservation.date} ${latestReservation.time}`
             : "";
           const concerns = latestReservation && latestReservation.concerns ? latestReservation.concerns : "";
+          const reservationRows = reservations.map((reservation) => {
+            const when = reservation.date && reservation.time ? `${reservation.date} ${reservation.time}` : (reservation.date || reservation.time || "Reservation");
+            const source = reservation.source === "consult-chat" ? "Web consult" : reservation.source === "instagram-dm" ? "Instagram DM" : "Reservation";
+            return `<div class="reservation-row"><strong>${esc(when)}</strong><span>${esc(source)}</span></div>`;
+          }).join("");
 
           return `
           <div class="patient-card">
             <div>
               <div class="patient-name-row">
-                <p class="patient-name">${p.name ? esc(p.name) : '<span class="no-name">Name unknown</span>'}</p>
+                <p class="patient-name" data-email="${esc(p.email)}" data-name="${esc(p.name || "")}" title="Right-click to edit">${p.name ? esc(p.name) : '<span class="no-name">Name unknown</span>'}</p>
                 <div class="patient-actions">
                   <button class="message-icon" type="button" data-email="${esc(p.email)}" aria-label="Open message threads for ${esc(p.name || "this patient")}">💬</button>
                   <button class="delete-patient-btn" type="button" data-email="${esc(p.email)}" data-name="${esc(p.name || p.realEmail || p.email || "this patient")}" aria-label="Delete ${esc(p.name || "this patient")}">×</button>
@@ -508,11 +535,18 @@
                 <span class="chip date">First seen: ${esc(fmtDate(p.firstSeen))}</span>
                 ${p.reservationIds && p.reservationIds.length ? `<span class="chip">${p.reservationIds.length} reservation${p.reservationIds.length > 1 ? "s" : ""}</span>` : ""}
               </div>
+              ${reservationRows ? `<div class="reservation-list">${reservationRows}</div>` : ""}
               ${concerns ? `<div class="patient-details"><span class="detail-label">Latest reservation concerns</span>${esc(concerns)}</div>` : ""}
             </div>
           </div>`;
         }).join("");
 
+        list.querySelectorAll(".patient-name").forEach((nameEl) => {
+          nameEl.addEventListener("contextmenu", (event) => {
+            event.preventDefault();
+            startPatientNameEdit(nameEl);
+          });
+        });
         list.querySelectorAll(".message-icon").forEach((button) => {
           button.addEventListener("click", () => openThread(button.dataset.email || ""));
         });
@@ -539,6 +573,78 @@
           applySearch();
         } catch {
           alert("Failed to delete patient.");
+        }
+      }
+
+      function startPatientNameEdit(nameEl) {
+        if (!nameEl || nameEl.classList.contains("editing")) return;
+        const email = nameEl.dataset.email || "";
+        const originalName = nameEl.dataset.name || "";
+        if (!email) return;
+
+        nameEl.classList.add("editing");
+        nameEl.contentEditable = "true";
+        nameEl.textContent = originalName;
+        nameEl.focus();
+
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(nameEl);
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        let finished = false;
+        const finish = (save) => {
+          if (finished) return;
+          finished = true;
+          nameEl.removeEventListener("blur", onBlur);
+          nameEl.removeEventListener("keydown", onKeydown);
+          nameEl.contentEditable = "false";
+          nameEl.classList.remove("editing");
+          const nextName = nameEl.textContent.trim();
+          if (!save || !nextName || nextName === originalName) {
+            nameEl.textContent = originalName || "Name unknown";
+            return;
+          }
+          savePatientName(email, nextName, originalName, nameEl);
+        };
+
+        const onBlur = () => finish(true);
+        const onKeydown = (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            finish(true);
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            finish(false);
+          }
+        };
+
+        nameEl.addEventListener("blur", onBlur);
+        nameEl.addEventListener("keydown", onKeydown);
+      }
+
+      async function savePatientName(email, name, originalName, nameEl) {
+        if (!email || !name) return;
+
+        try {
+          const res = await fetch(`/api/admin/patients/${encodeURIComponent(email)}`, {
+            method: "PATCH",
+            headers: { Accept: "application/json", "Content-Type": "application/json" },
+            body: JSON.stringify({ name }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            alert(data.message || "Failed to update patient name.");
+            if (nameEl) nameEl.textContent = originalName || "Name unknown";
+            return;
+          }
+          const patient = data.patient;
+          allPatients = allPatients.map((item) => String(item.email || "").toLowerCase() === String(email || "").toLowerCase() ? { ...item, ...patient } : item);
+          applySearch();
+        } catch {
+          alert("Failed to update patient name.");
+          if (nameEl) nameEl.textContent = originalName || "Name unknown";
         }
       }
 
