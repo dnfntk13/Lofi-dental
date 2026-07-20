@@ -20,42 +20,111 @@
         display: block;
         background: #fff;
       }
+
+      #videoWrap {
+        position: absolute;
+        inset: 0;
+        display: none;
+        background: #000;
+      }
+
+      #videoWrap.active {
+        display: block;
+      }
+
+      #storyVideo {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: contain;
+        background: #000;
+      }
     </style>
   </head>
   <body>
     <div id="pageWrap" style="position:absolute;top:0;left:0;width:100%;height:100%;display:block;">
       <iframe id="main" src="about:blank" style="width:100%;height:100%;border:0;display:block;background:#fff;"></iframe>
     </div>
+    <div id="videoWrap">
+      <video id="storyVideo" playsinline muted preload="auto"></video>
+    </div>
 
     <script>
       var sequence = [
-        { url: "/" },
-        { url: "/before-after.html?play=1" }
+        { type: "page", url: "/meetdrkim.html?play=1" },
+        { type: "video", src: "/assets/story/lofi-lab-dentistryisart.mp4" },
+        { type: "video", src: "/assets/story/lofi-lab-primemill.mp4" },
+        { type: "video", src: "/assets/story/lofi-lab-veneers.mp4" }
       ];
-      var PAGE_DURATION = 60000;
 
       var pageWrap  = document.getElementById("pageWrap");
       var mainFrame = document.getElementById("main");
+      var videoWrap = document.getElementById("videoWrap");
+      var storyVideo = document.getElementById("storyVideo");
       var current   = 0;
-      var slideTimer = null;
+      var fallbackTimer = null;
 
       function clearAllTimers() {
-        if (slideTimer) { clearTimeout(slideTimer); slideTimer = null; }
+        if (fallbackTimer) { clearTimeout(fallbackTimer); fallbackTimer = null; }
       }
 
       function advance() {
         clearAllTimers();
+        storyVideo.pause();
         current = (current + 1) % sequence.length;
         showItem(current);
+      }
+
+      function playElement(video) {
+        video.muted = true;
+        video.playsInline = true;
+        var attempt = video.play();
+        if (attempt && typeof attempt.catch === "function") {
+          attempt.catch(function () {
+            video.muted = true;
+            video.play().catch(function () { advance(); });
+          });
+        }
+      }
+
+      function showPage(item) {
+        pageWrap.style.display = "block";
+        videoWrap.classList.remove("active");
+        storyVideo.removeAttribute("src");
+        storyVideo.load();
+        mainFrame.onload = function () {
+          clearAllTimers();
+          var frameDoc = mainFrame.contentDocument || mainFrame.contentWindow.document;
+          var pageVideo = frameDoc && frameDoc.querySelector("video");
+          if (!pageVideo) { advance(); return; }
+          pageVideo.controls = false;
+          pageVideo.loop = false;
+          pageVideo.currentTime = 0;
+          pageVideo.addEventListener("ended", advance, { once: true });
+          fallbackTimer = setTimeout(advance, 12 * 60 * 1000);
+          playElement(pageVideo);
+        };
+        mainFrame.src = item.url;
+      }
+
+      function showVideo(item) {
+        pageWrap.style.display = "none";
+        videoWrap.classList.add("active");
+        mainFrame.onload = null;
+        mainFrame.src = "about:blank";
+        storyVideo.onended = advance;
+        storyVideo.onerror = advance;
+        storyVideo.src = item.src;
+        storyVideo.currentTime = 0;
+        fallbackTimer = setTimeout(advance, 12 * 60 * 1000);
+        playElement(storyVideo);
       }
 
       function showItem(idx) {
         clearAllTimers();
         var item = sequence[idx];
-        pageWrap.style.display = "block";
-        mainFrame.onload = null;
-        mainFrame.src = item.url;
-        slideTimer = setTimeout(advance, PAGE_DURATION);
+        if (item.type === "page") showPage(item);
+        else showVideo(item);
       }
 
       window.onload = function () { showItem(0); };

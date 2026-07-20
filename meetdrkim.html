@@ -19,6 +19,22 @@
       rel="stylesheet"
     />
     <style>
+      @font-face {
+        font-family: "Paperlogy";
+        src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-4Regular.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: "Paperlogy";
+        src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-7Bold.woff2") format("woff2");
+        font-weight: 700;
+        font-style: normal;
+        font-display: swap;
+      }
+
       :root {
         color-scheme: light;
         --bg-cream: #f5f7ff;
@@ -115,6 +131,15 @@
 
       .video-section {
         width: 100%;
+      }
+
+      .profile-title {
+        margin: 0 0 14px;
+        font-family: "Paperlogy", "Nunito Sans", "Segoe UI", sans-serif;
+        font-size: clamp(2rem, 4vw, 3rem);
+        line-height: 1;
+        font-weight: 700;
+        color: var(--ink);
       }
 
       .career-highlight {
@@ -222,6 +247,13 @@
         filter: brightness(0.82) contrast(0.96) saturate(0.94);
       }
 
+      body.play-mode .nav-back,
+      body.play-mode .sticky-appointment,
+      body.play-mode .consult-chat-launch,
+      body.play-mode .consult-chat-panel {
+        display: none !important;
+      }
+
       @keyframes rise {
         from {
           opacity: 0;
@@ -292,6 +324,7 @@
       <main>
         <div class="profile-layout">
           <section class="video-section" aria-label="Meet Dr. Ryan Kim video">
+            <h1 class="profile-title">Meet Dr. Ryan Kim</h1>
             <div class="video-frame">
               <video controls playsinline preload="metadata">
                 <source src="assets/story/meet-dr-kim.mp4" type="video/mp4" />
@@ -346,6 +379,8 @@
         if (!params.has("play")) {
           return;
         }
+
+        document.body.classList.add("play-mode");
 
         var ua = navigator.userAgent || "";
         if (/LG|webOS|Web0S|Signage|UH5F/i.test(ua)) {
