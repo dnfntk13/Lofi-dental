@@ -68,9 +68,9 @@
 
       .doctor-screen {
         display: grid;
-        grid-template-rows: minmax(0, 1fr) auto;
-        gap: min(2.6vh, 28px);
-        padding: min(3.2vh, 34px) min(4vw, 72px) min(3.6vh, 40px);
+        grid-template-rows: minmax(0, 1fr) clamp(108px, 13vh, 148px);
+        gap: clamp(10px, 1.4vh, 18px);
+        padding: clamp(14px, 2vh, 26px) clamp(28px, 4vw, 72px) clamp(14px, 2vh, 26px);
         background:
           radial-gradient(circle at 15% 10%, rgba(90, 111, 218, 0.22), transparent 36%),
           radial-gradient(circle at 86% 16%, rgba(120, 143, 245, 0.18), transparent 42%),
@@ -78,6 +78,7 @@
       }
 
       .doctor-media {
+        position: relative;
         min-height: 0;
         display: grid;
         place-items: center;
@@ -85,10 +86,13 @@
       }
 
       .doctor-video {
-        width: auto;
-        height: min(100%, calc(100vh - 230px));
-        max-height: calc(100vh - 230px);
-        max-width: min(52vw, 760px);
+        position: absolute;
+        inset: 0;
+        margin: auto;
+        width: min(70vw, 920px);
+        height: 100%;
+        max-height: 100%;
+        max-width: 100%;
         border: 1px solid var(--line);
         border-radius: 18px;
         background: #000;
@@ -100,10 +104,12 @@
         width: min(1560px, 100%);
         margin: 0 auto;
         display: grid;
-        grid-template-columns: minmax(190px, auto) repeat(5, minmax(0, 1fr));
+        grid-template-columns: minmax(160px, 0.82fr) repeat(5, minmax(0, 1fr));
         gap: 12px;
         align-items: stretch;
         align-self: end;
+        height: 100%;
+        min-height: 0;
       }
 
       .career-title,
@@ -115,21 +121,22 @@
       }
 
       .career-title {
-        min-width: 220px;
+        min-width: 160px;
         display: grid;
         place-items: center;
-        padding: 16px 20px;
-        font-size: clamp(1.28rem, 1.8vw, 2rem);
+        padding: 10px 14px;
+        font-size: clamp(1.08rem, 1.5vw, 1.62rem);
         font-weight: 700;
         line-height: 1.05;
         text-align: center;
       }
 
       .career-item {
-        padding: 14px 16px;
+        padding: 10px 12px;
         display: grid;
-        gap: 4px;
+        gap: 3px;
         align-content: start;
+        min-width: 0;
       }
 
       .career-year {
@@ -143,8 +150,8 @@
       .career-text {
         margin: 0;
         color: var(--soft);
-        font-size: clamp(0.78rem, 0.94vw, 1rem);
-        line-height: 1.38;
+        font-size: clamp(0.68rem, 0.86vw, 0.92rem);
+        line-height: 1.26;
       }
 
       .video-screen {
@@ -163,13 +170,17 @@
       }
 
       @media (max-height: 720px) {
+        .doctor-screen {
+          grid-template-rows: minmax(0, 1fr) 112px;
+        }
+
         .career-title,
         .career-item {
-          padding: 10px 12px;
+          padding: 8px 10px;
         }
 
         .career-title {
-          min-width: 150px;
+          min-width: 132px;
           font-size: 1rem;
         }
 
@@ -179,7 +190,7 @@
 
         .career-text {
           font-size: 0.68rem;
-          line-height: 1.28;
+          line-height: 1.18;
         }
       }
     </style>
@@ -188,7 +199,7 @@
     <main class="signage-stage" aria-label="Lofi monitor play sequence">
       <section class="screen doctor-screen active" id="doctorScreen" aria-label="Meet Dr. Ryan Kim">
         <div class="doctor-media">
-          <video class="doctor-video" id="doctorVideo" muted playsinline preload="auto" src="/assets/story/meet-dr-kim.mp4"></video>
+          <video class="doctor-video" id="doctorVideo" muted autoplay playsinline preload="auto" src="/assets/story/meet-dr-kim.mp4"></video>
         </div>
         <section class="career-panel" aria-label="Career Highlights">
           <h1 class="career-title">Career Highlights</h1>
@@ -216,7 +227,7 @@
       </section>
 
       <section class="screen video-screen" id="videoScreen" aria-label="Lofi lab story video">
-        <video class="story-video" id="storyVideo" muted playsinline preload="auto"></video>
+        <video class="story-video" id="storyVideo" muted autoplay playsinline preload="auto"></video>
       </section>
     </main>
 
@@ -234,6 +245,7 @@
       var storyVideo = document.getElementById("storyVideo");
       var current = 0;
       var fallbackTimer = null;
+      var retryTimer = null;
 
       function clearFallback() {
         if (fallbackTimer) {
@@ -242,25 +254,36 @@
         }
       }
 
+      function clearRetry() {
+        if (retryTimer) {
+          clearTimeout(retryTimer);
+          retryTimer = null;
+        }
+      }
+
       function setActiveScreen(screen) {
         doctorScreen.classList.toggle("active", screen === "doctor");
         videoScreen.classList.toggle("active", screen === "story");
       }
 
-      function playVideo(video) {
+      function playVideo(video, reset) {
+        clearRetry();
         video.muted = true;
         video.playsInline = true;
-        video.currentTime = 0;
+        video.autoplay = true;
+        if (reset && video.readyState > 0) video.currentTime = 0;
         var attempt = video.play();
         if (attempt && typeof attempt.catch === "function") {
-          attempt.catch(function () {
-            video.play().catch(function () { advance(); });
+          attempt.catch(function (error) {
+            console.warn("Video autoplay retry", error);
+            retryTimer = setTimeout(function () { playVideo(video, false); }, 1000);
           });
         }
       }
 
       function advance() {
         clearFallback();
+        clearRetry();
         doctorVideo.pause();
         storyVideo.pause();
         current = (current + 1) % sequence.length;
@@ -268,6 +291,7 @@
       }
 
       function showDoctor(item) {
+        clearRetry();
         setActiveScreen("doctor");
         storyVideo.removeAttribute("src");
         storyVideo.load();
@@ -277,19 +301,22 @@
           doctorVideo.setAttribute("src", item.src);
           doctorVideo.load();
         }
+        doctorVideo.oncanplay = function () { playVideo(doctorVideo, false); };
         fallbackTimer = setTimeout(advance, 12 * 60 * 1000);
-        playVideo(doctorVideo);
+        playVideo(doctorVideo, true);
       }
 
       function showStory(item) {
+        clearRetry();
         setActiveScreen("story");
         doctorVideo.pause();
         storyVideo.onended = advance;
         storyVideo.onerror = advance;
         storyVideo.setAttribute("src", item.src);
         storyVideo.load();
+        storyVideo.oncanplay = function () { playVideo(storyVideo, false); };
         fallbackTimer = setTimeout(advance, 12 * 60 * 1000);
-        playVideo(storyVideo);
+        playVideo(storyVideo, true);
       }
 
       function showItem(index) {
