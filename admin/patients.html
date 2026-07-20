@@ -99,16 +99,41 @@
       }
 
       .patient-name {
-        margin: 0 0 4px; font-size: 1.05rem; font-weight: 700;
+        display: inline-flex; align-items: center; min-height: 34px;
+        margin: 0 0 4px; padding: 5px 14px;
+        border: 1px solid rgba(91,61,143,0.2); border-radius: 999px;
+        background: rgba(255,255,255,0.86); color: var(--ink);
+        font-size: 1.05rem; font-weight: 700;
         cursor: context-menu;
+        transition: 150ms;
       }
 
-      .patient-name:hover { color: var(--accent); }
+      .patient-name:hover {
+        border-color: rgba(91,61,143,0.42); color: var(--accent);
+        background: #f8f4ff;
+      }
 
       .patient-name.editing {
         cursor: text; outline: 2px solid rgba(91,61,143,0.22);
-        border-radius: 8px; padding: 3px 6px; background: #fff;
+        background: #fff;
       }
+
+      .name-context-menu {
+        position: fixed; z-index: 1200; display: none;
+        min-width: 120px; padding: 6px;
+        border: 1px solid var(--line); border-radius: 10px;
+        background: #fff; box-shadow: 0 14px 34px rgba(31, 45, 102, 0.18);
+      }
+
+      .name-context-menu.open { display: block; }
+
+      .name-context-menu button {
+        width: 100%; border: 0; border-radius: 7px; padding: 8px 10px;
+        background: transparent; color: var(--ink); font: inherit;
+        font-size: 0.9rem; font-weight: 800; text-align: left; cursor: pointer;
+      }
+
+      .name-context-menu button:hover { background: #f8f4ff; color: var(--accent); }
 
       .patient-name-row {
         display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -215,6 +240,16 @@
       .thread-message.admin { justify-self: end; background: #eef7f1; }
       .thread-meta { display: block; margin-bottom: 5px; color: var(--soft); font-size: 0.82rem; font-weight: 800; }
 
+      .thread-attachments {
+        display: grid; gap: 8px; margin-top: 10px;
+      }
+
+      .thread-photo {
+        display: block; width: min(260px, 100%); max-height: 320px;
+        border: 1px solid var(--line); border-radius: 12px;
+        object-fit: contain; background: #fff;
+      }
+
       .thread-message-head {
         display: flex; align-items: center; justify-content: space-between;
         gap: 10px; margin-bottom: 5px;
@@ -305,12 +340,21 @@
       </div>
     </div>
 
+    <div class="name-context-menu" id="nameContextMenu" role="menu" aria-hidden="true">
+      <button type="button" id="editNameOption" role="menuitem">Edit</button>
+    </div>
+
     <script>
       let allPatients = [];
       let currentThread = [];
       let currentChannel = "web";
       let currentThreadEmail = "";
       let currentReservationId = "";
+      let selectedNameEl = null;
+      let threadPollTimer = null;
+      let patientPollTimer = null;
+      let lastRenderedThreadSignature = "";
+      let lastRenderedPatientSignature = "";
 
       function esc(v) {
         return String(v || "")
@@ -347,6 +391,39 @@
         return "email";
       }
 
+      function getThreadSignature(thread) {
+        return JSON.stringify((Array.isArray(thread) ? thread : []).map((message) => ({
+          type: message.type || "",
+          content: message.content || message.concerns || "",
+          receivedAt: message.receivedAt || "",
+          sentAt: message.sentAt || "",
+          createdAt: message.createdAt || "",
+          adminReadAt: message.adminReadAt || "",
+          attachments: Array.isArray(message.attachments)
+            ? message.attachments.map((attachment) => `${attachment.type || ""}:${attachment.name || ""}:${attachment.dataUrl || ""}`)
+            : [],
+        })));
+      }
+
+      function getPatientsSignature(patients) {
+        return JSON.stringify((Array.isArray(patients) ? patients : []).map((patient) => ({
+          email: patient.email || "",
+          name: patient.name || "",
+          phone: patient.phone || "",
+          realEmail: patient.realEmail || "",
+          updatedAt: patient.updatedAt || "",
+          latestUpdatedAt: patient.latestReservation?.updatedAt || patient.latestReservation?.createdAt || "",
+          reservationIds: Array.isArray(patient.reservationIds) ? patient.reservationIds.join("|") : "",
+        })));
+      }
+
+      function renderThreadAttachments(message) {
+        const attachments = Array.isArray(message.attachments) ? message.attachments : [];
+        const images = attachments.filter((attachment) => String(attachment?.type || "").startsWith("image/") && attachment.dataUrl);
+        if (!images.length) return "";
+        return `<div class="thread-attachments">${images.map((attachment) => `<img class="thread-photo" src="${esc(attachment.dataUrl)}" alt="${esc(attachment.name || "Attached photo")}" loading="lazy" />`).join("")}</div>`;
+      }
+
       function renderThreadChannel() {
         const content = document.getElementById("threadContent");
         const replyForm = document.getElementById("threadReplyForm");
@@ -364,13 +441,56 @@
         content.innerHTML = filtered.map(message => {
           const isAdmin = message.type === "admin-reply" || message.type === "auto-reply";
           const text = message.content || message.concerns || "";
+          const attachments = renderThreadAttachments(message);
           const messageIndex = currentThread.indexOf(message);
-          return `<article class="thread-message ${isAdmin ? "admin" : ""}"><div class="thread-message-head"><span class="thread-meta">${esc(threadLabel(message))} · ${esc(fmtDate(threadTime(message)))}</span><button class="delete-message-btn" type="button" data-index="${messageIndex}">Delete</button></div>${esc(text)}</article>`;
+          return `<article class="thread-message ${isAdmin ? "admin" : ""}"><div class="thread-message-head"><span class="thread-meta">${esc(threadLabel(message))} · ${esc(fmtDate(threadTime(message)))}</span><button class="delete-message-btn" type="button" data-index="${messageIndex}">Delete</button></div>${esc(text)}${attachments}</article>`;
         }).join("");
 
         content.querySelectorAll(".delete-message-btn").forEach((button) => {
           button.addEventListener("click", () => deleteThreadMessage(Number(button.dataset.index)));
         });
+      }
+
+      async function refreshCurrentThread({ showLoading = false, markRead = false } = {}) {
+        const email = currentThreadEmail;
+        if (!email) return;
+        const content = document.getElementById("threadContent");
+        if (showLoading) content.innerHTML = '<p class="empty">Loading message threads…</p>';
+
+        try {
+          const res = await fetch(`/api/admin/email-thread/${encodeURIComponent(email)}`, { headers: { Accept: "application/json" } });
+          if (email !== currentThreadEmail) return;
+          if (!res.ok) {
+            if (showLoading) content.innerHTML = '<p class="empty">Failed to load message threads.</p>';
+            return;
+          }
+          const data = await res.json();
+          const nextThread = Array.isArray(data.thread) ? data.thread : [];
+          const nextSignature = getThreadSignature(nextThread);
+          currentReservationId = data.reservationId || currentReservationId;
+          if (nextSignature !== lastRenderedThreadSignature) {
+            currentThread = nextThread;
+            lastRenderedThreadSignature = nextSignature;
+            renderThreadChannel();
+          }
+          if (markRead && currentChannel === "web") markCurrentWebThreadRead();
+        } catch {
+          if (showLoading) content.innerHTML = '<p class="empty">Failed to load message threads.</p>';
+        }
+      }
+
+      function stopThreadPolling() {
+        if (!threadPollTimer) return;
+        window.clearInterval(threadPollTimer);
+        threadPollTimer = null;
+      }
+
+      function startThreadPolling() {
+        stopThreadPolling();
+        threadPollTimer = window.setInterval(() => {
+          if (document.hidden || !currentThreadEmail) return;
+          refreshCurrentThread({ markRead: currentChannel === "web" });
+        }, 2500);
       }
 
       async function deleteThreadMessage(messageIndex) {
@@ -408,6 +528,7 @@
           const data = await res.json().catch(() => ({}));
           if (Array.isArray(data.thread)) {
             currentThread = data.thread;
+            lastRenderedThreadSignature = getThreadSignature(currentThread);
             renderThreadChannel();
           }
         } catch {
@@ -433,27 +554,18 @@
         currentChannel = "web";
         currentThreadEmail = email;
         currentReservationId = "";
+        lastRenderedThreadSignature = "";
         replyStatus.textContent = "";
         replyInput.value = "";
         document.querySelectorAll(".channel-tab").forEach(button => {
           button.classList.toggle("active", button.dataset.channel === "web");
         });
-        content.innerHTML = '<p class="empty">Loading message threads…</p>';
-
-        try {
-          const res = await fetch(`/api/admin/email-thread/${encodeURIComponent(email)}`, { headers: { Accept: "application/json" } });
-          if (!res.ok) { content.innerHTML = '<p class="empty">Failed to load message threads.</p>'; return; }
-          const data = await res.json();
-          currentThread = Array.isArray(data.thread) ? data.thread : [];
-          currentReservationId = data.reservationId || "";
-          renderThreadChannel();
-          markCurrentWebThreadRead();
-        } catch {
-          content.innerHTML = '<p class="empty">Failed to load message threads.</p>';
-        }
+        await refreshCurrentThread({ showLoading: true, markRead: true });
+        startThreadPolling();
       }
 
       function closeThread() {
+        stopThreadPolling();
         document.getElementById("threadModal").classList.remove("open");
         document.getElementById("threadContent").innerHTML = "";
         document.getElementById("threadReplyInput").value = "";
@@ -461,6 +573,7 @@
         currentThread = [];
         currentThreadEmail = "";
         currentReservationId = "";
+        lastRenderedThreadSignature = "";
       }
 
       async function sendThreadReply(event) {
@@ -488,6 +601,7 @@
           status.textContent = "Sent to web chat.";
           currentReservationId = data.reservationId || currentReservationId;
           if (data.message) currentThread.push(data.message);
+          lastRenderedThreadSignature = getThreadSignature(currentThread);
           renderThreadChannel();
         } catch {
           status.textContent = "Failed to send reply.";
@@ -544,7 +658,7 @@
         list.querySelectorAll(".patient-name").forEach((nameEl) => {
           nameEl.addEventListener("contextmenu", (event) => {
             event.preventDefault();
-            startPatientNameEdit(nameEl);
+            showNameContextMenu(nameEl, event.clientX, event.clientY);
           });
         });
         list.querySelectorAll(".message-icon").forEach((button) => {
@@ -553,6 +667,29 @@
         list.querySelectorAll(".delete-patient-btn").forEach((button) => {
           button.addEventListener("click", () => deletePatient(button.dataset.email || "", button.dataset.name || "this patient"));
         });
+      }
+
+      function showNameContextMenu(nameEl, x, y) {
+        const menu = document.getElementById("nameContextMenu");
+        const rect = nameEl.getBoundingClientRect();
+        const anchorX = Number.isFinite(x) ? x : rect.left;
+        const anchorY = Number.isFinite(y) ? y : rect.bottom + 6;
+        selectedNameEl = nameEl;
+        menu.classList.add("open");
+        menu.setAttribute("aria-hidden", "false");
+
+        const menuWidth = menu.offsetWidth || 120;
+        const menuHeight = menu.offsetHeight || 44;
+        const left = Math.min(anchorX, window.innerWidth - menuWidth - 8);
+        const top = Math.min(anchorY, window.innerHeight - menuHeight - 8);
+        menu.style.left = `${Math.max(8, left)}px`;
+        menu.style.top = `${Math.max(8, top)}px`;
+      }
+
+      function hideNameContextMenu() {
+        const menu = document.getElementById("nameContextMenu");
+        menu.classList.remove("open");
+        menu.setAttribute("aria-hidden", "true");
       }
 
       async function deletePatient(email, name) {
@@ -648,18 +785,35 @@
         }
       }
 
-      async function load() {
-        document.getElementById("patientList").innerHTML = '<p class="empty">Loading…</p>';
+      async function load(options = {}) {
+        const silent = Boolean(options.silent);
+        if (!silent) document.getElementById("patientList").innerHTML = '<p class="empty">Loading…</p>';
         try {
           const res = await fetch("/api/admin/patients", { headers: { Accept: "application/json" } });
-          if (!res.ok) { document.getElementById("patientList").innerHTML = '<p class="empty">Failed to load patients.</p>'; return; }
+          if (!res.ok) {
+            if (!silent) document.getElementById("patientList").innerHTML = '<p class="empty">Failed to load patients.</p>';
+            return;
+          }
           const data = await res.json();
-          allPatients = Array.isArray(data.patients) ? data.patients : [];
-          allPatients.sort((a, b) => new Date(b.latestReservation?.updatedAt || b.latestReservation?.createdAt || b.updatedAt || b.firstSeen || 0) - new Date(a.latestReservation?.updatedAt || a.latestReservation?.createdAt || a.updatedAt || a.firstSeen || 0));
+          const nextPatients = Array.isArray(data.patients) ? data.patients : [];
+          nextPatients.sort((a, b) => new Date(b.latestReservation?.updatedAt || b.latestReservation?.createdAt || b.updatedAt || b.firstSeen || 0) - new Date(a.latestReservation?.updatedAt || a.latestReservation?.createdAt || a.updatedAt || a.firstSeen || 0));
+          const nextSignature = getPatientsSignature(nextPatients);
+          if (silent && nextSignature === lastRenderedPatientSignature) return;
+          allPatients = nextPatients;
+          lastRenderedPatientSignature = nextSignature;
           applySearch();
         } catch {
+          if (silent) return;
           document.getElementById("patientList").innerHTML = '<p class="empty">Failed to load patients.</p>';
         }
+      }
+
+      function startPatientPolling() {
+        if (patientPollTimer) window.clearInterval(patientPollTimer);
+        patientPollTimer = window.setInterval(() => {
+          if (document.hidden || document.querySelector(".patient-name.editing")) return;
+          load({ silent: true });
+        }, 5000);
       }
 
       function applySearch() {
@@ -679,6 +833,18 @@
       document.getElementById("refreshBtn").addEventListener("click", load);
       document.getElementById("closeThreadBtn").addEventListener("click", closeThread);
       document.getElementById("threadReplyForm").addEventListener("submit", sendThreadReply);
+      document.getElementById("editNameOption").addEventListener("click", () => {
+        const nameEl = selectedNameEl;
+        hideNameContextMenu();
+        startPatientNameEdit(nameEl);
+      });
+      document.addEventListener("click", (event) => {
+        if (!event.target.closest("#nameContextMenu")) hideNameContextMenu();
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") hideNameContextMenu();
+      });
+      window.addEventListener("scroll", hideNameContextMenu, true);
       document.querySelectorAll(".channel-tab").forEach((button) => {
         button.addEventListener("click", () => setChannel(button.dataset.channel || "web"));
       });
@@ -686,6 +852,7 @@
         if (event.target.id === "threadModal") closeThread();
       });
       load();
+      startPatientPolling();
     </script>
   </body>
 </html>

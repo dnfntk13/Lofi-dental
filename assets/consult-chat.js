@@ -414,7 +414,7 @@
     window.setInterval(() => {
       if (document.hidden) return;
       restoreChat();
-    }, 8000);
+    }, 2500);
   }
 
   function openChat() {
