@@ -20,7 +20,7 @@ This Chrome Extension scans Instagram Direct in the browser and sends the extrac
 7. Open a conversation. New visible messages are auto-saved while the tab is open.
 8. Click `Scan & save DMs` any time to scan the DM list manually.
 
-The server saves imported conversations into Messages and Patients through the existing Instagram DM storage path.
+The server saves imported conversations into Patients through the existing Instagram DM storage path.
 
 ## Notes
 

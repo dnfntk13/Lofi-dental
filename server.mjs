@@ -113,8 +113,8 @@ function resolvePath(urlPath) {
     return "/admin/calendar.html";
   }
 
-  if (["/admin/messages", "/admin/messages/"].includes(pathname)) {
-    return "/admin/messages.html";
+  if (["/admin/messages", "/admin/messages/", "/admin/messages.html"].includes(pathname)) {
+    return "/admin/patients.html";
   }
 
   if (["/admin/patients", "/admin/patients/"].includes(pathname)) {
@@ -463,20 +463,38 @@ function extractPatientInfo(text) {
 }
 
 async function saveOrUpdatePatient(record, patientInfo) {
-  if (!patientInfo.name && !patientInfo.phone && !record.name && !record.phone) return;
+  const realEmail = record.email && !String(record.email).endsWith(".lofi.internal") ? record.email : null;
+  if (!patientInfo.name && !patientInfo.phone && !record.name && !record.phone && !realEmail) return;
   const now = new Date().toISOString();
   const email = getPatientThreadEmail(record);
   const name = patientInfo.name || record.name || null;
   const phone = patientInfo.phone || record.phone || null;
-  const realEmail = record.email && !String(record.email).endsWith(".lofi.internal") ? record.email : null;
+  const reservation = {
+    id: record.id,
+    date: record.date || null,
+    time: record.time || null,
+    email: realEmail || record.email || null,
+    concerns: record.concerns || null,
+    source: record.source || "reservation",
+    createdAt: record.createdAt || now,
+  };
+  const latestReservation = {
+    ...reservation,
+    updatedAt: record.updatedAt || now,
+  };
   const collection = await getPatientsCollection();
   if (collection) {
+    const setFields = { email, latestReservation, updatedAt: now };
+    if (realEmail) setFields.realEmail = realEmail;
+    if (name) setFields.name = name;
+    if (phone) setFields.phone = phone;
+
     await collection.updateOne(
       { email },
       {
-        $set: { email, ...(realEmail && { realEmail }), ...(name && { name }), ...(phone && { phone }), updatedAt: now },
+        $set: setFields,
         $setOnInsert: { id: `patient-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, firstSeen: now },
-        $addToSet: { reservationIds: record.id },
+        $addToSet: { reservationIds: record.id, reservations: reservation },
       },
       { upsert: true }
     );
@@ -490,13 +508,50 @@ async function saveOrUpdatePatient(record, patientInfo) {
     if (name) p.name = name;
     if (phone) p.phone = phone;
     p.updatedAt = now;
+    p.latestReservation = latestReservation;
     if (!p.reservationIds) p.reservationIds = [];
     if (!p.reservationIds.includes(record.id)) p.reservationIds.push(record.id);
+    if (!Array.isArray(p.reservations)) p.reservations = [];
+    const reservationIndex = p.reservations.findIndex((item) => item.id === reservation.id);
+    if (reservationIndex >= 0) p.reservations[reservationIndex] = { ...p.reservations[reservationIndex], ...reservation };
+    else p.reservations.push(reservation);
   } else {
-    patients.unshift({ id: `patient-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, email, realEmail, name, phone, firstSeen: now, updatedAt: now, reservationIds: [record.id] });
+    patients.unshift({
+      id: `patient-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      email,
+      realEmail,
+      name,
+      phone,
+      firstSeen: now,
+      updatedAt: now,
+      latestReservation,
+      reservationIds: [record.id],
+      reservations: [reservation],
+    });
   }
   await mkdir(dataDir, { recursive: true });
   await writeFile(patientsPath, JSON.stringify(patients, null, 2), "utf-8");
+}
+
+async function syncInboxReservationsToPatients() {
+  const inbox = await readInbox();
+  const patients = await readPatients();
+  const patientByEmail = new Map(patients.map((patient) => [String(patient.email || "").toLowerCase(), patient]));
+
+  for (const record of inbox) {
+    try {
+      const email = getPatientThreadEmail(record).toLowerCase();
+      const patient = patientByEmail.get(email);
+      const hasReservationId = Array.isArray(patient?.reservationIds) && patient.reservationIds.includes(record.id);
+      const hasReservationDetails = Array.isArray(patient?.reservations) && patient.reservations.some((item) => item.id === record.id);
+      if (hasReservationId && hasReservationDetails) continue;
+
+      const patientInfo = extractPatientInfo(record.concerns || "");
+      await saveOrUpdatePatient(record, patientInfo);
+    } catch (error) {
+      console.error("Failed to sync reservation to patients", { id: record?.id, error });
+    }
+  }
 }
 
 async function saveInstagramDmMessage(senderId, content, receivedAt = new Date().toISOString()) {
@@ -2599,6 +2654,8 @@ createServer(async (request, response) => {
       const payload = await getJsonBody(request);
       const content = String(payload.content || "").trim();
       const subject = String(payload.subject || "").trim() || "Reply from lofi dental";
+      const channel = String(payload.channel || "email").trim().toLowerCase();
+      const isWebReply = channel === "web" || email.endsWith("@chat.lofi.internal");
 
       if (!content) {
         response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
@@ -2606,18 +2663,20 @@ createServer(async (request, response) => {
         return;
       }
 
-      if (!hasAnyMailConfig()) {
+      if (!isWebReply && !hasAnyMailConfig()) {
         response.writeHead(503, { "Content-Type": "application/json; charset=utf-8" });
         response.end(JSON.stringify({ message: "Email provider is not configured" }));
         return;
       }
 
-      await sendMailWithFallback({
-        from: smtpFrom,
-        to: email,
-        subject,
-        text: content,
-      });
+      if (!isWebReply) {
+        await sendMailWithFallback({
+          from: smtpFrom,
+          to: email,
+          subject,
+          text: content,
+        });
+      }
 
       const inbox = await readInbox();
       const record = inbox.find((r) => String(r.email || "").toLowerCase() === email);
@@ -2627,8 +2686,8 @@ createServer(async (request, response) => {
         type: "admin-reply",
         sentAt: new Date().toISOString(),
         content,
-        source: "email",
-        channel: "email",
+        source: isWebReply ? "consult-chat" : "email",
+        channel: isWebReply ? "web" : "email",
       };
 
       try {
@@ -2638,7 +2697,7 @@ createServer(async (request, response) => {
       }
 
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify({ ok: true, message: threadMessage, reservationId }));
+      response.end(JSON.stringify({ ok: true, message: threadMessage, reservationId, delivered: !isWebReply ? "email" : "web" }));
     } catch (error) {
       console.error("Failed to send admin reply", error);
       const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
@@ -2714,6 +2773,7 @@ createServer(async (request, response) => {
   if (pathname === "/api/admin/patients" && request.method === "GET") {
     if (!adminAuthorized) { requestAuth(response); return; }
     try {
+      await syncInboxReservationsToPatients();
       const patients = await readPatients();
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ patients }));

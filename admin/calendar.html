@@ -280,8 +280,8 @@
       .detail-overlay.open { display: flex; }
 
       .detail-panel {
-        background: #fff; border-radius: 24px; padding: 32px;
-        width: min(560px, 100%); max-height: 82vh; overflow-y: auto;
+        background: #fff; border-radius: 24px; padding: 28px;
+        width: min(760px, 100%); max-height: 86vh; overflow-y: auto;
         box-shadow: 0 24px 60px rgba(31, 45, 102, 0.18);
         position: relative;
       }
@@ -298,9 +298,15 @@
       .detail-close:hover { background: var(--mint); }
 
       .detail-date {
-        margin: 0 0 20px;
+        margin: 0 44px 6px 0;
         font-family: "Cormorant Garamond", serif;
         font-size: 1.7rem; font-weight: 600;
+      }
+
+      .detail-subtitle {
+        margin: 0 0 20px;
+        color: var(--soft-ink);
+        font-size: 0.92rem;
       }
 
       .detail-list { display: grid; gap: 14px; }
@@ -308,6 +314,7 @@
       .detail-item {
         border: 1px solid var(--line); border-radius: 16px;
         padding: 16px; background: var(--bg-cream);
+        display: grid; gap: 14px;
       }
 
       .detail-item.selected {
@@ -317,7 +324,7 @@
 
       .detail-row {
         display: flex; gap: 8px; align-items: center;
-        flex-wrap: wrap; margin-bottom: 8px;
+        flex-wrap: wrap;
       }
 
       .detail-time {
@@ -326,12 +333,102 @@
         font-size: 0.85rem; font-weight: 700;
       }
 
-      .detail-email { color: var(--soft-ink); font-size: 0.88rem; font-weight: 600; }
-      .detail-received { color: #999; font-size: 0.78rem; margin-left: auto; }
+      .detail-name {
+        margin: 0;
+        color: var(--ink);
+        font-size: 1.05rem;
+        font-weight: 800;
+      }
+
+      .detail-source {
+        border: 1px solid rgba(91, 61, 143, 0.2);
+        border-radius: 999px;
+        padding: 4px 10px;
+        background: rgba(91, 61, 143, 0.08);
+        color: var(--accent);
+        font-size: 0.76rem;
+        font-weight: 800;
+      }
+
+      .detail-meta-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .detail-meta-card {
+        border: 1px solid rgba(90, 111, 218, 0.14);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.78);
+        padding: 10px 12px;
+        min-width: 0;
+      }
+
+      .detail-meta-label {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--soft-ink);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .detail-meta-value {
+        color: var(--ink);
+        font-size: 0.9rem;
+        font-weight: 700;
+        overflow-wrap: anywhere;
+      }
+
+      .detail-section-label {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--soft-ink);
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
 
       .detail-concerns {
-        margin: 0; font-size: 0.92rem; line-height: 1.65;
+        margin: 0; font-size: 0.94rem; line-height: 1.65;
         color: var(--ink); white-space: pre-wrap;
+        padding: 12px 14px;
+        border: 1px solid rgba(90, 111, 218, 0.12);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .detail-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding-top: 2px;
+      }
+
+      .detail-action {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.8rem;
+        font-weight: 800;
+        padding: 7px 12px;
+        cursor: pointer;
+      }
+
+      .detail-action:hover { background: var(--accent-light); }
+
+      .detail-action.delete {
+        border-color: #f5c6c6;
+        background: #fff5f5;
+        color: #c0392b;
+      }
+
+      .detail-action.delete:hover { background: #ffeaea; }
       }
 
       .legend {
@@ -682,6 +779,7 @@
         .event-chip { font-size: 0.68rem; padding: 2px 5px; }
         .cal-weekday { font-size: 0.7rem; padding: 8px 2px; }
         .detail-panel { padding: 22px; }
+        .detail-meta-grid { grid-template-columns: 1fr; }
         .cal-nav { width: 100%; justify-content: center; flex-wrap: wrap; }
         .cal-month-label { min-width: 150px; }
       }
@@ -707,7 +805,6 @@
           <img src="../assets/영문로고.png" alt="lofi dental" class="logo-img" />
         </a>
         <nav class="nav-links" aria-label="Admin navigation">
-          <a class="nav-link" href="/admin/messages">Messages</a>
           <a class="nav-link active" href="/admin/calendar">Calendar</a>
           <a class="nav-link" href="/admin/patients">Patients</a>
           <a class="nav-link" href="/admin">Admin home</a>
@@ -754,7 +851,7 @@
             <div class="instagram-actions">
               <button class="instagram-btn primary" type="button" id="instagramOpen">Open Instagram</button>
             </div>
-            <div class="instagram-status" id="instagramStatus">Use the Lofi Instagram DM Importer Chrome Extension on Instagram Direct to scan and save DMs into Messages and Patients.</div>
+            <div class="instagram-status" id="instagramStatus">Use the Lofi Instagram DM Importer Chrome Extension on Instagram Direct to scan and save DMs into Patients.</div>
           </div>
         </aside>
       </div>
@@ -764,6 +861,7 @@
       <div class="detail-panel">
         <button class="detail-close" id="detailClose" aria-label="Close">&#x2715;</button>
         <h2 class="detail-date" id="detailDate"></h2>
+        <p class="detail-subtitle" id="detailSubtitle"></p>
         <div class="detail-list" id="detailList"></div>
         <p class="undo-hint">Tip: Press Ctrl+Z or tap Undo to reverse your last change.</p>
       </div>
@@ -891,10 +989,34 @@
         return match ? match[1].trim() : "";
       }
 
+      function extractPhoneFromRecord(record) {
+        if (record?.phone) return String(record.phone).trim();
+        const concerns = String(record?.concerns || "");
+        const labeled = concerns.match(/(?:phone|telephone|tel|전화|연락처|휴대폰|핸드폰)\s*(?:number|번호)?\s*[:：]\s*([+\d\s\-().]{8,24})/i);
+        if (labeled) return labeled[1].trim().replace(/\s+/g, " ");
+        const fallback = concerns.match(/((?:\+?82|0)\d[\d\s\-]{7,14}\d)/);
+        return fallback ? fallback[1].trim().replace(/\s+/g, " ") : "";
+      }
+
+      function formatSourceLabel(record) {
+        const source = String(record?.source || "reservation").trim().toLowerCase();
+        if (source === "consult-chat") return "Web chat";
+        if (source === "instagram-dm" || source === "instagram") return "Instagram DM";
+        if (source === "manual") return "Manual";
+        return "Reservation";
+      }
+
+      function detailMeta(label, value) {
+        const text = String(value || "").trim();
+        if (!text) return "";
+        return `<div class="detail-meta-card"><span class="detail-meta-label">${escHtml(label)}</span><span class="detail-meta-value">${escHtml(text)}</span></div>`;
+      }
+
       const statusMsg = document.getElementById("statusMsg");
       const detailOverlay = document.getElementById("detailOverlay");
       const detailList = document.getElementById("detailList");
       const detailDate = document.getElementById("detailDate");
+      const detailSubtitle = document.getElementById("detailSubtitle");
       const reservationMenu = document.getElementById("reservationMenu");
       const emptyCellMenu = document.getElementById("emptyCellMenu");
       const editOverlay = document.getElementById("editOverlay");
@@ -1498,21 +1620,46 @@
           allReservations.filter((r) => normalizeDate(r.date) === dateKey)
         );
 
-        detailList.innerHTML = events.map((r) => `
+        detailList.innerHTML = events.map((r) => {
+          const patientName = extractNameFromRecord(r) || "Name unknown";
+          const email = String(r.email || "").trim();
+          const phone = extractPhoneFromRecord(r);
+          const visitingFrom = String(r.visitingFrom || "").trim();
+          const received = fmtReceived(r.createdAt || r.updatedAt || "");
+          const source = formatSourceLabel(r);
+          const concerns = String(r.concerns || "No concerns recorded.").trim();
+          const metaHtml = [
+            detailMeta("Email", email),
+            detailMeta("Phone", phone),
+            detailMeta("Visiting from", visitingFrom),
+            detailMeta("Received", received),
+          ].filter(Boolean).join("");
+
+          return `
           <article class="detail-item" id="cal-res-${escHtml(r.id)}" data-res-id="${escHtml(r.id)}">
             <div class="detail-row">
               <span class="detail-time">${escHtml(r.time)}</span>
-              <span class="detail-email">${escHtml(r.email)}</span>
-              <span class="detail-received">Received: ${escHtml(fmtReceived(r.createdAt))}</span>
-              <button onclick="deleteReservation('${escHtml(r.id)}', '${escHtml(dateKey)}')" style="margin-left:auto;background:#ffeaea;color:#c0392b;border:1px solid #f5c6c6;border-radius:999px;padding:3px 10px;font:inherit;font-size:0.78rem;font-weight:700;cursor:pointer;">&times; Delete</button>
+              <p class="detail-name">${escHtml(patientName)}</p>
+              <span class="detail-source">${escHtml(source)}</span>
             </div>
-            <p class="detail-concerns">${escHtml(r.concerns)}</p>
-          </article>`).join("");
+            ${metaHtml ? `<div class="detail-meta-grid">${metaHtml}</div>` : ""}
+            <div>
+              <span class="detail-section-label">Patient concerns</span>
+              <p class="detail-concerns">${escHtml(concerns)}</p>
+            </div>
+            <div class="detail-actions">
+              <button class="detail-action" type="button" onclick="openEditModal('${escHtml(r.id)}')">Edit</button>
+              <button class="detail-action delete" type="button" onclick="deleteReservation('${escHtml(r.id)}', '${escHtml(dateKey)}')">Delete</button>
+            </div>
+          </article>`;
+        }).join("");
 
         if (!events.length) {
           closeDetail();
           return;
         }
+
+        detailSubtitle.textContent = `${events.length} reservation${events.length === 1 ? "" : "s"}`;
 
         detailList.querySelectorAll(".detail-item[data-res-id]").forEach((item) => {
           item.addEventListener("contextmenu", (e) => {

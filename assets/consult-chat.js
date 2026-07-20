@@ -22,6 +22,7 @@
   let displayName = savedSession.displayName || "";
   let deviceId = savedSession.deviceId || createDeviceId();
   let isOpen = false;
+  let lastThreadSignature = "";
 
   const style = document.createElement("style");
   style.textContent = `
@@ -298,7 +299,7 @@
     <form class="consult-chat-form">
       <div class="consult-chat-tools">
         <button class="consult-chat-tool consult-chat-emoji-toggle" type="button" aria-label="Add emoji">☺</button>
-        <button class="consult-chat-tool consult-chat-photo-button" type="button">Photo</button>
+        <button class="consult-chat-tool consult-chat-photo-button" type="button" aria-label="Add photo" title="Add photo">📷</button>
         <span class="consult-chat-attachment" aria-live="polite"></span>
         <input class="consult-chat-file" type="file" accept="image/*" hidden />
       </div>
@@ -365,6 +366,15 @@
   }
 
   function renderThread(thread) {
+    const signature = JSON.stringify(thread.map((item) => ({
+      type: item.type || "",
+      content: item.content || "",
+      receivedAt: item.receivedAt || "",
+      sentAt: item.sentAt || "",
+      attachments: Array.isArray(item.attachments) ? item.attachments.length : 0,
+    })));
+    if (signature === lastThreadSignature) return;
+    lastThreadSignature = signature;
     log.innerHTML = "";
     thread.forEach((item) => {
       if (item.type === "customer-reply") {
@@ -397,6 +407,13 @@
     } catch {
       // Keep the chat usable even if history cannot be restored.
     }
+  }
+
+  function startThreadPolling() {
+    window.setInterval(() => {
+      if (document.hidden) return;
+      restoreChat();
+    }, 8000);
   }
 
   function openChat() {
@@ -539,4 +556,5 @@
   });
 
   restoreChat();
+  startThreadPolling();
 })();
