@@ -24,6 +24,7 @@ const instagramWebhookVerifyToken = process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN |
 const instagramGraphApiVersion = process.env.INSTAGRAM_GRAPH_API_VERSION || "v21.0";
 const instagramBusinessAccountId = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID || "";
 const instagramAccessToken = process.env.INSTAGRAM_ACCESS_TOKEN || "";
+const instagramExtensionImportToken = process.env.INSTAGRAM_EXTENSION_IMPORT_TOKEN || "extension-v1";
 const renderDefaultServiceId = process.env.RENDER_SERVICE_ID || "srv-d8l6hspkh4rs73fqrtqg";
 const renderApiKey = process.env.RENDER_API_KEY || "";
 const instagramAdminUsers = (process.env.INSTAGRAM_ADMIN_USERS || "lofi_esthetic_dentistry")
@@ -582,6 +583,72 @@ async function sendInstagramDmReply(senderId, content) {
 
 function isLocalImporterHost(requestHost) {
   return ["localhost", "127.0.0.1", "::1", "0.0.0.0"].includes(requestHost);
+}
+
+function isValidInstagramExtensionImporter(request) {
+  const token = String(request.headers["x-lofi-instagram-importer"] || "");
+  return token && token === instagramExtensionImportToken;
+}
+
+async function importInstagramExtensionConversations(request, response) {
+  try {
+    const payload = await getJsonBody(request);
+    const conversations = Array.isArray(payload.conversations) ? payload.conversations : [];
+    if (!conversations.length) {
+      response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "No Instagram conversations were provided" }));
+      return;
+    }
+
+    const limitedConversations = conversations.slice(0, 120);
+    let savedCount = 0;
+    let skippedCount = 0;
+
+    for (const conversation of limitedConversations) {
+      const senderId = String(conversation.senderId || conversation.threadId || conversation.url || "").trim();
+      const title = String(conversation.title || "").trim();
+      const url = String(conversation.url || "").trim();
+      const capturedAt = String(conversation.capturedAt || "").trim() || new Date().toISOString();
+      const messages = Array.isArray(conversation.messages) ? conversation.messages : [];
+      const messageText = messages
+        .map((message) => {
+          const author = String(message.author || "").trim();
+          const text = String(message.text || "").trim();
+          return text ? `${author ? `${author}: ` : ""}${text}` : "";
+        })
+        .filter(Boolean)
+        .join("\n");
+      const fallbackText = String(conversation.text || "").trim();
+      const content = [
+        "Imported from Instagram Chrome Extension.",
+        title ? `Conversation: ${title}` : "",
+        url ? `URL: ${url}` : "",
+        messageText || fallbackText,
+      ].filter(Boolean).join("\n\n").trim().slice(0, 20000);
+
+      if (!senderId || !content || content.length < 20) {
+        skippedCount += 1;
+        continue;
+      }
+
+      if (await instagramDmContentExists(senderId, content)) {
+        skippedCount += 1;
+        continue;
+      }
+
+      const saved = await saveInstagramDmMessage(senderId, content, capturedAt);
+      if (saved) savedCount += 1;
+      else skippedCount += 1;
+    }
+
+    response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ ok: true, savedCount, skippedCount }));
+  } catch (error) {
+    console.error("Failed to import Instagram extension conversations", error);
+    const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+    response.writeHead(isPayloadError ? 400 : 500, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : "Failed to import Instagram extension conversations" }));
+  }
 }
 
 async function readInstagramSettings() {
@@ -2176,70 +2243,24 @@ createServer(async (request, response) => {
       return;
     }
 
-    if (request.headers["x-lofi-instagram-importer"] !== "extension-v1") {
+    if (!isValidInstagramExtensionImporter(request)) {
       response.writeHead(403, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ message: "Invalid Instagram extension importer header" }));
       return;
     }
 
-    try {
-      const payload = await getJsonBody(request);
-      const conversations = Array.isArray(payload.conversations) ? payload.conversations : [];
-      if (!conversations.length) {
-        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
-        response.end(JSON.stringify({ message: "No Instagram conversations were provided" }));
-        return;
-      }
+    await importInstagramExtensionConversations(request, response);
+    return;
+  }
 
-      const limitedConversations = conversations.slice(0, 120);
-      let savedCount = 0;
-      let skippedCount = 0;
-
-      for (const conversation of limitedConversations) {
-        const senderId = String(conversation.senderId || conversation.threadId || conversation.url || "").trim();
-        const title = String(conversation.title || "").trim();
-        const url = String(conversation.url || "").trim();
-        const capturedAt = String(conversation.capturedAt || "").trim() || new Date().toISOString();
-        const messages = Array.isArray(conversation.messages) ? conversation.messages : [];
-        const messageText = messages
-          .map((message) => {
-            const author = String(message.author || "").trim();
-            const text = String(message.text || "").trim();
-            return text ? `${author ? `${author}: ` : ""}${text}` : "";
-          })
-          .filter(Boolean)
-          .join("\n");
-        const fallbackText = String(conversation.text || "").trim();
-        const content = [
-          "Imported from Instagram Chrome Extension.",
-          title ? `Conversation: ${title}` : "",
-          url ? `URL: ${url}` : "",
-          messageText || fallbackText,
-        ].filter(Boolean).join("\n\n").trim().slice(0, 20000);
-
-        if (!senderId || !content || content.length < 20) {
-          skippedCount += 1;
-          continue;
-        }
-
-        if (await instagramDmContentExists(senderId, content)) {
-          skippedCount += 1;
-          continue;
-        }
-
-        const saved = await saveInstagramDmMessage(senderId, content, capturedAt);
-        if (saved) savedCount += 1;
-        else skippedCount += 1;
-      }
-
-      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify({ ok: true, savedCount, skippedCount }));
-    } catch (error) {
-      console.error("Failed to import Instagram extension conversations", error);
-      const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
-      response.writeHead(isPayloadError ? 400 : 500, { "Content-Type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : "Failed to import Instagram extension conversations" }));
+  if (pathname === "/api/instagram-extension/import" && request.method === "POST") {
+    if (!isValidInstagramExtensionImporter(request)) {
+      response.writeHead(403, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Invalid Instagram extension importer token" }));
+      return;
     }
+
+    await importInstagramExtensionConversations(request, response);
     return;
   }
 

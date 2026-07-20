@@ -1,6 +1,10 @@
 const statusEl = document.getElementById("status");
 const openInstagramButton = document.getElementById("openInstagram");
 const scanButton = document.getElementById("scanDms");
+const serverUrlInput = document.getElementById("serverUrl");
+const importTokenInput = document.getElementById("importToken");
+const autoSaveInput = document.getElementById("autoSave");
+const saveSettingsButton = document.getElementById("saveSettings");
 
 function setStatus(message) {
   statusEl.textContent = message;
@@ -34,6 +38,26 @@ async function sendScanMessage(tabId) {
   }
 }
 
+async function loadSettings() {
+  const result = await chrome.runtime.sendMessage({ type: "LOFI_GET_IMPORTER_SETTINGS" });
+  if (!result?.ok) throw new Error(result?.message || "Failed to load settings");
+  serverUrlInput.value = result.settings.serverUrl || "https://lofiesthetic.com";
+  importTokenInput.value = result.settings.importToken || "extension-v1";
+  autoSaveInput.checked = Boolean(result.settings.autoSave);
+}
+
+async function saveSettings() {
+  const result = await chrome.runtime.sendMessage({
+    type: "LOFI_SAVE_IMPORTER_SETTINGS",
+    settings: {
+      serverUrl: serverUrlInput.value,
+      importToken: importTokenInput.value,
+      autoSave: autoSaveInput.checked,
+    },
+  });
+  if (!result?.ok) throw new Error(result?.message || "Failed to save settings");
+}
+
 openInstagramButton.addEventListener("click", async () => {
   setStatus("Opening Instagram Direct...");
   await getInstagramTab();
@@ -58,3 +82,18 @@ scanButton.addEventListener("click", async () => {
 chrome.runtime.onMessage.addListener((message) => {
   if (message?.type === "LOFI_SCAN_STATUS") setStatus(message.status);
 });
+
+saveSettingsButton.addEventListener("click", async () => {
+  saveSettingsButton.disabled = true;
+  setStatus("Saving settings...");
+  try {
+    await saveSettings();
+    setStatus("Settings saved.");
+  } catch (error) {
+    setStatus(error.message || "Failed to save settings.");
+  } finally {
+    saveSettingsButton.disabled = false;
+  }
+});
+
+loadSettings().catch((error) => setStatus(error.message || "Failed to load settings."));

@@ -1,6 +1,6 @@
 body {
   margin: 0;
-  width: 300px;
+  width: 340px;
   font-family: Georgia, "Times New Roman", serif;
   color: #1f2d66;
   background: #f5f7ff;
@@ -28,6 +28,32 @@ h1 {
 .controls {
   display: grid;
   gap: 8px;
+}
+
+.field {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 10px;
+  color: #1f2d66;
+  font: 700 0.76rem "Segoe UI", sans-serif;
+}
+
+.field input {
+  min-width: 0;
+  border: 1px solid rgba(90, 111, 218, 0.28);
+  border-radius: 8px;
+  padding: 8px 9px;
+  color: #1f2d66;
+  font: 0.78rem "Segoe UI", sans-serif;
+}
+
+.toggle {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 12px;
+  color: #1f2d66;
+  font: 700 0.78rem "Segoe UI", sans-serif;
 }
 
 button {

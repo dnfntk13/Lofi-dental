@@ -1,4 +1,7 @@
 const LOFI_SCAN_DELAY_MS = 650;
+const LOFI_AUTO_SAVE_DEBOUNCE_MS = 2400;
+let autoSaveTimer = null;
+let lastAutoSaveSignature = "";
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -99,6 +102,58 @@ function extractConversationMessages() {
   return uniqueLines.map((text) => ({ text })).slice(-500);
 }
 
+function collectCurrentConversation() {
+  if (!location.hostname.endsWith("instagram.com") || !location.pathname.startsWith("/direct/t/")) return null;
+  const messages = extractConversationMessages();
+  const text = messages.map((message) => message.text).join("\n");
+  if (!text || text.length < 20) return null;
+
+  return {
+    senderId: getThreadIdFromUrl(location.href) || location.href,
+    threadId: getThreadIdFromUrl(location.href),
+    title: extractConversationTitle(),
+    url: location.href,
+    capturedAt: new Date().toISOString(),
+    messages,
+    text,
+  };
+}
+
+async function getImporterSettings() {
+  const result = await chrome.runtime.sendMessage({ type: "LOFI_GET_IMPORTER_SETTINGS" });
+  return result?.ok ? result.settings : { autoSave: false };
+}
+
+async function autoSaveCurrentConversation() {
+  const settings = await getImporterSettings();
+  if (!settings.autoSave) return;
+
+  const conversation = collectCurrentConversation();
+  if (!conversation) return;
+
+  const signature = `${conversation.threadId}:${conversation.text.slice(-1600)}`;
+  if (signature === lastAutoSaveSignature) return;
+  lastAutoSaveSignature = signature;
+
+  const result = await chrome.runtime.sendMessage({
+    type: "LOFI_IMPORT_INSTAGRAM_CONVERSATIONS",
+    conversations: [conversation],
+  });
+  if (result?.ok) {
+    chrome.runtime.sendMessage({
+      type: "LOFI_SCAN_STATUS",
+      status: `Auto-saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`,
+    }).catch(() => {});
+  }
+}
+
+function scheduleAutoSave() {
+  window.clearTimeout(autoSaveTimer);
+  autoSaveTimer = window.setTimeout(() => {
+    autoSaveCurrentConversation().catch(() => {});
+  }, LOFI_AUTO_SAVE_DEBOUNCE_MS);
+}
+
 async function scanInstagramDms(options = {}, onProgress) {
   const maxThreads = Math.min(Math.max(Number(options.maxThreads || 80), 1), 120);
   const maxListScrolls = Math.min(Math.max(Number(options.maxListScrolls || 30), 1), 80);
@@ -162,3 +217,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return true;
 });
+
+new MutationObserver(scheduleAutoSave).observe(document.documentElement, {
+  childList: true,
+  subtree: true,
+  characterData: true,
+});
+window.addEventListener("popstate", scheduleAutoSave);
+scheduleAutoSave();

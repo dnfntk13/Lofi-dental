@@ -568,10 +568,12 @@ ${text}
         sendReplyButton.disabled = false;
       }
 
-      async function openMessageModal(email) {
+      async function openMessageModal(email, options = {}) {
         currentThreadEmail = String(email || "").trim();
         messageModal.classList.add("open");
-        threadContent.innerHTML = '<p style="color: var(--soft);">Loading messages...</p>';
+        if (!options.silent) {
+          threadContent.innerHTML = '<p style="color: var(--soft);">Loading messages...</p>';
+        }
         setReplyStatus("");
         sendReplyButton.disabled = false;
 
@@ -758,8 +760,10 @@ ${text}
         }
       }
 
-      async function loadMessages() {
-        inbox.innerHTML = '<article class="item"><p class="body">Loading...</p></article>';
+      async function loadMessages(options = {}) {
+        if (!options.silent) {
+          inbox.innerHTML = '<article class="item"><p class="body">Loading...</p></article>';
+        }
 
         try {
           const apiUrl = new URL("/api/admin/messages", window.location.origin);
@@ -776,14 +780,18 @@ ${text}
           });
 
           if (!response.ok) {
-            inbox.innerHTML = '<article class="item"><p class="body">Failed to load messages.</p></article>';
+            if (!options.silent) {
+              inbox.innerHTML = '<article class="item"><p class="body">Failed to load messages.</p></article>';
+            }
             return;
           }
 
           const data = await response.json();
           render(Array.isArray(data.messages) ? data.messages : []);
         } catch {
-          inbox.innerHTML = '<article class="item"><p class="body">Failed to load messages.</p></article>';
+          if (!options.silent) {
+            inbox.innerHTML = '<article class="item"><p class="body">Failed to load messages.</p></article>';
+          }
         }
       }
 
@@ -808,6 +816,12 @@ ${text}
 
       document.addEventListener("click", hideContextMenu);
       loadMessages();
+      window.setInterval(() => {
+        loadMessages({ silent: true });
+        if (messageModal.classList.contains("open") && currentThreadEmail) {
+          openMessageModal(currentThreadEmail, { silent: true });
+        }
+      }, 5000);
     </script>
   </body>
 </html>

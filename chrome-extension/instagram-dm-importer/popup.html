@@ -10,11 +10,24 @@
     <main class="panel">
       <h1>Lofi DM Importer</h1>
       <p class="status" id="status">Open Instagram Direct, then scan.</p>
+      <label class="field">
+        <span>Server URL</span>
+        <input id="serverUrl" type="url" spellcheck="false" />
+      </label>
+      <label class="field">
+        <span>Import token</span>
+        <input id="importToken" type="password" spellcheck="false" />
+      </label>
+      <label class="toggle">
+        <input id="autoSave" type="checkbox" />
+        <span>Auto-save current DM thread</span>
+      </label>
       <div class="controls">
+        <button id="saveSettings" type="button">Save settings</button>
         <button id="openInstagram" type="button">Open Instagram DM</button>
         <button id="scanDms" class="primary" type="button">Scan & save DMs</button>
       </div>
-      <p class="note">Messages are saved to the local Lofi Dental admin server.</p>
+      <p class="note">Use production for live updates, or localhost for local testing. Auto-save works when an Instagram DM thread tab is open.</p>
     </main>
     <script src="popup.js"></script>
   </body>
