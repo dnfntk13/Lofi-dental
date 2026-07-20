@@ -72,6 +72,13 @@
 
       .btn:hover { background: #e6d5f5; }
 
+      .danger-btn {
+        border-color: rgba(176, 45, 45, 0.24);
+        color: #a32626;
+      }
+
+      .danger-btn:hover { background: #fff0f0; }
+
       .search-bar {
         width: 100%; padding: 11px 16px;
         border: 1px solid var(--line); border-radius: 10px;
@@ -97,6 +104,10 @@
 
       .patient-name-row {
         display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      }
+
+      .patient-actions {
+        display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
       }
 
       .patient-meta {
@@ -133,6 +144,15 @@
       }
 
       .message-icon:hover { background: #f8f4ff; transform: translateY(-1px); }
+
+      .delete-patient-btn {
+        width: 34px; height: 34px; display: inline-grid; place-items: center;
+        border: 1px solid rgba(176, 45, 45, 0.24); border-radius: 999px;
+        background: #fff; color: #a32626; font: inherit; font-weight: 800;
+        cursor: pointer; transition: 150ms;
+      }
+
+      .delete-patient-btn:hover { background: #fff0f0; transform: translateY(-1px); }
 
       .channel-tabs {
         display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 18px;
@@ -174,6 +194,21 @@
 
       .thread-message.admin { justify-self: end; background: #eef7f1; }
       .thread-meta { display: block; margin-bottom: 5px; color: var(--soft); font-size: 0.82rem; font-weight: 800; }
+
+      .thread-message-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 10px; margin-bottom: 5px;
+      }
+
+      .thread-message-head .thread-meta { margin-bottom: 0; }
+
+      .delete-message-btn {
+        border: 0; border-radius: 999px; padding: 4px 9px;
+        background: #fff0f0; color: #a32626; font: inherit; font-size: 0.72rem;
+        font-weight: 800; cursor: pointer;
+      }
+
+      .delete-message-btn:hover { background: #ffdede; }
 
       .reply-form {
         display: grid; gap: 10px; padding: 14px 18px 18px;
@@ -309,8 +344,36 @@
         content.innerHTML = filtered.map(message => {
           const isAdmin = message.type === "admin-reply" || message.type === "auto-reply";
           const text = message.content || message.concerns || "";
-          return `<article class="thread-message ${isAdmin ? "admin" : ""}"><span class="thread-meta">${esc(threadLabel(message))} · ${esc(fmtDate(threadTime(message)))}</span>${esc(text)}</article>`;
+          const messageIndex = currentThread.indexOf(message);
+          return `<article class="thread-message ${isAdmin ? "admin" : ""}"><div class="thread-message-head"><span class="thread-meta">${esc(threadLabel(message))} · ${esc(fmtDate(threadTime(message)))}</span><button class="delete-message-btn" type="button" data-index="${messageIndex}">Delete</button></div>${esc(text)}</article>`;
         }).join("");
+
+        content.querySelectorAll(".delete-message-btn").forEach((button) => {
+          button.addEventListener("click", () => deleteThreadMessage(Number(button.dataset.index)));
+        });
+      }
+
+      async function deleteThreadMessage(messageIndex) {
+        if (!currentThreadEmail || !Number.isInteger(messageIndex) || messageIndex < 0) return;
+        const message = currentThread[messageIndex];
+        const label = threadLabel(message).toLowerCase();
+        if (!confirm(`Delete this ${label} message?`)) return;
+
+        try {
+          const res = await fetch(`/api/admin/email-thread/${encodeURIComponent(currentThreadEmail)}/messages/${messageIndex}`, {
+            method: "DELETE",
+            headers: { Accept: "application/json" },
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            alert(data.message || "Failed to delete message.");
+            return;
+          }
+          currentThread = Array.isArray(data.thread) ? data.thread : [];
+          renderThreadChannel();
+        } catch {
+          alert("Failed to delete message.");
+        }
       }
 
       async function markCurrentWebThreadRead() {
@@ -433,7 +496,10 @@
             <div>
               <div class="patient-name-row">
                 <p class="patient-name">${p.name ? esc(p.name) : '<span class="no-name">Name unknown</span>'}</p>
-                <button class="message-icon" type="button" data-email="${esc(p.email)}" aria-label="Open message threads for ${esc(p.name || "this patient")}">💬</button>
+                <div class="patient-actions">
+                  <button class="message-icon" type="button" data-email="${esc(p.email)}" aria-label="Open message threads for ${esc(p.name || "this patient")}">💬</button>
+                  <button class="delete-patient-btn" type="button" data-email="${esc(p.email)}" data-name="${esc(p.name || p.realEmail || p.email || "this patient")}" aria-label="Delete ${esc(p.name || "this patient")}">×</button>
+                </div>
               </div>
               <div class="patient-meta">
                 ${p.phone ? `<span class="chip phone">&#128222; ${esc(p.phone)}</span>` : ""}
@@ -450,6 +516,30 @@
         list.querySelectorAll(".message-icon").forEach((button) => {
           button.addEventListener("click", () => openThread(button.dataset.email || ""));
         });
+        list.querySelectorAll(".delete-patient-btn").forEach((button) => {
+          button.addEventListener("click", () => deletePatient(button.dataset.email || "", button.dataset.name || "this patient"));
+        });
+      }
+
+      async function deletePatient(email, name) {
+        if (!email) return;
+        if (!confirm(`Delete ${name}? This will also remove linked reservations and message threads.`)) return;
+
+        try {
+          const res = await fetch(`/api/admin/patients/${encodeURIComponent(email)}`, {
+            method: "DELETE",
+            headers: { Accept: "application/json" },
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            alert(data.message || "Failed to delete patient.");
+            return;
+          }
+          allPatients = allPatients.filter((patient) => String(patient.email || "").toLowerCase() !== String(email || "").toLowerCase());
+          applySearch();
+        } catch {
+          alert("Failed to delete patient.");
+        }
       }
 
       async function load() {

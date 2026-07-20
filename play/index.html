@@ -1,133 +1,307 @@
-﻿<!DOCTYPE html>
-<html lang="ko">
+<!DOCTYPE html>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lofi Monitor Play | Lofi Dental</title>
     <style>
-      html, body {
+      @font-face {
+        font-family: "Paperlogy";
+        src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-4Regular.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: "Paperlogy";
+        src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-7Bold.woff2") format("woff2");
+        font-weight: 700;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      :root {
+        --ink: #1f2d66;
+        --soft: #5a6fda;
+        --line: rgba(90, 111, 218, 0.22);
+      }
+
+      * { box-sizing: border-box; }
+
+      html,
+      body {
         margin: 0;
-        padding: 0;
         width: 100%;
         height: 100%;
         overflow: hidden;
         background: #000;
-      }
-      #main {
-        width: 100%;
-        height: 100%;
-        border: 0;
-        display: block;
-        background: #fff;
+        color: var(--ink);
+        font-family: "Paperlogy", "Nunito Sans", "Segoe UI", sans-serif;
       }
 
-      #videoWrap {
-        position: absolute;
-        inset: 0;
-        display: none;
+      body {
+        display: grid;
+        place-items: center;
+      }
+
+      .signage-stage {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
         background: #000;
       }
 
-      #videoWrap.active {
-        display: block;
+      .screen {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 420ms ease;
       }
 
-      #storyVideo {
-        width: 100%;
-        height: 100%;
+      .screen.active {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .doctor-screen {
+        display: grid;
+        grid-template-rows: minmax(0, 1fr) auto;
+        gap: min(2.6vh, 28px);
+        padding: min(3.2vh, 34px) min(4vw, 72px) min(3.6vh, 40px);
+        background:
+          radial-gradient(circle at 15% 10%, rgba(90, 111, 218, 0.22), transparent 36%),
+          radial-gradient(circle at 86% 16%, rgba(120, 143, 245, 0.18), transparent 42%),
+          linear-gradient(170deg, #f8faff 0%, #e7edff 100%);
+      }
+
+      .doctor-media {
+        min-height: 0;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+
+      .doctor-video {
+        width: auto;
+        height: min(100%, calc(100vh - 230px));
+        max-height: calc(100vh - 230px);
+        max-width: min(52vw, 760px);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: #000;
+        object-fit: contain;
+        box-shadow: 0 20px 54px rgba(31, 45, 102, 0.16);
+      }
+
+      .career-panel {
+        width: min(1560px, 100%);
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: minmax(190px, auto) repeat(5, minmax(0, 1fr));
+        gap: 12px;
+        align-items: stretch;
+        align-self: end;
+      }
+
+      .career-title,
+      .career-item {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 12px 30px rgba(31, 45, 102, 0.08);
+      }
+
+      .career-title {
+        min-width: 220px;
+        display: grid;
+        place-items: center;
+        padding: 16px 20px;
+        font-size: clamp(1.28rem, 1.8vw, 2rem);
+        font-weight: 700;
+        line-height: 1.05;
+        text-align: center;
+      }
+
+      .career-item {
+        padding: 14px 16px;
+        display: grid;
+        gap: 4px;
+        align-content: start;
+      }
+
+      .career-year {
+        margin: 0;
+        color: var(--ink);
+        font-size: clamp(1rem, 1.3vw, 1.32rem);
+        font-weight: 700;
+        line-height: 1.1;
+      }
+
+      .career-text {
+        margin: 0;
+        color: var(--soft);
+        font-size: clamp(0.78rem, 0.94vw, 1rem);
+        line-height: 1.38;
+      }
+
+      .video-screen {
+        display: grid;
+        place-items: center;
+        background: #000;
+      }
+
+      .story-video {
+        width: auto;
+        height: 100vh;
+        max-width: 100vw;
         display: block;
         object-fit: contain;
         background: #000;
       }
+
+      @media (max-height: 720px) {
+        .career-title,
+        .career-item {
+          padding: 10px 12px;
+        }
+
+        .career-title {
+          min-width: 150px;
+          font-size: 1rem;
+        }
+
+        .career-year {
+          font-size: 0.86rem;
+        }
+
+        .career-text {
+          font-size: 0.68rem;
+          line-height: 1.28;
+        }
+      }
     </style>
   </head>
   <body>
-    <div id="pageWrap" style="position:absolute;top:0;left:0;width:100%;height:100%;display:block;">
-      <iframe id="main" src="about:blank" style="width:100%;height:100%;border:0;display:block;background:#fff;"></iframe>
-    </div>
-    <div id="videoWrap">
-      <video id="storyVideo" playsinline muted preload="auto"></video>
-    </div>
+    <main class="signage-stage" aria-label="Lofi monitor play sequence">
+      <section class="screen doctor-screen active" id="doctorScreen" aria-label="Meet Dr. Ryan Kim">
+        <div class="doctor-media">
+          <video class="doctor-video" id="doctorVideo" muted playsinline preload="auto" src="/assets/story/meet-dr-kim.mp4"></video>
+        </div>
+        <section class="career-panel" aria-label="Career Highlights">
+          <h1 class="career-title">Career Highlights</h1>
+          <article class="career-item">
+            <p class="career-year">2018</p>
+            <p class="career-text">Graduated from NYU College of Dentistry</p>
+          </article>
+          <article class="career-item">
+            <p class="career-year">2018-2020</p>
+            <p class="career-text">Served as Dental Corpsman in the Republic of Korea Army</p>
+          </article>
+          <article class="career-item">
+            <p class="career-year">2023-2024</p>
+            <p class="career-text">General Practice Residency at Brookdale and Interfaith Hospital</p>
+          </article>
+          <article class="career-item">
+            <p class="career-year">2025</p>
+            <p class="career-text">Associate Dentist at Castle Bubu Dental and Smile Studios Dental</p>
+          </article>
+          <article class="career-item">
+            <p class="career-year">2026</p>
+            <p class="career-text">Founder and lead doctor at lofi dental</p>
+          </article>
+        </section>
+      </section>
+
+      <section class="screen video-screen" id="videoScreen" aria-label="Lofi lab story video">
+        <video class="story-video" id="storyVideo" muted playsinline preload="auto"></video>
+      </section>
+    </main>
 
     <script>
       var sequence = [
-        { type: "page", url: "/meetdrkim.html?play=1" },
-        { type: "video", src: "/assets/story/lofi-lab-dentistryisart.mp4" },
-        { type: "video", src: "/assets/story/lofi-lab-primemill.mp4" },
-        { type: "video", src: "/assets/story/lofi-lab-veneers.mp4" }
+        { type: "doctor", src: "/assets/story/meet-dr-kim.mp4" },
+        { type: "story", src: "/assets/story/lofi-lab-dentistryisart.mp4" },
+        { type: "story", src: "/assets/story/lofi-lab-primemill.mp4" },
+        { type: "story", src: "/assets/story/lofi-lab-veneers.mp4" }
       ];
 
-      var pageWrap  = document.getElementById("pageWrap");
-      var mainFrame = document.getElementById("main");
-      var videoWrap = document.getElementById("videoWrap");
+      var doctorScreen = document.getElementById("doctorScreen");
+      var videoScreen = document.getElementById("videoScreen");
+      var doctorVideo = document.getElementById("doctorVideo");
       var storyVideo = document.getElementById("storyVideo");
-      var current   = 0;
+      var current = 0;
       var fallbackTimer = null;
 
-      function clearAllTimers() {
-        if (fallbackTimer) { clearTimeout(fallbackTimer); fallbackTimer = null; }
+      function clearFallback() {
+        if (fallbackTimer) {
+          clearTimeout(fallbackTimer);
+          fallbackTimer = null;
+        }
       }
 
-      function advance() {
-        clearAllTimers();
-        storyVideo.pause();
-        current = (current + 1) % sequence.length;
-        showItem(current);
+      function setActiveScreen(screen) {
+        doctorScreen.classList.toggle("active", screen === "doctor");
+        videoScreen.classList.toggle("active", screen === "story");
       }
 
-      function playElement(video) {
+      function playVideo(video) {
         video.muted = true;
         video.playsInline = true;
+        video.currentTime = 0;
         var attempt = video.play();
         if (attempt && typeof attempt.catch === "function") {
           attempt.catch(function () {
-            video.muted = true;
             video.play().catch(function () { advance(); });
           });
         }
       }
 
-      function showPage(item) {
-        pageWrap.style.display = "block";
-        videoWrap.classList.remove("active");
+      function advance() {
+        clearFallback();
+        doctorVideo.pause();
+        storyVideo.pause();
+        current = (current + 1) % sequence.length;
+        showItem(current);
+      }
+
+      function showDoctor(item) {
+        setActiveScreen("doctor");
         storyVideo.removeAttribute("src");
         storyVideo.load();
-        mainFrame.onload = function () {
-          clearAllTimers();
-          var frameDoc = mainFrame.contentDocument || mainFrame.contentWindow.document;
-          var pageVideo = frameDoc && frameDoc.querySelector("video");
-          if (!pageVideo) { advance(); return; }
-          pageVideo.controls = false;
-          pageVideo.loop = false;
-          pageVideo.currentTime = 0;
-          pageVideo.addEventListener("ended", advance, { once: true });
-          fallbackTimer = setTimeout(advance, 12 * 60 * 1000);
-          playElement(pageVideo);
-        };
-        mainFrame.src = item.url;
+        doctorVideo.onended = advance;
+        doctorVideo.onerror = advance;
+        if (doctorVideo.getAttribute("src") !== item.src) {
+          doctorVideo.setAttribute("src", item.src);
+          doctorVideo.load();
+        }
+        fallbackTimer = setTimeout(advance, 12 * 60 * 1000);
+        playVideo(doctorVideo);
       }
 
-      function showVideo(item) {
-        pageWrap.style.display = "none";
-        videoWrap.classList.add("active");
-        mainFrame.onload = null;
-        mainFrame.src = "about:blank";
+      function showStory(item) {
+        setActiveScreen("story");
+        doctorVideo.pause();
         storyVideo.onended = advance;
         storyVideo.onerror = advance;
-        storyVideo.src = item.src;
-        storyVideo.currentTime = 0;
+        storyVideo.setAttribute("src", item.src);
+        storyVideo.load();
         fallbackTimer = setTimeout(advance, 12 * 60 * 1000);
-        playElement(storyVideo);
+        playVideo(storyVideo);
       }
 
-      function showItem(idx) {
-        clearAllTimers();
-        var item = sequence[idx];
-        if (item.type === "page") showPage(item);
-        else showVideo(item);
+      function showItem(index) {
+        clearFallback();
+        var item = sequence[index];
+        if (item.type === "doctor") showDoctor(item);
+        else showStory(item);
       }
 
-      window.onload = function () { showItem(0); };
+      window.addEventListener("load", function () {
+        showItem(0);
+      });
     </script>
   </body>
 </html>

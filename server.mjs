@@ -324,6 +324,56 @@ async function readEmailThreads() {
   } catch { return []; }
 }
 
+async function deleteEmailThread(email) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  if (!normalizedEmail) return false;
+  const collection = await getEmailThreadsCollection();
+  if (collection) {
+    const result = await collection.deleteOne({ email: normalizedEmail });
+    return result.deletedCount > 0;
+  }
+
+  const threads = await readEmailThreads();
+  const filtered = threads.filter((thread) => String(thread.email || "").toLowerCase() !== normalizedEmail);
+  if (filtered.length === threads.length) return false;
+  await mkdir(dataDir, { recursive: true });
+  await writeFile(emailThreadsPath, JSON.stringify(filtered, null, 2), "utf-8");
+  return true;
+}
+
+async function deleteEmailThreadMessage(email, messageIndex) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const index = Number(messageIndex);
+  if (!normalizedEmail || !Number.isInteger(index) || index < 0) return { deleted: false, thread: [] };
+  const collection = await getEmailThreadsCollection();
+
+  if (collection) {
+    const thread = await collection.findOne({ email: normalizedEmail }, { projection: { _id: 0 } });
+    const messages = Array.isArray(thread?.messages) ? thread.messages : [];
+    if (!thread || index >= messages.length) return { deleted: false, thread: messages };
+    const nextMessages = messages.filter((_, currentIndex) => currentIndex !== index);
+    if (nextMessages.length) await collection.updateOne({ email: normalizedEmail }, { $set: { messages: nextMessages, updatedAt: new Date().toISOString() } });
+    else await collection.deleteOne({ email: normalizedEmail });
+    return { deleted: true, thread: nextMessages };
+  }
+
+  const threads = await readEmailThreads();
+  const threadIndex = threads.findIndex((thread) => String(thread.email || "").toLowerCase() === normalizedEmail);
+  if (threadIndex < 0) return { deleted: false, thread: [] };
+  const messages = Array.isArray(threads[threadIndex].messages) ? threads[threadIndex].messages : [];
+  if (index >= messages.length) return { deleted: false, thread: messages };
+  const nextMessages = messages.filter((_, currentIndex) => currentIndex !== index);
+  if (nextMessages.length) {
+    threads[threadIndex].messages = nextMessages;
+    threads[threadIndex].updatedAt = new Date().toISOString();
+  } else {
+    threads.splice(threadIndex, 1);
+  }
+  await mkdir(dataDir, { recursive: true });
+  await writeFile(emailThreadsPath, JSON.stringify(threads, null, 2), "utf-8");
+  return { deleted: true, thread: nextMessages };
+}
+
 async function saveOrUpdateEmailThread(email, reservationId, messageData) {
   const now = new Date().toISOString();
   const collection = await getEmailThreadsCollection();
@@ -509,6 +559,38 @@ async function readPatients() {
     const parsed = JSON.parse(data);
     return Array.isArray(parsed) ? parsed : [];
   } catch { return []; }
+}
+
+async function deletePatientRecord(email) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  if (!normalizedEmail) return { deleted: false, removedReservations: 0, removedThread: false };
+  const collection = await getPatientsCollection();
+  let patient = null;
+  let deleted = false;
+
+  if (collection) {
+    patient = await collection.findOne({ email: normalizedEmail }, { projection: { _id: 0 } });
+    const result = await collection.deleteOne({ email: normalizedEmail });
+    deleted = result.deletedCount > 0;
+  } else {
+    const patients = await readPatients();
+    const index = patients.findIndex((item) => String(item.email || "").toLowerCase() === normalizedEmail);
+    if (index >= 0) {
+      patient = patients[index];
+      patients.splice(index, 1);
+      await mkdir(dataDir, { recursive: true });
+      await writeFile(patientsPath, JSON.stringify(patients, null, 2), "utf-8");
+      deleted = true;
+    }
+  }
+
+  const reservationIds = Array.isArray(patient?.reservationIds) ? patient.reservationIds.filter(Boolean) : [];
+  let removedReservations = 0;
+  for (const id of reservationIds) {
+    if (await deleteInboxRecord(id)) removedReservations += 1;
+  }
+  const removedThread = await deleteEmailThread(normalizedEmail);
+  return { deleted, removedReservations, removedThread };
 }
 
 function extractPatientInfo(text) {
@@ -2263,6 +2345,27 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname.startsWith("/api/admin/patients/") && request.method === "DELETE") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    const email = decodeURIComponent(pathname.slice("/api/admin/patients/".length) || "").trim().toLowerCase();
+    if (!email || !isValidEmail(email)) {
+      response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Valid patient email is required" }));
+      return;
+    }
+
+    try {
+      const result = await deletePatientRecord(email);
+      response.writeHead(result.deleted ? 200 : 404, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify(result.deleted ? { ok: true, ...result } : { message: "Patient not found" }));
+    } catch (error) {
+      console.error("Failed to delete patient", error);
+      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Failed to delete patient" }));
+    }
+    return;
+  }
+
   if (pathname === "/api/admin/instagram-dms" && request.method === "GET") {
     if (!adminAuthorized) { requestAuth(response); return; }
 
@@ -2804,6 +2907,34 @@ createServer(async (request, response) => {
       console.error("Failed to mark email thread read", error);
       response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ message: "Failed to mark thread read" }));
+    }
+    return;
+  }
+
+  if (pathname.startsWith("/api/admin/email-thread/") && pathname.includes("/messages/") && request.method === "DELETE") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+
+    const prefix = "/api/admin/email-thread/";
+    const remainder = pathname.slice(prefix.length);
+    const marker = "/messages/";
+    const markerIndex = remainder.indexOf(marker);
+    const email = decodeURIComponent(remainder.slice(0, markerIndex)).trim().toLowerCase();
+    const messageIndex = Number(decodeURIComponent(remainder.slice(markerIndex + marker.length)));
+
+    if (!email || !isValidEmail(email) || !Number.isInteger(messageIndex) || messageIndex < 0) {
+      response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Valid email and message index are required" }));
+      return;
+    }
+
+    try {
+      const result = await deleteEmailThreadMessage(email, messageIndex);
+      response.writeHead(result.deleted ? 200 : 404, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify(result.deleted ? { ok: true, thread: result.thread } : { message: "Message not found", thread: result.thread }));
+    } catch (error) {
+      console.error("Failed to delete email thread message", error);
+      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Failed to delete message" }));
     }
     return;
   }
