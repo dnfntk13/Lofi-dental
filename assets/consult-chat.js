@@ -371,6 +371,7 @@
       content: item.content || "",
       receivedAt: item.receivedAt || "",
       sentAt: item.sentAt || "",
+      adminReadAt: item.adminReadAt || "",
       attachments: Array.isArray(item.attachments) ? item.attachments.length : 0,
     })));
     if (signature === lastThreadSignature) return;
@@ -379,7 +380,7 @@
     thread.forEach((item) => {
       if (item.type === "customer-reply") {
         const message = addMessage(item.content || "", "user", item.attachments || []);
-        setMessageStatus(message, "Read");
+        setMessageStatus(message, item.adminReadAt ? "Read" : "Sent");
         return;
       }
 
@@ -546,7 +547,6 @@
       displayName = data.displayName || displayName;
       saveSession();
       setMessageStatus(message, "Sent");
-      window.setTimeout(() => setMessageStatus(message, "Read"), 900);
     } catch {
       setMessageStatus(message, "Not sent");
     } finally {

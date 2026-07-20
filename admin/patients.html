@@ -313,12 +313,32 @@
         }).join("");
       }
 
+      async function markCurrentWebThreadRead() {
+        if (!currentThreadEmail || currentChannel !== "web") return;
+        try {
+          const res = await fetch(`/api/admin/email-thread/${encodeURIComponent(currentThreadEmail)}/read`, {
+            method: "POST",
+            headers: { Accept: "application/json", "Content-Type": "application/json" },
+            body: JSON.stringify({ channel: "web" }),
+          });
+          if (!res.ok) return;
+          const data = await res.json().catch(() => ({}));
+          if (Array.isArray(data.thread)) {
+            currentThread = data.thread;
+            renderThreadChannel();
+          }
+        } catch {
+          // Keep the admin thread usable even if the read receipt update fails.
+        }
+      }
+
       function setChannel(channel) {
         currentChannel = channel;
         document.querySelectorAll(".channel-tab").forEach(button => {
           button.classList.toggle("active", button.dataset.channel === channel);
         });
         renderThreadChannel();
+        if (channel === "web") markCurrentWebThreadRead();
       }
 
       async function openThread(email) {
@@ -344,6 +364,7 @@
           currentThread = Array.isArray(data.thread) ? data.thread : [];
           currentReservationId = data.reservationId || "";
           renderThreadChannel();
+          markCurrentWebThreadRead();
         } catch {
           content.innerHTML = '<p class="empty">Failed to load message threads.</p>';
         }
@@ -438,6 +459,7 @@
           if (!res.ok) { document.getElementById("patientList").innerHTML = '<p class="empty">Failed to load patients.</p>'; return; }
           const data = await res.json();
           allPatients = Array.isArray(data.patients) ? data.patients : [];
+          allPatients.sort((a, b) => new Date(b.latestReservation?.updatedAt || b.latestReservation?.createdAt || b.updatedAt || b.firstSeen || 0) - new Date(a.latestReservation?.updatedAt || a.latestReservation?.createdAt || a.updatedAt || a.firstSeen || 0));
           applySearch();
         } catch {
           document.getElementById("patientList").innerHTML = '<p class="empty">Failed to load patients.</p>';

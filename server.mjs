@@ -369,6 +369,79 @@ async function saveOrUpdateEmailThread(email, reservationId, messageData) {
   await writeFile(emailThreadsPath, JSON.stringify(threads, null, 2), "utf-8");
 }
 
+function getStoredMessageChannel(message) {
+  const channel = String(message?.channel || "").toLowerCase();
+  if (channel === "web") return "web";
+  if (channel === "instagram" || channel === "instagram-dm" || channel === "instagram_dm") return "instagram";
+  if (channel === "email") return "email";
+  const source = String(message?.source || "").toLowerCase();
+  if (source === "consult-chat" || source === "web") return "web";
+  if (source === "instagram" || source === "instagram-dm" || source === "instagram_dm") return "instagram";
+  return "email";
+}
+
+async function markEmailThreadMessagesRead(email, channel = "web") {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const normalizedChannel = String(channel || "web").trim().toLowerCase();
+  const now = new Date().toISOString();
+  const collection = await getEmailThreadsCollection();
+
+  if (collection) {
+    const thread = await collection.findOne({ email: normalizedEmail }, { projection: { _id: 0 } });
+    if (!thread) return { thread: [], changed: false };
+    let changed = false;
+    const messages = Array.isArray(thread.messages) ? thread.messages.map((message) => {
+      if (message?.type === "customer-reply" && getStoredMessageChannel(message) === normalizedChannel && !message.adminReadAt) {
+        changed = true;
+        return { ...message, adminReadAt: now };
+      }
+      return message;
+    }) : [];
+    if (changed) await collection.updateOne({ email: normalizedEmail }, { $set: { messages } });
+    return { thread: messages, changed };
+  }
+
+  const threads = await readEmailThreads();
+  const index = threads.findIndex((thread) => String(thread.email || "").toLowerCase() === normalizedEmail);
+  if (index < 0) return { thread: [], changed: false };
+  let changed = false;
+  const messages = Array.isArray(threads[index].messages) ? threads[index].messages.map((message) => {
+    if (message?.type === "customer-reply" && getStoredMessageChannel(message) === normalizedChannel && !message.adminReadAt) {
+      changed = true;
+      return { ...message, adminReadAt: now };
+    }
+    return message;
+  }) : [];
+  if (changed) {
+    threads[index].messages = messages;
+    await mkdir(dataDir, { recursive: true });
+    await writeFile(emailThreadsPath, JSON.stringify(threads, null, 2), "utf-8");
+  }
+  return { thread: messages, changed };
+}
+
+function patientLatestInputTime(patient) {
+  const candidates = [
+    patient?.latestReservation?.updatedAt,
+    patient?.latestReservation?.createdAt,
+    patient?.updatedAt,
+    patient?.firstSeen,
+  ];
+  if (Array.isArray(patient?.reservations)) {
+    for (const reservation of patient.reservations) {
+      candidates.push(reservation?.updatedAt, reservation?.createdAt);
+    }
+  }
+  return Math.max(0, ...candidates.map((value) => {
+    const time = new Date(value || 0).getTime();
+    return Number.isFinite(time) ? time : 0;
+  }));
+}
+
+function sortPatientsByLatestInput(patients) {
+  return [...patients].sort((a, b) => patientLatestInputTime(b) - patientLatestInputTime(a));
+}
+
 function getPatientThreadEmail(record) {
   const email = String(record?.email || record?.threadEmail || "").trim().toLowerCase();
   if (email) return email;
@@ -397,7 +470,7 @@ async function findConsultChatRecord({ sessionId, deviceId, clientIp }) {
     if (record?.source !== "consult-chat") return false;
     if (sessionId && (record.chatSessionId === sessionId || record.id === sessionId)) return true;
     if (deviceId && record.chatDeviceId === deviceId) return true;
-    if (clientIp && record.clientIp === clientIp) return true;
+    if (!sessionId && !deviceId && clientIp && record.clientIp === clientIp) return true;
     return false;
   });
 
@@ -2707,6 +2780,34 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname.startsWith("/api/admin/email-thread/") && pathname.endsWith("/read") && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+
+    const prefix = "/api/admin/email-thread/";
+    const suffix = "/read";
+    const encodedEmail = pathname.slice(prefix.length, pathname.length - suffix.length);
+    const email = decodeURIComponent(encodedEmail || "").trim().toLowerCase();
+
+    if (!email || !isValidEmail(email)) {
+      response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Valid email is required" }));
+      return;
+    }
+
+    try {
+      const payload = await getJsonBody(request).catch(() => ({}));
+      const channel = String(payload.channel || "web").trim().toLowerCase();
+      const result = await markEmailThreadMessagesRead(email, channel);
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ ok: true, changed: result.changed, thread: result.thread }));
+    } catch (error) {
+      console.error("Failed to mark email thread read", error);
+      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Failed to mark thread read" }));
+    }
+    return;
+  }
+
   if (pathname.startsWith("/api/admin/email-thread/") && request.method === "GET") {
     if (!adminAuthorized) { requestAuth(response); return; }
     const email = decodeURIComponent(pathname.slice("/api/admin/email-thread/".length));
@@ -2774,7 +2875,7 @@ createServer(async (request, response) => {
     if (!adminAuthorized) { requestAuth(response); return; }
     try {
       await syncInboxReservationsToPatients();
-      const patients = await readPatients();
+      const patients = sortPatientsByLatestInput(await readPatients());
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ patients }));
     } catch (error) {
