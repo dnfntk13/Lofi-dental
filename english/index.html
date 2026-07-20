@@ -133,9 +133,22 @@
       h1 {
         margin: 14px 0 0;
         font-family: "Paperlogy", "Noto Sans KR", sans-serif;
-        font-size: clamp(1.38rem, 3.2vw, 2.72rem);
-        line-height: 1.06;
-        font-weight: 400;
+        font-size: clamp(1.75rem, 4.2vw, 3.42rem);
+        line-height: 1.16;
+        font-weight: 500;
+      }
+
+      .hero-quote {
+        max-width: 16.5ch;
+      }
+
+      .quote-line {
+        display: block;
+        white-space: nowrap;
+      }
+
+      .quote-line:first-child {
+        text-indent: -0.28em;
       }
 
       .hero-main p {
@@ -304,6 +317,10 @@
           padding: 36px;
         }
 
+        .hero-quote {
+          max-width: 15ch;
+        }
+
         .career-list {
           grid-template-columns: 1fr;
         }
@@ -340,6 +357,22 @@
           bottom: 18px;
           left: 18px;
         }
+
+        h1 {
+          font-size: clamp(1.68rem, 8.2vw, 2.35rem);
+        }
+
+        .hero-quote {
+          max-width: 100%;
+        }
+
+        .quote-line:first-child {
+          text-indent: 0;
+        }
+
+        .quote-line {
+          white-space: normal;
+        }
       }
     </style>
   </head>
@@ -362,7 +395,12 @@
       <main>
         <section class="hero">
           <article class="hero-main">
-            <h1>&ldquo;You need a dentist who knows by heart<br />what it feels like to be a foreigner.&rdquo;</h1>
+            <h1 class="hero-quote">
+              <span class="quote-line">&ldquo;You need a dentist</span>
+              <span class="quote-line">who knows by heart</span>
+              <span class="quote-line">what it feels like</span>
+              <span class="quote-line">to be a foreigner.&rdquo;</span>
+            </h1>
             <div class="cta-row">
               <a class="btn btn-secondary" href="/meetdrkim.html">Meet Dr. Ryan Kim</a>
               <a class="btn btn-secondary" href="/before-after-en.html">Before &amp; After</a>
