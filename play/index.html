@@ -219,7 +219,7 @@
   </head>
   <body>
     <main class="signage-stage" aria-label="Lofi monitor play sequence">
-      <div class="video-diagnostics" id="videoDiagnostics" aria-live="polite" role="status"></div>
+      <div class="video-diagnostics" id="videoDiagnostics" aria-hidden="true"></div>
       <section class="screen doctor-screen active" id="doctorScreen" aria-label="Meet Dr. Ryan Kim">
         <div class="doctor-media">
           <video class="doctor-video" id="doctorVideo" muted autoplay playsinline preload="auto"></video>
@@ -273,6 +273,7 @@
       var doctorErrorCount = 0;
       var VIDEO_READY_TIMEOUT = 15000;
       var DOCTOR_RETRY_DELAY = 1200;
+      var MAX_DOCTOR_RETRIES = 3;
 
       function clearFallback() {
         if (fallbackTimer) {
@@ -364,9 +365,9 @@
         var source = video.querySelector("source");
         if (!source) {
           source = document.createElement("source");
-          source.type = "video/mp4";
           video.appendChild(source);
         }
+        source.type = "video/mp4";
         source.setAttribute("src", src);
       }
 
@@ -405,7 +406,10 @@
         events.forEach(function (eventName) {
           video.addEventListener(eventName, startPlayback);
         });
-        cleanupTimer = setTimeout(clearListeners, VIDEO_READY_TIMEOUT);
+        cleanupTimer = setTimeout(function () {
+          if (video.readyState >= 1) startPlayback();
+          else clearListeners();
+        }, VIDEO_READY_TIMEOUT);
         if (video.readyState >= 1) startPlayback();
       }
 
@@ -430,7 +434,7 @@
         doctorVideo.onerror = function () {
           doctorErrorCount += 1;
           logVideoDiagnostics("doctorVideo", doctorVideo, "load/play error attempt " + doctorErrorCount);
-          if (doctorErrorCount <= 3) {
+          if (doctorErrorCount <= MAX_DOCTOR_RETRIES) {
             clearRetry(doctorVideo);
             retryTimers.doctor = setTimeout(function () {
               prepareVideoPlayback(doctorVideo, item.src);
