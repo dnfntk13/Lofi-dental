@@ -378,7 +378,12 @@
       function playWhenReady(video) {
         var triggered = false;
         var events = ["loadedmetadata", "canplay", "canplaythrough"];
+        var cleanupTimer = null;
         function clearListeners() {
+          if (cleanupTimer) {
+            clearTimeout(cleanupTimer);
+            cleanupTimer = null;
+          }
           events.forEach(function (eventName) {
             video.removeEventListener(eventName, startPlayback);
           });
@@ -392,6 +397,7 @@
         events.forEach(function (eventName) {
           video.addEventListener(eventName, startPlayback);
         });
+        cleanupTimer = setTimeout(clearListeners, 15000);
         if (video.readyState >= 1) startPlayback();
         else playVideo(video, true);
       }
