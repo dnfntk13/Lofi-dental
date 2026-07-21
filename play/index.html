@@ -222,9 +222,7 @@
       <div class="video-diagnostics" id="videoDiagnostics" aria-live="polite"></div>
       <section class="screen doctor-screen active" id="doctorScreen" aria-label="Meet Dr. Ryan Kim">
         <div class="doctor-media">
-          <video class="doctor-video" id="doctorVideo" muted autoplay playsinline preload="auto">
-            <source type="video/mp4" />
-          </video>
+          <video class="doctor-video" id="doctorVideo" muted autoplay playsinline preload="auto"></video>
         </div>
         <section class="career-panel" aria-label="Career Highlights">
           <h1 class="career-title">Career Highlights</h1>
@@ -252,9 +250,7 @@
       </section>
 
       <section class="screen video-screen" id="videoScreen" aria-label="Lofi lab story video">
-        <video class="story-video" id="storyVideo" muted autoplay playsinline preload="auto">
-          <source type="video/mp4" />
-        </video>
+        <video class="story-video" id="storyVideo" muted autoplay playsinline preload="auto"></video>
       </section>
     </main>
 
@@ -386,6 +382,9 @@
         function startPlayback() {
           if (triggered) return;
           triggered = true;
+          video.onloadedmetadata = null;
+          video.oncanplay = null;
+          video.oncanplaythrough = null;
           playVideo(video, false);
         }
         video.onloadedmetadata = startPlayback;
