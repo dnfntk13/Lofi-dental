@@ -271,6 +271,8 @@
       var fallbackTimer = null;
       var retryTimers = { doctor: null, story: null };
       var doctorErrorCount = 0;
+      var VIDEO_READY_TIMEOUT = 15000;
+      var DOCTOR_RETRY_DELAY = 1200;
 
       function clearFallback() {
         if (fallbackTimer) {
@@ -397,7 +399,7 @@
         events.forEach(function (eventName) {
           video.addEventListener(eventName, startPlayback);
         });
-        cleanupTimer = setTimeout(clearListeners, 15000);
+        cleanupTimer = setTimeout(clearListeners, VIDEO_READY_TIMEOUT);
         if (video.readyState >= 1) startPlayback();
         else playVideo(video, true);
       }
@@ -429,7 +431,7 @@
             retryTimers.doctor = setTimeout(function () {
               prepareVideoPlayback(doctorVideo, item.src);
               playWhenReady(doctorVideo);
-            }, 1200);
+            }, DOCTOR_RETRY_DELAY);
             return;
           }
           advance();
