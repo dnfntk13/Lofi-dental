@@ -29,6 +29,7 @@ jobs:
 
       - name: Copy all site files to deploy directory
         run: |
+          shopt -s nullglob
           mkdir -p _site
           find . -maxdepth 1 -type f \( -name "*.html" -o -name "CNAME" \) -exec cp {} _site/ \;
           for dir in */; do
