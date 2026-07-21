@@ -365,8 +365,6 @@
           source.type = "video/mp4";
           video.appendChild(source);
         }
-        source.removeAttribute("src");
-        video.removeAttribute("src");
         source.setAttribute("src", src);
       }
 
@@ -379,17 +377,21 @@
 
       function playWhenReady(video) {
         var triggered = false;
+        var events = ["loadedmetadata", "canplay", "canplaythrough"];
+        function clearListeners() {
+          events.forEach(function (eventName) {
+            video.removeEventListener(eventName, startPlayback);
+          });
+        }
         function startPlayback() {
           if (triggered) return;
           triggered = true;
-          video.onloadedmetadata = null;
-          video.oncanplay = null;
-          video.oncanplaythrough = null;
+          clearListeners();
           playVideo(video, false);
         }
-        video.onloadedmetadata = startPlayback;
-        video.oncanplay = startPlayback;
-        video.oncanplaythrough = startPlayback;
+        events.forEach(function (eventName) {
+          video.addEventListener(eventName, startPlayback);
+        });
         if (video.readyState >= 1) startPlayback();
         else playVideo(video, true);
       }
@@ -409,7 +411,6 @@
         setActiveScreen("doctor");
         doctorErrorCount = 0;
         storyVideo.pause();
-        storyVideo.removeAttribute("src");
         var storySource = storyVideo.querySelector("source");
         if (storySource) storySource.removeAttribute("src");
         storyVideo.load();
