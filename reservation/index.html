@@ -1527,6 +1527,10 @@
               </div>
 
               <div class="price-guide-subsection">
+                <p class="price-guide-subheading"><span>Masseter Botox (Jaw Slimming)</span><span>₩150,000</span></p>
+              </div>
+
+              <div class="price-guide-subsection">
                 <p class="price-guide-subheading"><span>Veneers <button class="clip-trigger" type="button" data-clip="veneers" aria-label="Play Veneers 5 second clip">?</button></span></p>
                 <div class="price-guide-list is-nested">
                   <div class="price-guide-row"><span>Minimal-prep Resin Veneers</span><span>₩99,000 per tooth</span></div>
@@ -1622,6 +1626,13 @@
         priceGuideButton.setAttribute("aria-expanded", String(!isOpen));
         priceGuidePanel.classList.toggle("is-hidden", isOpen);
       });
+      if (params.get("priceGuide") === "1") {
+        priceGuideButton.setAttribute("aria-expanded", "true");
+        priceGuidePanel.classList.remove("is-hidden");
+        requestAnimationFrame(() => {
+          priceGuideButton.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+      }
       const toothScene = '<div class="mini-tooth"><span class="mini-shine"></span></div>';
       const anteriorArch = (extraClass = "") => `
         <div class="anterior-arch upper ${extraClass}">
