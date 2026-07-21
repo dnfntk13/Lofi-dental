@@ -219,7 +219,7 @@
   </head>
   <body>
     <main class="signage-stage" aria-label="Lofi monitor play sequence">
-      <div class="video-diagnostics" id="videoDiagnostics" aria-live="polite"></div>
+      <div class="video-diagnostics" id="videoDiagnostics" aria-live="polite" role="status"></div>
       <section class="screen doctor-screen active" id="doctorScreen" aria-label="Meet Dr. Ryan Kim">
         <div class="doctor-media">
           <video class="doctor-video" id="doctorVideo" muted autoplay playsinline preload="auto"></video>
@@ -370,6 +370,12 @@
         source.setAttribute("src", src);
       }
 
+      function clearVideoSource(video) {
+        var source = video.querySelector("source");
+        if (source) source.removeAttribute("src");
+        video.removeAttribute("src");
+      }
+
       function prepareVideoPlayback(video, src) {
         video.pause();
         if (video.readyState > 0) video.currentTime = 0;
@@ -401,7 +407,6 @@
         });
         cleanupTimer = setTimeout(clearListeners, VIDEO_READY_TIMEOUT);
         if (video.readyState >= 1) startPlayback();
-        else playVideo(video, true);
       }
 
       function advance() {
@@ -419,8 +424,7 @@
         setActiveScreen("doctor");
         doctorErrorCount = 0;
         storyVideo.pause();
-        var storySource = storyVideo.querySelector("source");
-        if (storySource) storySource.removeAttribute("src");
+        clearVideoSource(storyVideo);
         storyVideo.load();
         doctorVideo.onended = advance;
         doctorVideo.onerror = function () {
