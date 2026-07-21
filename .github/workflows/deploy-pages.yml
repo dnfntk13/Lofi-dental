@@ -29,10 +29,15 @@ jobs:
 
       - name: Copy all site files to deploy directory
         run: |
+          shopt -s nullglob
           mkdir -p _site
-          cp index.html english.html dr-kim-story.html concourse-app.html CNAME _site/
-          if [ -d "assets" ]; then cp -r assets _site/; fi
-          if [ -d "public" ]; then cp -r public/* _site/ 2>/dev/null || true; fi
+          find . -maxdepth 1 -type f \( -name "*.html" -o -name "CNAME" \) -exec cp {} _site/ \;
+          for dir in */; do
+            case "$dir" in
+              .git/|.github/|.vscode/|.data/|node_modules/|_site/) continue ;;
+            esac
+            cp -r "$dir" _site/
+          done
           ls -la _site/
 
       - name: Upload artifact to GitHub Pages

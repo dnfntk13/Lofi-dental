@@ -66,6 +66,28 @@
         pointer-events: auto;
       }
 
+      .video-diagnostics {
+        position: absolute;
+        left: 12px;
+        bottom: 10px;
+        z-index: 10;
+        max-width: min(86vw, 980px);
+        padding: 6px 10px;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.66);
+        color: #fff;
+        font-size: 12px;
+        line-height: 1.4;
+        letter-spacing: 0.01em;
+        opacity: 0;
+        transition: opacity 180ms ease;
+        pointer-events: none;
+      }
+
+      .video-diagnostics.visible {
+        opacity: 1;
+      }
+
       .doctor-screen {
         display: grid;
         grid-template-rows: minmax(0, 1fr) clamp(108px, 13vh, 148px);
@@ -197,9 +219,10 @@
   </head>
   <body>
     <main class="signage-stage" aria-label="Lofi monitor play sequence">
+      <div class="video-diagnostics" id="videoDiagnostics" aria-hidden="true"></div>
       <section class="screen doctor-screen active" id="doctorScreen" aria-label="Meet Dr. Ryan Kim">
         <div class="doctor-media">
-          <video class="doctor-video" id="doctorVideo" muted autoplay playsinline preload="auto" src="/assets/story/meet-dr-kim.mp4"></video>
+          <video class="doctor-video" id="doctorVideo" muted autoplay playsinline preload="auto"></video>
         </div>
         <section class="career-panel" aria-label="Career Highlights">
           <h1 class="career-title">Career Highlights</h1>
@@ -243,9 +266,14 @@
       var videoScreen = document.getElementById("videoScreen");
       var doctorVideo = document.getElementById("doctorVideo");
       var storyVideo = document.getElementById("storyVideo");
+      var videoDiagnostics = document.getElementById("videoDiagnostics");
       var current = 0;
       var fallbackTimer = null;
-      var retryTimer = null;
+      var retryTimers = { doctor: null, story: null };
+      var doctorErrorCount = 0;
+      var VIDEO_READY_TIMEOUT = 15000;
+      var DOCTOR_RETRY_DELAY = 1200;
+      var MAX_DOCTOR_RETRIES = 3;
 
       function clearFallback() {
         if (fallbackTimer) {
@@ -254,11 +282,61 @@
         }
       }
 
-      function clearRetry() {
-        if (retryTimer) {
-          clearTimeout(retryTimer);
-          retryTimer = null;
+      function getVideoKey(video) {
+        return video === doctorVideo ? "doctor" : "story";
+      }
+
+      function setDiagnostics(message) {
+        if (!videoDiagnostics) return;
+        if (!message) {
+          videoDiagnostics.textContent = "";
+          videoDiagnostics.classList.remove("visible");
+          return;
         }
+        videoDiagnostics.textContent = message;
+        videoDiagnostics.classList.add("visible");
+      }
+
+      function getVideoErrorMessage(video) {
+        if (!video || !video.error) return "";
+        var err = video.error;
+        var codeMap = {
+          1: "MEDIA_ERR_ABORTED",
+          2: "MEDIA_ERR_NETWORK",
+          3: "MEDIA_ERR_DECODE",
+          4: "MEDIA_ERR_SRC_NOT_SUPPORTED"
+        };
+        var codeText = codeMap[err.code] || "UNKNOWN";
+        var msg = err.message ? String(err.message) : "";
+        return codeText + " (code " + err.code + ")" + (msg ? " - " + msg : "");
+      }
+
+      function logVideoDiagnostics(label, video, reason) {
+        var details = [
+          label,
+          reason || "video issue",
+          "src=" + (video.currentSrc || video.getAttribute("src") || "(none)"),
+          "readyState=" + video.readyState,
+          "networkState=" + video.networkState
+        ];
+        var errorText = getVideoErrorMessage(video);
+        if (errorText) details.push("error=" + errorText);
+        var message = details.join(" | ");
+        console.warn(message);
+        setDiagnostics(message);
+      }
+
+      function clearRetry(video) {
+        var key = getVideoKey(video);
+        if (retryTimers[key]) {
+          clearTimeout(retryTimers[key]);
+          retryTimers[key] = null;
+        }
+      }
+
+      function clearAllRetry() {
+        clearRetry(doctorVideo);
+        clearRetry(storyVideo);
       }
 
       function setActiveScreen(screen) {
@@ -267,7 +345,7 @@
       }
 
       function playVideo(video, reset) {
-        clearRetry();
+        clearRetry(video);
         video.muted = true;
         video.playsInline = true;
         video.autoplay = true;
@@ -275,48 +353,114 @@
         var attempt = video.play();
         if (attempt && typeof attempt.catch === "function") {
           attempt.catch(function (error) {
-            console.warn("Video autoplay retry", error);
-            retryTimer = setTimeout(function () { playVideo(video, false); }, 1000);
+            var key = getVideoKey(video);
+            logVideoDiagnostics(key === "doctor" ? "doctorVideo" : "storyVideo", video, "autoplay retry");
+            if (error && error.message) console.warn("Autoplay error:", error.message);
+            retryTimers[key] = setTimeout(function () { playVideo(video, false); }, 1000);
           });
         }
       }
 
+      function setVideoSource(video, src) {
+        var source = video.querySelector("source");
+        if (!source) {
+          source = document.createElement("source");
+          video.appendChild(source);
+        }
+        source.type = "video/mp4";
+        source.setAttribute("src", src);
+      }
+
+      function clearVideoSource(video) {
+        var source = video.querySelector("source");
+        if (source) source.removeAttribute("src");
+        video.removeAttribute("src");
+      }
+
+      function prepareVideoPlayback(video, src) {
+        video.pause();
+        if (video.readyState > 0) video.currentTime = 0;
+        setVideoSource(video, src);
+        video.load();
+      }
+
+      function playWhenReady(video) {
+        var triggered = false;
+        var events = ["loadedmetadata", "canplay", "canplaythrough"];
+        var cleanupTimer = null;
+        function clearListeners() {
+          if (cleanupTimer) {
+            clearTimeout(cleanupTimer);
+            cleanupTimer = null;
+          }
+          events.forEach(function (eventName) {
+            video.removeEventListener(eventName, startPlayback);
+          });
+        }
+        function startPlayback() {
+          if (triggered) return;
+          triggered = true;
+          clearListeners();
+          playVideo(video, false);
+        }
+        events.forEach(function (eventName) {
+          video.addEventListener(eventName, startPlayback);
+        });
+        cleanupTimer = setTimeout(function () {
+          if (video.readyState >= 1) startPlayback();
+          else clearListeners();
+        }, VIDEO_READY_TIMEOUT);
+        if (video.readyState >= 1) startPlayback();
+      }
+
       function advance() {
         clearFallback();
-        clearRetry();
+        clearAllRetry();
         doctorVideo.pause();
         storyVideo.pause();
+        setDiagnostics("");
         current = (current + 1) % sequence.length;
         showItem(current);
       }
 
       function showDoctor(item) {
-        clearRetry();
+        clearAllRetry();
         setActiveScreen("doctor");
-        storyVideo.removeAttribute("src");
+        doctorErrorCount = 0;
+        storyVideo.pause();
+        clearVideoSource(storyVideo);
         storyVideo.load();
         doctorVideo.onended = advance;
-        doctorVideo.onerror = advance;
-        if (doctorVideo.getAttribute("src") !== item.src) {
-          doctorVideo.setAttribute("src", item.src);
-          doctorVideo.load();
-        }
-        doctorVideo.oncanplay = function () { playVideo(doctorVideo, false); };
+        doctorVideo.onerror = function () {
+          doctorErrorCount += 1;
+          logVideoDiagnostics("doctorVideo", doctorVideo, "load/play error attempt " + doctorErrorCount);
+          if (doctorErrorCount <= MAX_DOCTOR_RETRIES) {
+            clearRetry(doctorVideo);
+            retryTimers.doctor = setTimeout(function () {
+              prepareVideoPlayback(doctorVideo, item.src);
+              playWhenReady(doctorVideo);
+            }, DOCTOR_RETRY_DELAY);
+            return;
+          }
+          advance();
+        };
+        prepareVideoPlayback(doctorVideo, item.src);
+        playWhenReady(doctorVideo);
         fallbackTimer = setTimeout(advance, 12 * 60 * 1000);
-        playVideo(doctorVideo, true);
       }
 
       function showStory(item) {
-        clearRetry();
+        clearAllRetry();
         setActiveScreen("story");
         doctorVideo.pause();
         storyVideo.onended = advance;
-        storyVideo.onerror = advance;
-        storyVideo.setAttribute("src", item.src);
-        storyVideo.load();
-        storyVideo.oncanplay = function () { playVideo(storyVideo, false); };
+        storyVideo.onerror = function () {
+          logVideoDiagnostics("storyVideo", storyVideo, "load/play error");
+          advance();
+        };
+        prepareVideoPlayback(storyVideo, item.src);
+        playWhenReady(storyVideo);
         fallbackTimer = setTimeout(advance, 12 * 60 * 1000);
-        playVideo(storyVideo, true);
       }
 
       function showItem(index) {
