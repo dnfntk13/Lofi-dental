@@ -126,6 +126,7 @@
       .fill { display: block; height: 100%; border-radius: inherit; background: #5b3d8f; }
 
       .split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      .triple { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
       .recent { display: grid; gap: 8px; max-height: 380px; overflow: auto; padding-right: 4px; }
       .visit {
         display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line);
@@ -143,7 +144,7 @@
 
       @media (max-width: 860px) {
         .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .layout, .split { grid-template-columns: 1fr; }
+        .layout, .split, .triple { grid-template-columns: 1fr; }
         .nav-links { margin-left: 0; width: 100%; }
       }
 
@@ -231,7 +232,14 @@
         </div>
       </div>
 
-      <section class="split" style="margin-top:14px">
+      <section class="triple" style="margin-top:14px">
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">External Sites</h2>
+            <span class="panel-note">Last 30 days</span>
+          </div>
+          <div class="list" id="externalSites"></div>
+        </div>
         <div class="panel">
           <div class="panel-head">
             <h2 class="panel-title">Acquisition Paths</h2>
@@ -304,7 +312,7 @@
               <div class="visit-page" title="${escapeHtml(visit.page)}">${escapeHtml(visit.page)}</div>
               <div class="visit-time">${escapeHtml(formatTime(visit.timestamp))}</div>
             </div>
-            <div class="visit-meta">${escapeHtml(visit.device)} · ${escapeHtml(visit.browser)} · ${escapeHtml(visit.acquisitionPath || visit.referrer)}</div>
+            <div class="visit-meta">${escapeHtml(visit.device)} · ${escapeHtml(visit.browser)} · ${escapeHtml(visit.externalReferrerSite || visit.acquisitionPath || visit.referrer)}</div>
           </div>
         `).join("");
       }
@@ -336,6 +344,7 @@
         document.getElementById("todayDelta").textContent = `${delta >= 0 ? "+" : ""}${formatter.format(delta)} vs yesterday`;
         renderChart(Array.isArray(data.daily) ? data.daily : []);
         renderRows("topPages", Array.isArray(data.topPages) ? data.topPages : []);
+        renderRows("externalSites", Array.isArray(data.externalSites) ? data.externalSites : []);
         renderRows("acquisitionPaths", Array.isArray(data.acquisitionPaths) ? data.acquisitionPaths : Array.isArray(data.referrers) ? data.referrers : []);
         renderRows("devices", Array.isArray(data.devices) ? data.devices : []);
         renderRows("browsers", Array.isArray(data.browsers) ? data.browsers : []);

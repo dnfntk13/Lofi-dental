@@ -343,6 +343,7 @@ function createTrafficEvent(request, requestUrl) {
   const now = new Date();
   const userAgent = String(request.headers["user-agent"] || "");
   const referrer = String(request.headers.referer || request.headers.referrer || "").slice(0, 500);
+  const externalReferrerSite = getExternalReferrerSite(referrer);
   const pathname = requestUrl.pathname || "/";
   const search = requestUrl.search || "";
   const event = {
@@ -355,6 +356,7 @@ function createTrafficEvent(request, requestUrl) {
     referrer,
     referrerHost: getReferrerLabel(referrer),
     referrerPath: getReferrerUrl(referrer),
+    externalReferrerSite,
     campaign: {
       source: getTrafficParam(requestUrl, "utm_source"),
       medium: getTrafficParam(requestUrl, "utm_medium"),
@@ -444,6 +446,28 @@ function getReferrerLabel(referrer) {
   }
 }
 
+function isInternalReferrerHost(hostname) {
+  const host = String(hostname || "").toLowerCase().replace(/^www\./, "");
+  return [
+    "lofiesthetic.com",
+    "lofidental.cc",
+    "localhost",
+    "127.0.0.1",
+    "::1",
+  ].some((internalHost) => host === internalHost || host.endsWith(`.${internalHost}`));
+}
+
+function getExternalReferrerSite(referrer) {
+  if (!referrer) return "";
+  try {
+    const url = new URL(referrer);
+    const host = url.hostname.replace(/^www\./, "");
+    return isInternalReferrerHost(host) ? "" : host;
+  } catch {
+    return "";
+  }
+}
+
 function getReferrerUrl(referrer) {
   if (!referrer) return "";
   try {
@@ -475,6 +499,7 @@ function summarizeTraffic(events) {
   const dailyMap = new Map();
   const pageMap = new Map();
   const referrerMap = new Map();
+  const externalSiteMap = new Map();
   const acquisitionMap = new Map();
   const deviceMap = new Map();
   const browserMap = new Map();
@@ -508,6 +533,8 @@ function summarizeTraffic(events) {
       if (visitorId) thirtyDayVisitors.add(visitorId);
       incrementCount(pageMap, event.page || event.path || "/");
       incrementCount(referrerMap, getReferrerLabel(event.referrer));
+      const externalSite = event.externalReferrerSite || getExternalReferrerSite(event.referrer);
+      if (externalSite) incrementCount(externalSiteMap, externalSite);
       incrementCount(acquisitionMap, event.acquisitionPath || getAcquisitionPath(event));
       incrementCount(deviceMap, event.device || "unknown");
       incrementCount(browserMap, event.browser || "Other");
@@ -534,6 +561,7 @@ function summarizeTraffic(events) {
     daily: [...dailyMap.values()].map((entry) => ({ day: entry.day, views: entry.views, visitors: entry.visitors.size })),
     topPages: mapToSortedArray(pageMap, 12),
     referrers: mapToSortedArray(referrerMap, 8),
+    externalSites: mapToSortedArray(externalSiteMap, 10),
     acquisitionPaths: mapToSortedArray(acquisitionMap, 10),
     devices: mapToSortedArray(deviceMap, 6),
     browsers: mapToSortedArray(browserMap, 6),
@@ -542,6 +570,7 @@ function summarizeTraffic(events) {
       day: event.day,
       page: event.page || event.path || "/",
       referrer: getReferrerLabel(event.referrer),
+      externalReferrerSite: event.externalReferrerSite || getExternalReferrerSite(event.referrer),
       acquisitionPath: event.acquisitionPath || getAcquisitionPath(event),
       device: event.device || "unknown",
       browser: event.browser || "Other",
