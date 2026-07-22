@@ -957,6 +957,90 @@
         transform: translateX(-50%) scale(0.88);
       }
 
+      .masseter-scene {
+        position: relative;
+        height: 100%;
+        overflow: hidden;
+        background: linear-gradient(135deg, #f9f6ff 0%, #eef2ff 100%);
+      }
+
+      .masseter-photo {
+        position: absolute;
+        inset: 0;
+        background-image: url("../assets/animation-reference/masseter-botox-face.png");
+        background-size: 210px auto;
+        background-repeat: no-repeat;
+        background-position: 84% 38%;
+      }
+
+      .masseter-photo.after {
+        opacity: 0;
+        transform: scaleX(0.9);
+        transform-origin: 78% 64%;
+        clip-path: polygon(50% 18%, 100% 18%, 100% 100%, 42% 100%);
+        filter: saturate(1.04) brightness(1.03);
+      }
+
+      .masseter-soft-mask {
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(90deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.86) 35%, rgba(255,255,255,0.08) 68%, rgba(255,255,255,0) 100%),
+          radial-gradient(circle at 78% 64%, rgba(221,229,255,0.36), transparent 34%);
+      }
+
+      .masseter-label {
+        position: absolute;
+        left: 16px;
+        z-index: 3;
+        padding: 5px 9px;
+        border: 1px solid rgba(90, 111, 218, 0.2);
+        border-radius: 999px;
+        background: rgba(255,255,255,0.9);
+        color: var(--ink);
+        font-size: 0.72rem;
+        font-weight: 800;
+      }
+
+      .masseter-label.before { top: 18px; }
+      .masseter-label.after { bottom: 18px; opacity: 0; }
+
+      .masseter-arrow {
+        position: absolute;
+        left: 32px;
+        top: 70px;
+        z-index: 3;
+        width: 78px;
+        height: 1px;
+        background: rgba(77, 100, 216, 0.42);
+        transform-origin: left center;
+      }
+
+      .masseter-arrow::after {
+        content: "";
+        position: absolute;
+        right: -1px;
+        top: -4px;
+        width: 9px;
+        height: 9px;
+        border-right: 1px solid rgba(77, 100, 216, 0.58);
+        border-top: 1px solid rgba(77, 100, 216, 0.58);
+        transform: rotate(45deg);
+      }
+
+      .masseter-contour {
+        position: absolute;
+        right: 55px;
+        bottom: 18px;
+        z-index: 3;
+        width: 82px;
+        height: 68px;
+        border-right: 2px solid rgba(77, 100, 216, 0.52);
+        border-bottom: 2px solid rgba(77, 100, 216, 0.3);
+        border-radius: 48% 38% 56% 42%;
+        transform: rotate(7deg) scaleX(1.16);
+      }
+
       .dental-svg {
         position: absolute;
         inset: 0;
@@ -1211,9 +1295,54 @@
         animation: svgStraightenTooth 5s ease forwards;
       }
 
+      .clip-overlay.is-playing [data-scene="masseterBotox"] .masseter-photo.after {
+        animation: masseterAfterReveal 5s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="masseterBotox"] .masseter-label.before {
+        animation: masseterBeforeLabel 5s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="masseterBotox"] .masseter-label.after {
+        animation: masseterAfterLabel 5s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="masseterBotox"] .masseter-arrow {
+        animation: masseterArrow 5s ease forwards;
+      }
+
+      .clip-overlay.is-playing [data-scene="masseterBotox"] .masseter-contour {
+        animation: masseterContour 5s ease forwards;
+      }
+
       @keyframes whitenTooth {
         0% { background: #f4f0df; }
         70%, 100% { background: #fff; }
+      }
+
+      @keyframes masseterAfterReveal {
+        0%, 32% { opacity: 0; transform: scaleX(1); }
+        54%, 100% { opacity: 1; transform: scaleX(0.9); }
+      }
+
+      @keyframes masseterBeforeLabel {
+        0%, 42% { opacity: 1; transform: translateY(0); }
+        70%, 100% { opacity: 0.36; transform: translateY(-5px); }
+      }
+
+      @keyframes masseterAfterLabel {
+        0%, 42% { opacity: 0; transform: translateY(6px); }
+        70%, 100% { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes masseterArrow {
+        0%, 30% { opacity: 0.35; transform: scaleX(0.58); }
+        58%, 100% { opacity: 1; transform: scaleX(1); }
+      }
+
+      @keyframes masseterContour {
+        0%, 36% { opacity: 0.35; transform: rotate(7deg) scaleX(1.16); }
+        70%, 100% { opacity: 1; transform: translateX(10px) rotate(7deg) scaleX(0.82); }
       }
 
       @keyframes sweepBeam {
@@ -1527,7 +1656,7 @@
               </div>
 
               <div class="price-guide-subsection">
-                <p class="price-guide-subheading"><span>Masseter Botox (Jaw Slimming)</span><span>₩150,000</span></p>
+                <p class="price-guide-subheading"><span>Masseter Botox (Jaw Slimming) <button class="clip-trigger" type="button" data-clip="masseterBotox" aria-label="Play Masseter Botox 5 second clip">?</button></span><span>₩150,000</span></p>
               </div>
 
               <div class="price-guide-subsection">
@@ -1752,6 +1881,16 @@
       const whiteningLampScene = `
         <path class="svg-light-cone" d="M${lampX} ${lampY + 10} L${ARCH_LEFT - 4} ${UPPER_GUM_Y - 6} L${ARCH_LEFT - 4} ${LOWER_GUM_Y + 6} Z"/>
         <g class="svg-lamp-head"><rect x="${lampX - 4}" y="${lampY - 14}" width="34" height="24" rx="10"/><rect x="${lampX + 26}" y="${lampY - 8}" width="16" height="10" rx="5"/></g>`;
+      const masseterScene = `
+        <div class="masseter-scene" data-scene="masseterBotox">
+          <div class="masseter-photo before"></div>
+          <div class="masseter-photo after"></div>
+          <div class="masseter-soft-mask"></div>
+          <span class="masseter-label before">Before</span>
+          <span class="masseter-label after">After</span>
+          <span class="masseter-arrow"></span>
+          <span class="masseter-contour"></span>
+        </div>`;
       const shellLeft = ARCH_LEFT - 18;
       const shellRight = ARCH_RIGHT + 18;
       const shellTop = UPPER_GUM_Y - 14;
@@ -1783,6 +1922,11 @@
           title: "Dental Crown",
           copy: "Covers and protects a weakened tooth when a larger restoration is needed.",
           visual: `<div data-scene="crown">${crownScene}</div>`,
+        },
+        masseterBotox: {
+          title: "Masseter Botox (Jaw Slimming)",
+          copy: "The lower face changes from a stronger jaw line toward a slimmer V-line contour.",
+          visual: masseterScene,
         },
         veneers: {
           title: "Veneers",

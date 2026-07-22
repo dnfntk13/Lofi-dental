@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Traffic | lofi dental admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Nunito+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f5f7ff;
+        --ink: #1f2d66;
+        --soft: #5a6fda;
+        --line: rgba(90, 111, 218, 0.16);
+        --card: rgba(255, 255, 255, 0.95);
+        --accent: #5b3d8f;
+        --green: #2e7d32;
+        --wash: #eef2ff;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Nunito Sans", "Segoe UI", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 12% 8%, rgba(220, 200, 237, 0.66), transparent 42%),
+          radial-gradient(circle at 88% 14%, rgba(230, 213, 245, 0.72), transparent 46%),
+          linear-gradient(170deg, #f5f7ff 0%, #e7edff 100%);
+      }
+
+      .wrap { width: min(1120px, 94vw); margin: 0 auto; padding: 28px 0 60px; }
+
+      .topbar {
+        display: flex; align-items: center; gap: 18px;
+        flex-wrap: wrap; margin-bottom: 32px;
+      }
+
+      .logo-img { max-width: 300px; width: min(300px, 56vw); height: auto; display: block; margin-left: -10px; }
+      .logo-link { display: inline-block; line-height: 0; text-decoration: none; }
+
+      .nav-links { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+      .nav-link {
+        text-decoration: none; color: var(--soft); font-size: 0.92rem; font-weight: 700;
+        padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line);
+        transition: 180ms ease; white-space: nowrap; background: rgba(255,255,255,0.72);
+      }
+
+      .nav-link:hover { background: #e6d5f5; transform: translateY(-1px); }
+      .nav-link.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+      .header {
+        display: flex; align-items: end; justify-content: space-between;
+        gap: 14px; margin-bottom: 18px; flex-wrap: wrap;
+      }
+
+      h1 { margin: 0; font-family: "Cormorant Garamond", serif; font-size: clamp(1.9rem, 3vw, 2.8rem); font-weight: 600; }
+      .subtitle { margin: 4px 0 0; color: var(--soft); font-size: 0.95rem; }
+
+      .btn {
+        border: 1px solid var(--line); border-radius: 999px; padding: 10px 16px;
+        background: #fff; color: var(--ink); font: inherit; font-weight: 800; cursor: pointer;
+        transition: 150ms;
+      }
+
+      .btn:hover { background: #e6d5f5; transform: translateY(-1px); }
+      .btn:disabled { opacity: 0.58; cursor: wait; transform: none; }
+
+      .status { margin: 0 0 14px; min-height: 1.3em; color: var(--soft); font-size: 0.9rem; }
+      .status.error { color: #a32626; }
+
+      .metric-grid {
+        display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px; margin-bottom: 14px;
+      }
+
+      .metric,
+      .panel {
+        border: 1px solid var(--line); border-radius: 18px;
+        background: var(--card); box-shadow: 0 14px 34px rgba(31, 45, 102, 0.08);
+      }
+
+      .metric { padding: 18px; min-height: 118px; }
+      .metric-label { margin: 0; color: var(--soft); font-size: 0.82rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+      .metric-value { margin: 8px 0 0; font-size: clamp(1.7rem, 3vw, 2.4rem); font-weight: 800; color: var(--ink); }
+      .metric-note { margin: 4px 0 0; color: var(--soft); font-size: 0.86rem; }
+
+      .layout { display: grid; grid-template-columns: 1.35fr 0.85fr; gap: 14px; align-items: start; }
+      .stack { display: grid; gap: 14px; }
+      .panel { padding: 18px; overflow: hidden; }
+      .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+      .panel-title { margin: 0; font-size: 1.02rem; font-weight: 800; }
+      .panel-note { color: var(--soft); font-size: 0.84rem; white-space: nowrap; }
+
+      .chart {
+        display: grid; grid-template-columns: repeat(30, minmax(8px, 1fr));
+        align-items: end; gap: 5px; height: 190px; padding: 8px 2px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .bar-wrap { display: grid; align-items: end; height: 100%; min-width: 0; }
+      .bar {
+        min-height: 4px; border-radius: 6px 6px 0 0;
+        background: linear-gradient(180deg, #5b3d8f 0%, #8ea0ff 100%);
+        position: relative;
+      }
+
+      .bar:hover::after {
+        content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 7px);
+        transform: translateX(-50%); padding: 6px 8px; border-radius: 8px;
+        background: #1f2d66; color: #fff; font-size: 0.75rem; white-space: nowrap; z-index: 3;
+      }
+
+      .list { display: grid; gap: 9px; }
+      .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+      .row-label { min-width: 0; color: var(--ink); font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .row-value { color: var(--soft); font-size: 0.9rem; font-weight: 800; white-space: nowrap; }
+      .track { grid-column: 1 / -1; height: 7px; border-radius: 999px; background: var(--wash); overflow: hidden; }
+      .fill { display: block; height: 100%; border-radius: inherit; background: #5b3d8f; }
+
+      .split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      .recent { display: grid; gap: 8px; max-height: 380px; overflow: auto; padding-right: 4px; }
+      .visit {
+        display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line);
+        border-radius: 12px; background: rgba(248, 250, 255, 0.76);
+      }
+      .visit-main { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .visit-page { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; }
+      .visit-time { color: var(--soft); font-size: 0.78rem; white-space: nowrap; }
+      .visit-meta { color: var(--soft); font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+      .empty {
+        margin: 0; padding: 18px; border: 1px dashed var(--line); border-radius: 14px;
+        color: var(--soft); text-align: center; background: rgba(255,255,255,0.62);
+      }
+
+      @media (max-width: 860px) {
+        .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .layout, .split { grid-template-columns: 1fr; }
+        .nav-links { margin-left: 0; width: 100%; }
+      }
+
+      @media (max-width: 520px) {
+        .metric-grid { grid-template-columns: 1fr; }
+        .chart { gap: 3px; height: 150px; }
+        .panel { padding: 14px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="topbar">
+        <a class="logo-link" href="/english" aria-label="Lofi Dental home">
+          <img src="../assets/영문로고.png" alt="lofi dental" class="logo-img" />
+        </a>
+        <nav class="nav-links" aria-label="Admin navigation">
+          <a class="nav-link" href="/admin/calendar">Calendar</a>
+          <a class="nav-link" href="/admin/patients">Patients</a>
+          <a class="nav-link active" href="/admin/traffic">Traffic</a>
+          <a class="nav-link" href="/admin">Admin home</a>
+        </nav>
+      </header>
+
+      <div class="header">
+        <div>
+          <h1>Website Traffic</h1>
+          <p class="subtitle">Public page views, visitors, referrals, and device mix.</p>
+        </div>
+        <button class="btn" id="refreshBtn">Refresh</button>
+      </div>
+
+      <p class="status" id="statusMsg">Loading traffic...</p>
+
+      <section class="metric-grid" aria-label="Traffic summary">
+        <div class="metric">
+          <p class="metric-label">Today</p>
+          <p class="metric-value" id="todayViews">-</p>
+          <p class="metric-note"><span id="todayVisitors">-</span> visitors</p>
+        </div>
+        <div class="metric">
+          <p class="metric-label">Yesterday</p>
+          <p class="metric-value" id="yesterdayViews">-</p>
+          <p class="metric-note" id="todayDelta">Compared with yesterday</p>
+        </div>
+        <div class="metric">
+          <p class="metric-label">Last 7 Days</p>
+          <p class="metric-value" id="sevenDayViews">-</p>
+          <p class="metric-note"><span id="sevenDayVisitors">-</span> visitors</p>
+        </div>
+        <div class="metric">
+          <p class="metric-label">Last 30 Days</p>
+          <p class="metric-value" id="thirtyDayViews">-</p>
+          <p class="metric-note"><span id="thirtyDayVisitors">-</span> visitors</p>
+        </div>
+      </section>
+
+      <div class="layout">
+        <div class="stack">
+          <section class="panel">
+            <div class="panel-head">
+              <h2 class="panel-title">30 Day Trend</h2>
+              <span class="panel-note">Korea time</span>
+            </div>
+            <div class="chart" id="dailyChart" aria-label="Daily page views chart"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2 class="panel-title">Top Pages</h2>
+              <span class="panel-note">Last 30 days</span>
+            </div>
+            <div class="list" id="topPages"></div>
+          </section>
+        </div>
+
+        <div class="stack">
+          <section class="panel">
+            <div class="panel-head">
+              <h2 class="panel-title">Recent Visits</h2>
+              <span class="panel-note">Latest 30</span>
+            </div>
+            <div class="recent" id="recentVisits"></div>
+          </section>
+        </div>
+      </div>
+
+      <section class="split" style="margin-top:14px">
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Referrers</h2>
+            <span class="panel-note">Last 30 days</span>
+          </div>
+          <div class="list" id="referrers"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Devices & Browsers</h2>
+            <span class="panel-note">Last 30 days</span>
+          </div>
+          <div class="list" id="devices"></div>
+          <div class="list" id="browsers" style="margin-top:14px"></div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const statusMsg = document.getElementById("statusMsg");
+      const refreshBtn = document.getElementById("refreshBtn");
+      const formatter = new Intl.NumberFormat("en-US");
+      const timeFormatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Seoul",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+
+      function setText(id, value) {
+        document.getElementById(id).textContent = formatter.format(Number(value || 0));
+      }
+
+      function renderRows(elementId, rows) {
+        const element = document.getElementById(elementId);
+        const max = Math.max(...rows.map((row) => row.views || 0), 1);
+        if (!rows.length) {
+          element.innerHTML = '<p class="empty">No traffic yet.</p>';
+          return;
+        }
+        element.innerHTML = rows.map((row) => `
+          <div class="row">
+            <div class="row-label" title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</div>
+            <div class="row-value">${formatter.format(row.views)}</div>
+            <div class="track"><span class="fill" style="width:${Math.max(4, Math.round((row.views / max) * 100))}%"></span></div>
+          </div>
+        `).join("");
+      }
+
+      function renderChart(days) {
+        const chart = document.getElementById("dailyChart");
+        const max = Math.max(...days.map((day) => day.views || 0), 1);
+        chart.innerHTML = days.map((day) => {
+          const height = Math.max(3, Math.round((day.views / max) * 100));
+          const label = `${day.day}: ${formatter.format(day.views)} views, ${formatter.format(day.visitors)} visitors`;
+          return `<div class="bar-wrap"><div class="bar" style="height:${height}%" data-tip="${escapeHtml(label)}"></div></div>`;
+        }).join("");
+      }
+
+      function renderRecent(visits) {
+        const recent = document.getElementById("recentVisits");
+        if (!visits.length) {
+          recent.innerHTML = '<p class="empty">No visits recorded yet.</p>';
+          return;
+        }
+        recent.innerHTML = visits.map((visit) => `
+          <div class="visit">
+            <div class="visit-main">
+              <div class="visit-page" title="${escapeHtml(visit.page)}">${escapeHtml(visit.page)}</div>
+              <div class="visit-time">${escapeHtml(formatTime(visit.timestamp))}</div>
+            </div>
+            <div class="visit-meta">${escapeHtml(visit.device)} · ${escapeHtml(visit.browser)} · ${escapeHtml(visit.referrer)}</div>
+          </div>
+        `).join("");
+      }
+
+      function formatTime(value) {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? "-" : timeFormatter.format(date);
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "").replace(/[&<>"]/g, (char) => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+        }[char]));
+      }
+
+      function render(data) {
+        const totals = data.totals || {};
+        setText("todayViews", totals.todayViews);
+        setText("todayVisitors", totals.todayVisitors);
+        setText("yesterdayViews", totals.yesterdayViews);
+        setText("sevenDayViews", totals.sevenDayViews);
+        setText("sevenDayVisitors", totals.sevenDayVisitors);
+        setText("thirtyDayViews", totals.thirtyDayViews);
+        setText("thirtyDayVisitors", totals.thirtyDayVisitors);
+        const delta = Number(totals.todayViews || 0) - Number(totals.yesterdayViews || 0);
+        document.getElementById("todayDelta").textContent = `${delta >= 0 ? "+" : ""}${formatter.format(delta)} vs yesterday`;
+        renderChart(Array.isArray(data.daily) ? data.daily : []);
+        renderRows("topPages", Array.isArray(data.topPages) ? data.topPages : []);
+        renderRows("referrers", Array.isArray(data.referrers) ? data.referrers : []);
+        renderRows("devices", Array.isArray(data.devices) ? data.devices : []);
+        renderRows("browsers", Array.isArray(data.browsers) ? data.browsers : []);
+        renderRecent(Array.isArray(data.recent) ? data.recent : []);
+        statusMsg.className = "status";
+        statusMsg.textContent = data.generatedAt ? `Updated ${formatTime(data.generatedAt)}` : "Updated";
+      }
+
+      async function loadTraffic() {
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = "Refreshing...";
+        statusMsg.className = "status";
+        statusMsg.textContent = "Loading traffic...";
+        try {
+          const res = await fetch("/api/admin/traffic", { headers: { Accept: "application/json" } });
+          if (!res.ok) throw new Error("Traffic request failed");
+          render(await res.json());
+        } catch (error) {
+          statusMsg.className = "status error";
+          statusMsg.textContent = "Failed to load traffic. Try refreshing after a new page visit.";
+        } finally {
+          refreshBtn.disabled = false;
+          refreshBtn.textContent = "Refresh";
+        }
+      }
+
+      refreshBtn.addEventListener("click", loadTraffic);
+      loadTraffic();
+    </script>
+  </body>
+</html>

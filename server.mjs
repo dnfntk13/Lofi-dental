@@ -40,14 +40,17 @@ const inboxPath = path.join(dataDir, "reservation-inbox.json");
 const emailThreadsPath = path.join(dataDir, "email-threads.json");
 const imapProcessedPath = path.join(dataDir, "imap-processed.json");
 const instagramSettingsPath = path.join(dataDir, "instagram-settings.json");
+const trafficPath = path.join(dataDir, "traffic-events.json");
 const mongoUri = process.env.MONGODB_URI || "";
 const mongoDatabaseName = process.env.MONGODB_DB_NAME || "lofi-dental";
 const mongoCollectionName = process.env.MONGODB_COLLECTION || "reservationMessages";
 const patientsCollectionName = process.env.MONGODB_PATIENTS_COLLECTION || "patients";
 const emailThreadsCollectionName = process.env.MONGODB_EMAIL_THREADS_COLLECTION || "emailThreads";
+const trafficCollectionName = process.env.MONGODB_TRAFFIC_COLLECTION || "trafficEvents";
 const patientsPath = path.join(dataDir, "patients.json");
 let patientsCollectionPromise;
 let emailThreadsCollectionPromise;
+let trafficCollectionPromise;
 const smtpHost = process.env.SMTP_HOST || "";
 const smtpPort = Number(process.env.SMTP_PORT || 587);
 const smtpUser = process.env.SMTP_USER || "";
@@ -76,6 +79,8 @@ const emailVerificationTtlMs = 10 * 60 * 1000;
 const instagramAuthStateTtlMs = 10 * 60 * 1000;
 const emailResolver = new Resolver();
 emailResolver.setServers(emailDnsServers);
+const trafficHashSecret = process.env.TRAFFIC_HASH_SECRET || adminSessionValue;
+const maxLocalTrafficEvents = Number(process.env.TRAFFIC_LOCAL_LIMIT || 10000);
 const reservationCorsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -127,6 +132,10 @@ function resolvePath(urlPath) {
 
   if (["/admin/instagram-settings", "/admin/instagram-settings/"].includes(pathname)) {
     return "/admin/instagram-settings.html";
+  }
+
+  if (["/admin/traffic", "/admin/traffic/"].includes(pathname)) {
+    return "/admin/traffic.html";
   }
 
   if (["/admin", "/admin/"].includes(pathname)) {
@@ -240,6 +249,260 @@ async function addInboxRecord(record) {
   messages.unshift(record);
   await mkdir(dataDir, { recursive: true });
   await writeFile(inboxPath, JSON.stringify(messages, null, 2), "utf-8");
+}
+
+async function getTrafficCollection() {
+  if (!mongoUri) {
+    return null;
+  }
+
+  if (!trafficCollectionPromise) {
+    trafficCollectionPromise = (async () => {
+      const client = new MongoClient(mongoUri, {
+        connectTimeoutMS: 8000,
+        serverSelectionTimeoutMS: 8000,
+      });
+      await client.connect();
+      const collection = client.db(mongoDatabaseName).collection(trafficCollectionName);
+      await collection.createIndex({ timestamp: -1 });
+      await collection.createIndex({ day: -1 });
+      await collection.createIndex({ path: 1, timestamp: -1 });
+      return collection;
+    })().catch((error) => {
+      trafficCollectionPromise = undefined;
+      throw error;
+    });
+  }
+
+  return trafficCollectionPromise;
+}
+
+function getKoreanDay(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value || "0000";
+  const month = parts.find((part) => part.type === "month")?.value || "00";
+  const day = parts.find((part) => part.type === "day")?.value || "00";
+  return `${year}-${month}-${day}`;
+}
+
+function addDaysToDay(day, offset) {
+  const [year, month, date] = String(day || "").split("-").map(Number);
+  const utc = new Date(Date.UTC(year || 1970, (month || 1) - 1, date || 1));
+  utc.setUTCDate(utc.getUTCDate() + offset);
+  return utc.toISOString().slice(0, 10);
+}
+
+function hashTrafficValue(value) {
+  const normalized = String(value || "unknown").trim() || "unknown";
+  return createHmac("sha256", trafficHashSecret).update(normalized).digest("hex").slice(0, 24);
+}
+
+function getClientIp(request) {
+  const forwarded = String(request.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return forwarded || request.socket.remoteAddress || "unknown";
+}
+
+function getDeviceType(userAgent) {
+  const ua = String(userAgent || "").toLowerCase();
+  if (/ipad|tablet/.test(ua)) return "tablet";
+  if (/android|iphone|ipod|blackberry|iemobile|opera mini|mobile/.test(ua)) return "mobile";
+  return "desktop";
+}
+
+function getBrowserName(userAgent) {
+  const ua = String(userAgent || "");
+  if (/Edg\//.test(ua)) return "Edge";
+  if (/Chrome\//.test(ua) && !/Chromium\//.test(ua)) return "Chrome";
+  if (/Safari\//.test(ua) && !/Chrome\//.test(ua)) return "Safari";
+  if (/Firefox\//.test(ua)) return "Firefox";
+  if (/Instagram/.test(ua)) return "Instagram";
+  return "Other";
+}
+
+function isLikelyBot(userAgent) {
+  return /bot|crawl|spider|slurp|preview|facebookexternalhit|whatsapp|telegram|discord|uptime|monitor/i.test(String(userAgent || ""));
+}
+
+function shouldTrackTraffic(request, pathname, safeRelativePath, extension) {
+  if (request.method !== "GET") return false;
+  if (extension !== ".html") return false;
+  if (pathname.startsWith("/admin") || pathname.startsWith("/api/")) return false;
+  if (pathname.startsWith("/assets/") || pathname.startsWith("/chrome-extension/")) return false;
+  if (pathname.startsWith("/.well-known/")) return false;
+  if (isLikelyBot(request.headers["user-agent"])) return false;
+  return Boolean(safeRelativePath && safeRelativePath.endsWith(".html"));
+}
+
+function createTrafficEvent(request, requestUrl) {
+  const now = new Date();
+  const userAgent = String(request.headers["user-agent"] || "");
+  const referrer = String(request.headers.referer || request.headers.referrer || "").slice(0, 500);
+  const pathname = requestUrl.pathname || "/";
+  const search = requestUrl.search || "";
+  return {
+    id: `${now.getTime()}-${randomBytes(5).toString("hex")}`,
+    timestamp: now.toISOString(),
+    day: getKoreanDay(now),
+    path: pathname,
+    query: search,
+    page: pathname,
+    referrer,
+    device: getDeviceType(userAgent),
+    browser: getBrowserName(userAgent),
+    visitorId: hashTrafficValue(`${getClientIp(request)}|${userAgent}`),
+  };
+}
+
+async function saveTrafficEvent(event) {
+  const collection = await getTrafficCollection();
+  if (collection) {
+    await collection.insertOne(event);
+    return;
+  }
+
+  let events = [];
+  try {
+    const data = await readFile(trafficPath, "utf-8");
+    const parsed = JSON.parse(data);
+    events = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    events = [];
+  }
+
+  events.unshift(event);
+  const limit = Number.isFinite(maxLocalTrafficEvents) && maxLocalTrafficEvents > 0 ? maxLocalTrafficEvents : 10000;
+  await mkdir(dataDir, { recursive: true });
+  await writeFile(trafficPath, JSON.stringify(events.slice(0, limit), null, 2), "utf-8");
+}
+
+async function readTrafficEvents({ sinceDay, limit = 10000 } = {}) {
+  const collection = await getTrafficCollection();
+  if (collection) {
+    const query = sinceDay ? { day: { $gte: sinceDay } } : {};
+    return collection
+      .find(query, { projection: { _id: 0 } })
+      .sort({ timestamp: -1 })
+      .limit(limit)
+      .toArray();
+  }
+
+  try {
+    const data = await readFile(trafficPath, "utf-8");
+    const parsed = JSON.parse(data);
+    const events = Array.isArray(parsed) ? parsed : [];
+    return events
+      .filter((event) => !sinceDay || String(event.day || "") >= sinceDay)
+      .sort((a, b) => String(b.timestamp || "").localeCompare(String(a.timestamp || "")))
+      .slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+function incrementCount(map, key) {
+  const normalized = String(key || "Unknown").trim() || "Unknown";
+  map.set(normalized, (map.get(normalized) || 0) + 1);
+}
+
+function mapToSortedArray(map, limit = 10) {
+  return [...map.entries()]
+    .map(([label, views]) => ({ label, views }))
+    .sort((a, b) => b.views - a.views || a.label.localeCompare(b.label))
+    .slice(0, limit);
+}
+
+function getReferrerLabel(referrer) {
+  if (!referrer) return "Direct / none";
+  try {
+    const url = new URL(referrer);
+    return url.hostname.replace(/^www\./, "");
+  } catch {
+    return "Other";
+  }
+}
+
+function summarizeTraffic(events) {
+  const today = getKoreanDay();
+  const yesterday = addDaysToDay(today, -1);
+  const sevenDayStart = addDaysToDay(today, -6);
+  const thirtyDayStart = addDaysToDay(today, -29);
+  const dailyMap = new Map();
+  const pageMap = new Map();
+  const referrerMap = new Map();
+  const deviceMap = new Map();
+  const browserMap = new Map();
+  const todayVisitors = new Set();
+  const sevenDayVisitors = new Set();
+  const thirtyDayVisitors = new Set();
+
+  let todayViews = 0;
+  let yesterdayViews = 0;
+  let sevenDayViews = 0;
+  let thirtyDayViews = 0;
+
+  for (let offset = 29; offset >= 0; offset -= 1) {
+    dailyMap.set(addDaysToDay(today, -offset), { day: addDaysToDay(today, -offset), views: 0, visitors: new Set() });
+  }
+
+  for (const event of events) {
+    const day = String(event.day || getKoreanDay(event.timestamp));
+    const visitorId = String(event.visitorId || "");
+    if (day === today) {
+      todayViews += 1;
+      if (visitorId) todayVisitors.add(visitorId);
+    }
+    if (day === yesterday) yesterdayViews += 1;
+    if (day >= sevenDayStart) {
+      sevenDayViews += 1;
+      if (visitorId) sevenDayVisitors.add(visitorId);
+    }
+    if (day >= thirtyDayStart) {
+      thirtyDayViews += 1;
+      if (visitorId) thirtyDayVisitors.add(visitorId);
+      incrementCount(pageMap, event.page || event.path || "/");
+      incrementCount(referrerMap, getReferrerLabel(event.referrer));
+      incrementCount(deviceMap, event.device || "unknown");
+      incrementCount(browserMap, event.browser || "Other");
+    }
+    if (dailyMap.has(day)) {
+      const daily = dailyMap.get(day);
+      daily.views += 1;
+      if (visitorId) daily.visitors.add(visitorId);
+    }
+  }
+
+  return {
+    generatedAt: new Date().toISOString(),
+    range: { today, sevenDayStart, thirtyDayStart },
+    totals: {
+      todayViews,
+      todayVisitors: todayVisitors.size,
+      yesterdayViews,
+      sevenDayViews,
+      sevenDayVisitors: sevenDayVisitors.size,
+      thirtyDayViews,
+      thirtyDayVisitors: thirtyDayVisitors.size,
+    },
+    daily: [...dailyMap.values()].map((entry) => ({ day: entry.day, views: entry.views, visitors: entry.visitors.size })),
+    topPages: mapToSortedArray(pageMap, 12),
+    referrers: mapToSortedArray(referrerMap, 8),
+    devices: mapToSortedArray(deviceMap, 6),
+    browsers: mapToSortedArray(browserMap, 6),
+    recent: events.slice(0, 30).map((event) => ({
+      timestamp: event.timestamp,
+      day: event.day,
+      page: event.page || event.path || "/",
+      referrer: getReferrerLabel(event.referrer),
+      device: event.device || "unknown",
+      browser: event.browser || "Other",
+    })),
+  };
 }
 
 async function upsertInboxRecord(record) {
@@ -685,19 +948,28 @@ async function updatePatientName(email, name) {
 }
 
 async function deletePatientRecord(email) {
-  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const normalizedEmail = normalizePatientEmail(email);
   if (!normalizedEmail) return { deleted: false, removedReservations: 0, removedThread: false };
   const collection = await getPatientsCollection();
   let patient = null;
   let deleted = false;
 
   if (collection) {
-    patient = await collection.findOne({ email: normalizedEmail }, { projection: { _id: 0 } });
-    const result = await collection.deleteOne({ email: normalizedEmail });
+    const query = {
+      $or: [
+        { email: normalizedEmail },
+        { realEmail: normalizedEmail },
+        { threadEmails: normalizedEmail },
+        { "latestReservation.email": normalizedEmail },
+        { "reservations.email": normalizedEmail },
+      ],
+    };
+    patient = await collection.findOne(query, { projection: { _id: 0 } });
+    const result = await collection.deleteOne(query);
     deleted = result.deletedCount > 0;
   } else {
     const patients = await readPatients();
-    const index = patients.findIndex((item) => String(item.email || "").toLowerCase() === normalizedEmail);
+    const index = patients.findIndex((item) => getPatientEmailKeys(item).has(normalizedEmail));
     if (index >= 0) {
       patient = patients[index];
       patients.splice(index, 1);
@@ -712,7 +984,11 @@ async function deletePatientRecord(email) {
   for (const id of reservationIds) {
     if (await deleteInboxRecord(id)) removedReservations += 1;
   }
-  const removedThread = await deleteEmailThread(normalizedEmail);
+  const threadEmails = [...new Set([normalizedEmail, ...Array.from(getPatientEmailKeys(patient || {}))].filter(Boolean))];
+  let removedThread = false;
+  for (const threadEmail of threadEmails) {
+    if (await deleteEmailThread(threadEmail)) removedThread = true;
+  }
   return { deleted, removedReservations, removedThread };
 }
 
@@ -3078,6 +3354,25 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname === "/api/admin/traffic" && request.method === "GET") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    try {
+      const today = getKoreanDay();
+      const sinceDay = addDaysToDay(today, -29);
+      const events = await readTrafficEvents({ sinceDay, limit: 15000 });
+      response.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+      });
+      response.end(JSON.stringify(summarizeTraffic(events)));
+    } catch (error) {
+      console.error("Failed to load traffic analytics", error);
+      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Failed to load traffic analytics" }));
+    }
+    return;
+  }
+
   if (pathname === "/api/admin/login" && request.method === "POST") {
     try {
       const payload = await getJsonBody(request);
@@ -3290,6 +3585,13 @@ createServer(async (request, response) => {
     const file = await readFile(safeAbsolutePath);
     const extension = path.extname(safeAbsolutePath).toLowerCase();
     const contentType = mimeTypes[extension] || "application/octet-stream";
+    if (shouldTrackTraffic(request, pathname, safeRelativePath, extension)) {
+      try {
+        await saveTrafficEvent(createTrafficEvent(request, requestUrl));
+      } catch (error) {
+        console.error("Failed to record traffic event", error);
+      }
+    }
 
     if (extension === ".mp4") {
       const range = String(request.headers.range || "");

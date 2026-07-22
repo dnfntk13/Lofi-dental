@@ -51,6 +51,22 @@
           ${phaseLabels(["Before", "Prepared", "Crown"])}
         </div>`,
     },
+    masseterBotox: {
+      title: "Masseter Botox (Jaw Slimming)",
+      copy: "A stronger jaw line softens into a slimmer lower-face contour.",
+      visual: `
+        <div class="tc-photo-scene tc-masseter">
+          <div class="tc-masseter-frame">
+            <img class="tc-masseter-photo tc-masseter-before" src="${references}/masseter-botox-face.png" alt="" aria-hidden="true" />
+            <img class="tc-masseter-photo tc-masseter-after" src="${references}/masseter-botox-face.png" alt="" aria-hidden="true" />
+            <div class="tc-masseter-soft-mask" aria-hidden="true"></div>
+            <span class="tc-masseter-label tc-masseter-label-before">Before</span>
+            <span class="tc-masseter-label tc-masseter-label-after">After</span>
+            <span class="tc-masseter-arrow" aria-hidden="true"></span>
+            <span class="tc-masseter-contour" aria-hidden="true"></span>
+          </div>
+        </div>`,
+    },
     veneers: {
       title: "Veneers",
       copy: "Thin ceramic veneers refine the color, proportion, and alignment of the visible front teeth.",

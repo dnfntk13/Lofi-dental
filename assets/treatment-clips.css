@@ -107,6 +107,97 @@
   height: 100%;
 }
 
+.tc-masseter {
+  background: linear-gradient(135deg, #f9f6ff 0%, #eef2ff 100%);
+}
+
+.tc-masseter-frame {
+  position: relative;
+  width: min(92%, 390px);
+  height: min(86%, 260px);
+  overflow: hidden;
+}
+
+.tc-masseter-photo {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  object-position: 72% 34%;
+}
+
+.tc-masseter-after {
+  opacity: 0;
+  transform: scaleX(0.9);
+  transform-origin: 76% 66%;
+  clip-path: polygon(50% 12%, 100% 12%, 100% 100%, 42% 100%);
+  filter: saturate(1.04) brightness(1.03);
+}
+
+.tc-masseter-soft-mask {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.86) 35%, rgba(255,255,255,0.08) 68%, rgba(255,255,255,0) 100%),
+    radial-gradient(circle at 77% 66%, rgba(221,229,255,0.36), transparent 34%);
+}
+
+.tc-masseter-label {
+  position: absolute;
+  left: 14px;
+  z-index: 3;
+  padding: 5px 9px;
+  border: 1px solid rgba(90, 111, 218, 0.2);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.9);
+  color: #1f2d66;
+  font: 800 11px/1 "Trebuchet MS", sans-serif;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.tc-masseter-label-before { top: 16px; }
+.tc-masseter-label-after { bottom: 16px; opacity: 0; }
+
+.tc-masseter-arrow {
+  position: absolute;
+  left: 31px;
+  top: 70px;
+  z-index: 3;
+  width: 78px;
+  height: 1px;
+  background: rgba(77, 100, 216, 0.42);
+  transform-origin: left center;
+}
+
+.tc-masseter-arrow::after {
+  content: "";
+  position: absolute;
+  right: -1px;
+  top: -4px;
+  width: 9px;
+  height: 9px;
+  border-right: 1px solid rgba(77, 100, 216, 0.58);
+  border-top: 1px solid rgba(77, 100, 216, 0.58);
+  transform: rotate(45deg);
+}
+
+.tc-masseter-contour {
+  position: absolute;
+  right: 70px;
+  bottom: 30px;
+  z-index: 3;
+  width: 82px;
+  height: 68px;
+  border-right: 2px solid rgba(77, 100, 216, 0.52);
+  border-bottom: 2px solid rgba(77, 100, 216, 0.3);
+  border-radius: 48% 38% 56% 42%;
+  transform: rotate(7deg) scaleX(1.16);
+}
+
 .tc-phase-labels {
   position: absolute;
   left: 50%;
@@ -231,6 +322,26 @@
   animation: tc-aligner-seat 5s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
 }
 
+.clip-overlay.is-playing .tc-masseter-after {
+  animation: tc-masseter-after 5s ease forwards;
+}
+
+.clip-overlay.is-playing .tc-masseter-label-before {
+  animation: tc-masseter-before-label 5s ease forwards;
+}
+
+.clip-overlay.is-playing .tc-masseter-label-after {
+  animation: tc-masseter-after-label 5s ease forwards;
+}
+
+.clip-overlay.is-playing .tc-masseter-arrow {
+  animation: tc-masseter-arrow 5s ease forwards;
+}
+
+.clip-overlay.is-playing .tc-masseter-contour {
+  animation: tc-masseter-contour 5s ease forwards;
+}
+
 @keyframes tc-pan-vertical {
   0%, 35% { transform: translateY(0); }
   68%, 100% { transform: translateY(-50%); }
@@ -278,6 +389,31 @@
   0%, 12% { opacity: 0; transform: translate(-50%, -42%) scale(1.08); }
   30%, 58% { opacity: 0.72; transform: translate(-50%, 22%) scale(1); }
   74%, 100% { opacity: 0.12; transform: translate(-50%, 30%) scale(0.98); }
+}
+
+@keyframes tc-masseter-after {
+  0%, 32% { opacity: 0; transform: scaleX(1); }
+  54%, 100% { opacity: 1; transform: scaleX(0.9); }
+}
+
+@keyframes tc-masseter-before-label {
+  0%, 42% { opacity: 1; transform: translateY(0); }
+  70%, 100% { opacity: 0.36; transform: translateY(-5px); }
+}
+
+@keyframes tc-masseter-after-label {
+  0%, 42% { opacity: 0; transform: translateY(6px); }
+  70%, 100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes tc-masseter-arrow {
+  0%, 30% { opacity: 0.35; transform: scaleX(0.58); }
+  58%, 100% { opacity: 1; transform: scaleX(1); }
+}
+
+@keyframes tc-masseter-contour {
+  0%, 36% { opacity: 0.35; transform: rotate(7deg) scaleX(1.16); }
+  70%, 100% { opacity: 1; transform: translateX(10px) rotate(7deg) scaleX(0.82); }
 }
 
 @keyframes tc-suresmile-before {

@@ -303,6 +303,7 @@
         <nav class="nav-links" aria-label="Admin navigation">
           <a class="nav-link" href="/admin/calendar">Calendar</a>
           <a class="nav-link active" href="/admin/patients">Patients</a>
+          <a class="nav-link" href="/admin/traffic">Traffic</a>
           <a class="nav-link" href="/admin">Admin home</a>
         </nav>
       </header>
@@ -665,7 +666,7 @@
           button.addEventListener("click", () => openThread(button.dataset.email || ""));
         });
         list.querySelectorAll(".delete-patient-btn").forEach((button) => {
-          button.addEventListener("click", () => deletePatient(button.dataset.email || "", button.dataset.name || "this patient"));
+          button.addEventListener("click", () => deletePatient(button.dataset.email || "", button.dataset.name || "this patient", button));
         });
       }
 
@@ -692,10 +693,23 @@
         menu.setAttribute("aria-hidden", "true");
       }
 
-      async function deletePatient(email, name) {
+      function patientHasEmail(patient, email) {
+        const normalizedEmail = String(email || "").toLowerCase();
+        const emails = [
+          patient?.email,
+          patient?.realEmail,
+          patient?.latestReservation?.email,
+          ...(Array.isArray(patient?.threadEmails) ? patient.threadEmails : []),
+          ...(Array.isArray(patient?.reservations) ? patient.reservations.map((reservation) => reservation?.email) : []),
+        ];
+        return emails.some((value) => String(value || "").toLowerCase() === normalizedEmail);
+      }
+
+      async function deletePatient(email, name, button = null) {
         if (!email) return;
         if (!confirm(`Delete ${name}? This will also remove linked reservations and message threads.`)) return;
 
+        if (button) button.disabled = true;
         try {
           const res = await fetch(`/api/admin/patients/${encodeURIComponent(email)}`, {
             method: "DELETE",
@@ -706,10 +720,14 @@
             alert(data.message || "Failed to delete patient.");
             return;
           }
-          allPatients = allPatients.filter((patient) => String(patient.email || "").toLowerCase() !== String(email || "").toLowerCase());
+          allPatients = allPatients.filter((patient) => !patientHasEmail(patient, email));
+          lastRenderedPatientSignature = getPatientsSignature(allPatients);
           applySearch();
+          load({ silent: true });
         } catch {
           alert("Failed to delete patient.");
+        } finally {
+          if (button) button.disabled = false;
         }
       }
 

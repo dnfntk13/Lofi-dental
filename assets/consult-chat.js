@@ -289,10 +289,10 @@
   const panel = document.createElement("section");
   panel.className = "consult-chat-panel";
   panel.id = "consultChatPanel";
-  panel.setAttribute("aria-label", "Live Chat with Dr.Ryan KIm. Please remain on the website for response.");
+  panel.setAttribute("aria-label", "Live Chat with Dr.Ryan Kim.");
   panel.innerHTML = `
     <div class="consult-chat-head">
-      <span>Live Chat with Dr.Ryan KIm. Please remain on the website for response.</span>
+      <span>Live Chat with Dr.Ryan Kim.</span>
       <button class="consult-chat-close" type="button" aria-label="Close chat">×</button>
     </div>
     <div class="consult-chat-log" aria-live="polite"></div>
