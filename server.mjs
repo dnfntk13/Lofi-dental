@@ -134,7 +134,7 @@ function resolvePath(urlPath) {
     return "/admin/instagram-settings.html";
   }
 
-  if (["/admin/traffic", "/admin/traffic/"].includes(pathname)) {
+  if (["/admin/traffic", "/admin/traffic/", "/admin/insights", "/admin/insights/"].includes(pathname)) {
     return "/admin/traffic.html";
   }
 
@@ -345,7 +345,7 @@ function createTrafficEvent(request, requestUrl) {
   const referrer = String(request.headers.referer || request.headers.referrer || "").slice(0, 500);
   const pathname = requestUrl.pathname || "/";
   const search = requestUrl.search || "";
-  return {
+  const event = {
     id: `${now.getTime()}-${randomBytes(5).toString("hex")}`,
     timestamp: now.toISOString(),
     day: getKoreanDay(now),
@@ -353,10 +353,23 @@ function createTrafficEvent(request, requestUrl) {
     query: search,
     page: pathname,
     referrer,
+    referrerHost: getReferrerLabel(referrer),
+    referrerPath: getReferrerUrl(referrer),
+    campaign: {
+      source: getTrafficParam(requestUrl, "utm_source"),
+      medium: getTrafficParam(requestUrl, "utm_medium"),
+      name: getTrafficParam(requestUrl, "utm_campaign"),
+      term: getTrafficParam(requestUrl, "utm_term"),
+      content: getTrafficParam(requestUrl, "utm_content"),
+      clickId: getTrafficParam(requestUrl, "gclid") || getTrafficParam(requestUrl, "fbclid") || getTrafficParam(requestUrl, "msclkid"),
+    },
+    acquisitionPath: "",
     device: getDeviceType(userAgent),
     browser: getBrowserName(userAgent),
     visitorId: hashTrafficValue(`${getClientIp(request)}|${userAgent}`),
   };
+  event.acquisitionPath = getAcquisitionPath(event);
+  return event;
 }
 
 async function saveTrafficEvent(event) {
@@ -417,6 +430,10 @@ function mapToSortedArray(map, limit = 10) {
     .slice(0, limit);
 }
 
+function getTrafficParam(requestUrl, name) {
+  return String(requestUrl.searchParams.get(name) || "").trim().slice(0, 160);
+}
+
 function getReferrerLabel(referrer) {
   if (!referrer) return "Direct / none";
   try {
@@ -427,6 +444,29 @@ function getReferrerLabel(referrer) {
   }
 }
 
+function getReferrerUrl(referrer) {
+  if (!referrer) return "";
+  try {
+    const url = new URL(referrer);
+    return `${url.hostname.replace(/^www\./, "")}${url.pathname}${url.search}`.slice(0, 240);
+  } catch {
+    return String(referrer || "").slice(0, 240);
+  }
+}
+
+function getAcquisitionPath(event) {
+  const campaign = event.campaign || {};
+  const source = String(campaign.source || "").trim();
+  const medium = String(campaign.medium || "").trim();
+  const name = String(campaign.name || "").trim();
+  const clickId = String(campaign.clickId || "").trim();
+  if (source || medium || name) {
+    return [source || "unknown source", medium, name].filter(Boolean).join(" / ");
+  }
+  if (clickId) return `Paid click / ${clickId}`;
+  return getReferrerUrl(event.referrer) || "Direct / none";
+}
+
 function summarizeTraffic(events) {
   const today = getKoreanDay();
   const yesterday = addDaysToDay(today, -1);
@@ -435,6 +475,7 @@ function summarizeTraffic(events) {
   const dailyMap = new Map();
   const pageMap = new Map();
   const referrerMap = new Map();
+  const acquisitionMap = new Map();
   const deviceMap = new Map();
   const browserMap = new Map();
   const todayVisitors = new Set();
@@ -467,6 +508,7 @@ function summarizeTraffic(events) {
       if (visitorId) thirtyDayVisitors.add(visitorId);
       incrementCount(pageMap, event.page || event.path || "/");
       incrementCount(referrerMap, getReferrerLabel(event.referrer));
+      incrementCount(acquisitionMap, event.acquisitionPath || getAcquisitionPath(event));
       incrementCount(deviceMap, event.device || "unknown");
       incrementCount(browserMap, event.browser || "Other");
     }
@@ -492,6 +534,7 @@ function summarizeTraffic(events) {
     daily: [...dailyMap.values()].map((entry) => ({ day: entry.day, views: entry.views, visitors: entry.visitors.size })),
     topPages: mapToSortedArray(pageMap, 12),
     referrers: mapToSortedArray(referrerMap, 8),
+    acquisitionPaths: mapToSortedArray(acquisitionMap, 10),
     devices: mapToSortedArray(deviceMap, 6),
     browsers: mapToSortedArray(browserMap, 6),
     recent: events.slice(0, 30).map((event) => ({
@@ -499,6 +542,7 @@ function summarizeTraffic(events) {
       day: event.day,
       page: event.page || event.path || "/",
       referrer: getReferrerLabel(event.referrer),
+      acquisitionPath: event.acquisitionPath || getAcquisitionPath(event),
       device: event.device || "unknown",
       browser: event.browser || "Other",
     })),

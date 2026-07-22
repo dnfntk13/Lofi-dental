@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Traffic | lofi dental admin</title>
+    <title>Insights | lofi dental admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -163,22 +163,22 @@
         <nav class="nav-links" aria-label="Admin navigation">
           <a class="nav-link" href="/admin/calendar">Calendar</a>
           <a class="nav-link" href="/admin/patients">Patients</a>
-          <a class="nav-link active" href="/admin/traffic">Traffic</a>
+          <a class="nav-link active" href="/admin/insights">Insights</a>
           <a class="nav-link" href="/admin">Admin home</a>
         </nav>
       </header>
 
       <div class="header">
         <div>
-          <h1>Website Traffic</h1>
-          <p class="subtitle">Public page views, visitors, referrals, and device mix.</p>
+          <h1>Website Insights</h1>
+          <p class="subtitle">Public page views, visitors, acquisition paths, and device mix.</p>
         </div>
         <button class="btn" id="refreshBtn">Refresh</button>
       </div>
 
-      <p class="status" id="statusMsg">Loading traffic...</p>
+      <p class="status" id="statusMsg">Loading insights...</p>
 
-      <section class="metric-grid" aria-label="Traffic summary">
+      <section class="metric-grid" aria-label="Insights summary">
         <div class="metric">
           <p class="metric-label">Today</p>
           <p class="metric-value" id="todayViews">-</p>
@@ -234,10 +234,10 @@
       <section class="split" style="margin-top:14px">
         <div class="panel">
           <div class="panel-head">
-            <h2 class="panel-title">Referrers</h2>
+            <h2 class="panel-title">Acquisition Paths</h2>
             <span class="panel-note">Last 30 days</span>
           </div>
-          <div class="list" id="referrers"></div>
+          <div class="list" id="acquisitionPaths"></div>
         </div>
         <div class="panel">
           <div class="panel-head">
@@ -270,7 +270,7 @@
         const element = document.getElementById(elementId);
         const max = Math.max(...rows.map((row) => row.views || 0), 1);
         if (!rows.length) {
-          element.innerHTML = '<p class="empty">No traffic yet.</p>';
+          element.innerHTML = '<p class="empty">No insights yet.</p>';
           return;
         }
         element.innerHTML = rows.map((row) => `
@@ -304,7 +304,7 @@
               <div class="visit-page" title="${escapeHtml(visit.page)}">${escapeHtml(visit.page)}</div>
               <div class="visit-time">${escapeHtml(formatTime(visit.timestamp))}</div>
             </div>
-            <div class="visit-meta">${escapeHtml(visit.device)} · ${escapeHtml(visit.browser)} · ${escapeHtml(visit.referrer)}</div>
+            <div class="visit-meta">${escapeHtml(visit.device)} · ${escapeHtml(visit.browser)} · ${escapeHtml(visit.acquisitionPath || visit.referrer)}</div>
           </div>
         `).join("");
       }
@@ -336,7 +336,7 @@
         document.getElementById("todayDelta").textContent = `${delta >= 0 ? "+" : ""}${formatter.format(delta)} vs yesterday`;
         renderChart(Array.isArray(data.daily) ? data.daily : []);
         renderRows("topPages", Array.isArray(data.topPages) ? data.topPages : []);
-        renderRows("referrers", Array.isArray(data.referrers) ? data.referrers : []);
+        renderRows("acquisitionPaths", Array.isArray(data.acquisitionPaths) ? data.acquisitionPaths : Array.isArray(data.referrers) ? data.referrers : []);
         renderRows("devices", Array.isArray(data.devices) ? data.devices : []);
         renderRows("browsers", Array.isArray(data.browsers) ? data.browsers : []);
         renderRecent(Array.isArray(data.recent) ? data.recent : []);
@@ -348,14 +348,14 @@
         refreshBtn.disabled = true;
         refreshBtn.textContent = "Refreshing...";
         statusMsg.className = "status";
-        statusMsg.textContent = "Loading traffic...";
+        statusMsg.textContent = "Loading insights...";
         try {
           const res = await fetch("/api/admin/traffic", { headers: { Accept: "application/json" } });
-          if (!res.ok) throw new Error("Traffic request failed");
+          if (!res.ok) throw new Error("Insights request failed");
           render(await res.json());
         } catch (error) {
           statusMsg.className = "status error";
-          statusMsg.textContent = "Failed to load traffic. Try refreshing after a new page visit.";
+          statusMsg.textContent = "Failed to load insights. Try refreshing after a new page visit.";
         } finally {
           refreshBtn.disabled = false;
           refreshBtn.textContent = "Refresh";
