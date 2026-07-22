@@ -332,7 +332,7 @@
         </div>
         <div class="thread-content" id="threadContent"></div>
         <form class="reply-form" id="threadReplyForm">
-          <textarea class="reply-input" id="threadReplyInput" maxlength="2000" placeholder="Reply to this web consult"></textarea>
+          <textarea class="reply-input" id="threadReplyInput" maxlength="2000" placeholder="Reply to this thread"></textarea>
           <div class="reply-actions">
             <span class="reply-status" id="threadReplyStatus" aria-live="polite"></span>
             <button class="btn" id="threadReplyBtn" type="submit">Send reply</button>
@@ -429,10 +429,13 @@
         const content = document.getElementById("threadContent");
         const replyForm = document.getElementById("threadReplyForm");
         const replyStatus = document.getElementById("threadReplyStatus");
+        const replyInput = document.getElementById("threadReplyInput");
         const filtered = currentThread.filter(message => getMessageChannel(message) === currentChannel);
-        replyForm.classList.toggle("hidden", currentChannel !== "web" || !currentThreadEmail);
-        if (currentChannel !== "web") replyStatus.textContent = "Replies are currently enabled for Web consults.";
-        else if (replyStatus.textContent === "Replies are currently enabled for Web consults.") replyStatus.textContent = "";
+        const canReply = (currentChannel === "web" || currentChannel === "email") && currentThreadEmail;
+        replyForm.classList.toggle("hidden", !canReply);
+        replyInput.placeholder = currentChannel === "email" ? "Reply by email" : "Reply to this web consult";
+        if (currentChannel === "instagram") replyStatus.textContent = "Replies are currently enabled for Web and Email threads.";
+        else if (replyStatus.textContent === "Replies are currently enabled for Web and Email threads.") replyStatus.textContent = "";
         if (!filtered.length) {
           const label = currentChannel === "web" ? "Web" : currentChannel === "instagram" ? "Instagram DM" : "Email";
           content.innerHTML = `<p class="empty">No ${esc(label)} messages yet.</p>`;
@@ -583,7 +586,7 @@
         const button = document.getElementById("threadReplyBtn");
         const status = document.getElementById("threadReplyStatus");
         const content = input.value.trim();
-        if (!content || !currentThreadEmail || currentChannel !== "web") return;
+        if (!content || !currentThreadEmail || !["web", "email"].includes(currentChannel)) return;
 
         button.disabled = true;
         status.textContent = "Sending...";
@@ -591,7 +594,7 @@
           const res = await fetch(`/api/admin/email-thread/${encodeURIComponent(currentThreadEmail)}/reply`, {
             method: "POST",
             headers: { Accept: "application/json", "Content-Type": "application/json" },
-            body: JSON.stringify({ content, channel: "web", reservationId: currentReservationId }),
+            body: JSON.stringify({ content, channel: currentChannel, reservationId: currentReservationId }),
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
@@ -599,7 +602,7 @@
             return;
           }
           input.value = "";
-          status.textContent = "Sent to web chat.";
+          status.textContent = data.delivered === "email" ? "Sent by email." : "Sent to web chat.";
           currentReservationId = data.reservationId || currentReservationId;
           if (data.message) currentThread.push(data.message);
           lastRenderedThreadSignature = getThreadSignature(currentThread);

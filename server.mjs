@@ -2039,15 +2039,8 @@ async function migrateInboxToEmailThreads() {
         channel: "email",
       });
       
-      // 자동 회신 메시지 추가 (과거 데이터이므로 추정)
-      const autoReplyMsg = buildReservationAutoReply(reservation);
-      await saveOrUpdateEmailThread(reservation.email, reservation.id, {
-        type: "auto-reply",
-        sentAt: new Date(new Date(reservation.createdAt).getTime() + 10000).toISOString(),
-        content: autoReplyMsg.text,
-        source: "email",
-        channel: "email",
-      });
+      // Do not create historical auto-reply messages here. A thread auto-reply
+      // should mean the email was actually sent by sendReservationAutoReply().
     }
     
     console.log(`Successfully migrated ${toMigrate.length} reservations to email threads`);
@@ -3214,8 +3207,9 @@ createServer(async (request, response) => {
     } catch (error) {
       console.error("Failed to send admin reply", error);
       const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+      const isDeliveryError = error instanceof Error && !isPayloadError;
       response.writeHead(isPayloadError ? 400 : 500, { "Content-Type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : "Failed to send reply" }));
+      response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : isDeliveryError ? `Failed to send email: ${error.message}` : "Failed to send reply" }));
     }
     return;
   }
