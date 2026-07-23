@@ -80,6 +80,12 @@ const instagramAuthStateTtlMs = 10 * 60 * 1000;
 const emailResolver = new Resolver();
 emailResolver.setServers(emailDnsServers);
 const trafficHashSecret = process.env.TRAFFIC_HASH_SECRET || adminSessionValue;
+const trafficOptOutCookie = "lofi_traffic_opt_out";
+const trafficOptOutMaxAge = 315360000;
+const trafficExcludedIps = new Set((process.env.TRAFFIC_EXCLUDED_IPS || "")
+  .split(",")
+  .map((ip) => normalizeIp(ip))
+  .filter(Boolean));
 const maxLocalTrafficEvents = Number(process.env.TRAFFIC_LOCAL_LIMIT || 10000);
 const reservationCorsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -308,6 +314,65 @@ function getClientIp(request) {
   return forwarded || request.socket.remoteAddress || "unknown";
 }
 
+function normalizeIp(value) {
+  return String(value || "").trim().replace(/^::ffff:/, "");
+}
+
+function hasCookieValue(request, name, value) {
+  const cookieHeader = request.headers.cookie || "";
+  return cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .includes(`${name}=${value}`);
+}
+
+function isTrafficOptedOut(request) {
+  return hasCookieValue(request, trafficOptOutCookie, "1");
+}
+
+function isExcludedTrafficIp(request) {
+  if (!trafficExcludedIps.size) return false;
+  return trafficExcludedIps.has(normalizeIp(getClientIp(request)));
+}
+
+function getTrafficOptOutCookieHeader(optedOut) {
+  const value = optedOut ? "1" : "";
+  const maxAge = optedOut ? trafficOptOutMaxAge : 0;
+  return `${trafficOptOutCookie}=${value}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+}
+
+function renderTrafficOptOutPage({ optedOut }) {
+  const title = optedOut ? "This device is excluded" : "This device is included";
+  const message = optedOut
+    ? "Visits from this browser will not be counted in Website Insights. Open this same link once on each clinic computer, home computer, Mac, and phone browser you want to exclude."
+    : "Visits from this browser will be counted again in Website Insights.";
+  const actionHref = optedOut ? "/traffic-opt-in" : "/traffic-opt-out";
+  const actionLabel = optedOut ? "Include this device again" : "Exclude this device";
+  return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${title} | lofi dental</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; font-family: "Segoe UI", sans-serif; color: #1f2d66; background: linear-gradient(180deg, #f8faff 0%, #edf2ff 100%); }
+      main { width: min(460px, 100%); padding: 34px 30px; border: 1px solid rgba(90, 111, 218, 0.16); border-radius: 14px; background: rgba(255,255,255,0.94); box-shadow: 0 14px 34px rgba(31, 45, 102, 0.08); }
+      h1 { margin: 0 0 10px; font-size: 1.55rem; }
+      p { margin: 0 0 22px; color: #5a6fda; line-height: 1.55; }
+      a { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 10px 16px; border-radius: 8px; background: #5b3d8f; color: #fff; font-weight: 800; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>${title}</h1>
+      <p>${message}</p>
+      <a href="${actionHref}">${actionLabel}</a>
+    </main>
+  </body>
+</html>`;
+}
+
 function getDeviceType(userAgent) {
   const ua = String(userAgent || "").toLowerCase();
   if (/ipad|tablet/.test(ua)) return "tablet";
@@ -332,6 +397,7 @@ function isLikelyBot(userAgent) {
 function shouldTrackTraffic(request, pathname, safeRelativePath, extension) {
   if (request.method !== "GET") return false;
   if (extension !== ".html") return false;
+  if (isTrafficOptedOut(request) || isExcludedTrafficIp(request)) return false;
   if (pathname.startsWith("/admin") || pathname.startsWith("/api/")) return false;
   if (pathname.startsWith("/assets/") || pathname.startsWith("/chrome-extension/")) return false;
   if (pathname.startsWith("/.well-known/")) return false;
@@ -914,8 +980,8 @@ function mergePatientRecords(records) {
       id: result.id || patient.id || `patient-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       email: result.email || patient.email,
       realEmail: result.realEmail || patient.realEmail || null,
-      name: result.name || patient.name || null,
-      phone: result.phone || patient.phone || null,
+      name: patient.name || result.name || null,
+      phone: patient.phone || result.phone || null,
       firstSeen: firstSeenTime < resultFirstSeenTime ? patient.firstSeen : (result.firstSeen || patient.firstSeen || now),
       updatedAt: new Date(Math.max(new Date(result.updatedAt || 0).getTime(), new Date(patient.updatedAt || 0).getTime(), Date.now())).toISOString(),
       latestReservation,
@@ -1102,6 +1168,9 @@ async function saveOrUpdatePatient(record, patientInfo) {
     date: record.date || null,
     time: record.time || null,
     email: realEmail || record.email || null,
+    name: name || null,
+    phone: phone || null,
+    visitingFrom: record.visitingFrom || null,
     concerns: record.concerns || null,
     source: record.source || "reservation",
     createdAt: record.createdAt || now,
@@ -2645,30 +2714,26 @@ createServer(async (request, response) => {
         `Phone: ${phone}`,
       ].join("\n");
 
-      // 기존 예약 레코드 업데이트 (환자 정보 추가)
       record.name = name;
       record.phone = phone;
       record.visitingFrom = visitingFrom;
       record.updatedAt = new Date().toISOString();
 
-      // Inbox 저장
+      let savedRecord = record;
       try {
-        await mkdir(dataDir, { recursive: true });
-        await writeFile(inboxPath, JSON.stringify(inbox, null, 2), "utf-8");
+        savedRecord = await upsertInboxRecord(record);
       } catch (err) {
         console.error("Failed to save inbox", err);
       }
 
-      // 환자 정보 저장
       try {
-        await saveOrUpdatePatient(record, { name, phone });
+        await saveOrUpdatePatient(savedRecord, { name, phone });
       } catch (err) {
         console.error("Failed to save patient info from reply", err);
       }
 
-      // 메시지 스레드에 환자 회신으로 추가 (실패해도 성공 응답)
       try {
-        await saveOrUpdateEmailThread(record.email, record.id, {
+        await saveOrUpdateEmailThread(savedRecord.email, savedRecord.id, {
           type: "customer-reply",
           receivedAt: new Date().toISOString(),
           content,
@@ -3431,12 +3496,62 @@ createServer(async (request, response) => {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "no-store",
       });
-      response.end(JSON.stringify(summarizeTraffic(events)));
+      response.end(JSON.stringify({
+        ...summarizeTraffic(events),
+        optOut: {
+          currentComputer: isTrafficOptedOut(request),
+          currentIpExcluded: isExcludedTrafficIp(request),
+        },
+      }));
     } catch (error) {
       console.error("Failed to load traffic analytics", error);
       response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ message: "Failed to load traffic analytics" }));
     }
+    return;
+  }
+
+  if (pathname === "/api/admin/traffic/opt-out" && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    const cookie = getTrafficOptOutCookieHeader(true);
+    response.writeHead(200, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Set-Cookie": cookie,
+    });
+    response.end(JSON.stringify({ ok: true, optedOut: true }));
+    return;
+  }
+
+  if (pathname === "/api/admin/traffic/opt-out" && request.method === "DELETE") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    const cookie = getTrafficOptOutCookieHeader(false);
+    response.writeHead(200, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Set-Cookie": cookie,
+    });
+    response.end(JSON.stringify({ ok: true, optedOut: false }));
+    return;
+  }
+
+  if (["/traffic-opt-out", "/traffic-opt-out/"].includes(pathname) && request.method === "GET") {
+    response.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Set-Cookie": getTrafficOptOutCookieHeader(true),
+    });
+    response.end(renderTrafficOptOutPage({ optedOut: true }));
+    return;
+  }
+
+  if (["/traffic-opt-in", "/traffic-opt-in/"].includes(pathname) && request.method === "GET") {
+    response.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Set-Cookie": getTrafficOptOutCookieHeader(false),
+    });
+    response.end(renderTrafficOptOutPage({ optedOut: false }));
     return;
   }
 

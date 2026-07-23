@@ -72,6 +72,8 @@
 
       .btn:hover { background: #e6d5f5; transform: translateY(-1px); }
       .btn:disabled { opacity: 0.58; cursor: wait; transform: none; }
+      .btn.danger { border-color: rgba(163, 38, 38, 0.22); color: #a32626; }
+      .btn.success { border-color: rgba(46, 125, 50, 0.26); color: var(--green); }
 
       .status { margin: 0 0 14px; min-height: 1.3em; color: var(--soft); font-size: 0.9rem; }
       .status.error { color: #a32626; }
@@ -174,7 +176,10 @@
           <h1>Website Insights</h1>
           <p class="subtitle">Public page views, visitors, acquisition paths, and device mix.</p>
         </div>
-        <button class="btn" id="refreshBtn">Refresh</button>
+        <div style="display:flex; gap:10px; flex-wrap:wrap">
+          <button class="btn danger" id="optOutBtn">Exclude this computer</button>
+          <button class="btn" id="refreshBtn">Refresh</button>
+        </div>
       </div>
 
       <p class="status" id="statusMsg">Loading insights...</p>
@@ -261,6 +266,8 @@
     <script>
       const statusMsg = document.getElementById("statusMsg");
       const refreshBtn = document.getElementById("refreshBtn");
+      const optOutBtn = document.getElementById("optOutBtn");
+      let currentComputerOptedOut = false;
       const formatter = new Intl.NumberFormat("en-US");
       const timeFormatter = new Intl.DateTimeFormat("en-US", {
         timeZone: "Asia/Seoul",
@@ -349,8 +356,31 @@
         renderRows("devices", Array.isArray(data.devices) ? data.devices : []);
         renderRows("browsers", Array.isArray(data.browsers) ? data.browsers : []);
         renderRecent(Array.isArray(data.recent) ? data.recent : []);
+        currentComputerOptedOut = Boolean(data.optOut?.currentComputer || data.optOut?.currentIpExcluded);
+        optOutBtn.textContent = currentComputerOptedOut ? "Include this computer" : "Exclude this computer";
+        optOutBtn.className = currentComputerOptedOut ? "btn success" : "btn danger";
+        optOutBtn.disabled = Boolean(data.optOut?.currentIpExcluded);
+        optOutBtn.title = data.optOut?.currentIpExcluded ? "This network is excluded by server settings." : "";
         statusMsg.className = "status";
         statusMsg.textContent = data.generatedAt ? `Updated ${formatTime(data.generatedAt)}` : "Updated";
+      }
+
+      async function toggleOptOut() {
+        optOutBtn.disabled = true;
+        optOutBtn.textContent = currentComputerOptedOut ? "Including..." : "Excluding...";
+        try {
+          const res = await fetch("/api/admin/traffic/opt-out", {
+            method: currentComputerOptedOut ? "DELETE" : "POST",
+            headers: { Accept: "application/json" },
+          });
+          if (!res.ok) throw new Error("Opt-out request failed");
+          await loadTraffic();
+        } catch (error) {
+          statusMsg.className = "status error";
+          statusMsg.textContent = "Failed to update this computer's tracking setting.";
+          optOutBtn.disabled = false;
+          optOutBtn.textContent = currentComputerOptedOut ? "Include this computer" : "Exclude this computer";
+        }
       }
 
       async function loadTraffic() {
@@ -372,6 +402,7 @@
       }
 
       refreshBtn.addEventListener("click", loadTraffic);
+      optOutBtn.addEventListener("click", toggleOptOut);
       loadTraffic();
     </script>
   </body>
