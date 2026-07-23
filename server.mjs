@@ -335,10 +335,24 @@ function isExcludedTrafficIp(request) {
   return trafficExcludedIps.has(normalizeIp(getClientIp(request)));
 }
 
-function getTrafficOptOutCookieHeader(optedOut) {
+function getTrafficOptOutCookieDomain(request) {
+  const host = String(request?.headers?.host || "").split(":")[0].toLowerCase().replace(/^www\./, "");
+  if (["lofiesthetic.com", "lofidental.cc"].includes(host)) return `; Domain=${host}`;
+  return "";
+}
+
+function getTrafficOptOutCookieHeader(optedOut, request) {
   const value = optedOut ? "1" : "";
   const maxAge = optedOut ? trafficOptOutMaxAge : 0;
-  return `${trafficOptOutCookie}=${value}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+  return `${trafficOptOutCookie}=${value}; Path=/; Max-Age=${maxAge}; SameSite=Lax${getTrafficOptOutCookieDomain(request)}`;
+}
+
+function getTrafficOptOutCookieHeaders(optedOut, request) {
+  const value = optedOut ? "1" : "";
+  const maxAge = optedOut ? trafficOptOutMaxAge : 0;
+  const hostOnlyCookie = `${trafficOptOutCookie}=${value}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+  const domainCookie = getTrafficOptOutCookieHeader(optedOut, request);
+  return domainCookie === hostOnlyCookie ? [hostOnlyCookie] : [hostOnlyCookie, domainCookie];
 }
 
 function renderTrafficOptOutPage({ optedOut }) {
@@ -3513,11 +3527,11 @@ createServer(async (request, response) => {
 
   if (pathname === "/api/admin/traffic/opt-out" && request.method === "POST") {
     if (!adminAuthorized) { requestAuth(response); return; }
-    const cookie = getTrafficOptOutCookieHeader(true);
+    const cookies = getTrafficOptOutCookieHeaders(true, request);
     response.writeHead(200, {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
-      "Set-Cookie": cookie,
+      "Set-Cookie": cookies,
     });
     response.end(JSON.stringify({ ok: true, optedOut: true }));
     return;
@@ -3525,11 +3539,11 @@ createServer(async (request, response) => {
 
   if (pathname === "/api/admin/traffic/opt-out" && request.method === "DELETE") {
     if (!adminAuthorized) { requestAuth(response); return; }
-    const cookie = getTrafficOptOutCookieHeader(false);
+    const cookies = getTrafficOptOutCookieHeaders(false, request);
     response.writeHead(200, {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
-      "Set-Cookie": cookie,
+      "Set-Cookie": cookies,
     });
     response.end(JSON.stringify({ ok: true, optedOut: false }));
     return;
@@ -3539,7 +3553,7 @@ createServer(async (request, response) => {
     response.writeHead(200, {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
-      "Set-Cookie": getTrafficOptOutCookieHeader(true),
+      "Set-Cookie": getTrafficOptOutCookieHeaders(true, request),
     });
     response.end(renderTrafficOptOutPage({ optedOut: true }));
     return;
@@ -3549,7 +3563,7 @@ createServer(async (request, response) => {
     response.writeHead(200, {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
-      "Set-Cookie": getTrafficOptOutCookieHeader(false),
+      "Set-Cookie": getTrafficOptOutCookieHeaders(false, request),
     });
     response.end(renderTrafficOptOutPage({ optedOut: false }));
     return;
