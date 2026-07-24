@@ -1223,7 +1223,19 @@ async function syncInboxReservationsToPatients() {
   }
 }
 
-async function saveInstagramDmMessage(senderId, content, receivedAt = new Date().toISOString()) {
+function normalizeInstagramReservationInfo(value) {
+  const info = value && typeof value === "object" ? value : {};
+  return {
+    isReservationRelated: Boolean(info.isReservationRelated),
+    name: String(info.name || "").trim().slice(0, 120),
+    phone: String(info.phone || "").trim().slice(0, 80),
+    date: String(info.date || "").trim().slice(0, 80),
+    time: String(info.time || "").trim().slice(0, 80),
+    concerns: String(info.concerns || "").trim().slice(0, 2000),
+  };
+}
+
+async function saveInstagramDmMessage(senderId, content, receivedAt = new Date().toISOString(), reservationInfo = {}) {
   const normalizedSenderId = String(senderId || "").trim();
   const text = String(content || "").trim();
   if (!normalizedSenderId || !text) return null;
@@ -1232,23 +1244,25 @@ async function saveInstagramDmMessage(senderId, content, receivedAt = new Date()
   const email = `${id.toLowerCase()}@instagram.lofi.internal`;
   const existingRecord = (await readInbox()).find((record) => record.id === id || String(record.email || "").toLowerCase() === email);
   const patientInfo = extractPatientInfo(text);
-  const name = patientInfo.name || existingRecord?.name || `Instagram ${normalizedSenderId.slice(-6)}`;
+  const extractedReservation = normalizeInstagramReservationInfo(reservationInfo);
+  const name = extractedReservation.name || patientInfo.name || existingRecord?.name || `Instagram ${normalizedSenderId.slice(-6)}`;
   const record = {
     id,
-    date: "Instagram DM",
-    time: "Live",
+    date: extractedReservation.date || existingRecord?.date || "Instagram DM",
+    time: extractedReservation.time || existingRecord?.time || "Live",
     email,
     name,
-    concerns: text,
+    concerns: extractedReservation.concerns || existingRecord?.concerns || text,
     source: "instagram-dm",
     channel: "instagram",
     instagramSenderId: normalizedSenderId,
+    instagramReservationInfo: extractedReservation,
     createdAt: existingRecord?.createdAt || receivedAt,
     updatedAt: receivedAt,
   };
 
-  if (patientInfo.phone || existingRecord?.phone) {
-    record.phone = patientInfo.phone || existingRecord.phone;
+  if (extractedReservation.phone || patientInfo.phone || existingRecord?.phone) {
+    record.phone = extractedReservation.phone || patientInfo.phone || existingRecord.phone;
   }
 
   const savedRecord = await upsertInboxRecord(record);
@@ -1259,6 +1273,7 @@ async function saveInstagramDmMessage(senderId, content, receivedAt = new Date()
     source: "instagram-dm",
     channel: "instagram",
     instagramSenderId: normalizedSenderId,
+    reservationInfo: extractedReservation,
   });
   await saveOrUpdatePatient(savedRecord, { name, phone: record.phone || null });
   return savedRecord;
@@ -1333,6 +1348,7 @@ async function importInstagramExtensionConversations(request, response) {
       const title = String(conversation.title || "").trim();
       const url = String(conversation.url || "").trim();
       const capturedAt = String(conversation.capturedAt || "").trim() || new Date().toISOString();
+      const reservationInfo = normalizeInstagramReservationInfo(conversation.reservationInfo);
       const messages = Array.isArray(conversation.messages) ? conversation.messages : [];
       const messageText = messages
         .map((message) => {
@@ -1350,7 +1366,7 @@ async function importInstagramExtensionConversations(request, response) {
         messageText || fallbackText,
       ].filter(Boolean).join("\n\n").trim().slice(0, 20000);
 
-      if (!senderId || !content || content.length < 20) {
+      if (!reservationInfo.isReservationRelated || !senderId || !content || content.length < 20) {
         skippedCount += 1;
         continue;
       }
@@ -1360,7 +1376,7 @@ async function importInstagramExtensionConversations(request, response) {
         continue;
       }
 
-      const saved = await saveInstagramDmMessage(senderId, content, capturedAt);
+      const saved = await saveInstagramDmMessage(senderId, content, capturedAt, reservationInfo);
       if (saved) savedCount += 1;
       else skippedCount += 1;
     }

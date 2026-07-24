@@ -102,20 +102,83 @@ function extractConversationMessages() {
   return uniqueLines.map((text) => ({ text })).slice(-500);
 }
 
+function firstMatch(text, patterns) {
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) return cleanText(match[1]);
+  }
+  return "";
+}
+
+function extractReservationInfo(text, title = "") {
+  const source = `${title}\n${text}`;
+  const lower = source.toLowerCase();
+  const reservationKeywords = [
+    "예약", "상담", "방문", "진료", "가능", "appointment", "book", "booking", "reservation", "consult", "available", "visit", "schedule",
+  ];
+  const treatmentKeywords = [
+    "라미네이트", "미백", "임플란트", "교정", "충치", "크라운", "베니어", "veneer", "whitening", "implant", "invisalign", "crown", "filling", "cleaning",
+  ];
+  const isReservationRelated = reservationKeywords.some((keyword) => lower.includes(keyword)) || treatmentKeywords.some((keyword) => lower.includes(keyword));
+
+  const name = firstMatch(source, [
+    /(?:이름|성함)\s*[:：]\s*([^\n,./]{2,40})/i,
+    /(?:name)\s*[:：]\s*([^\n,./]{2,40})/i,
+    /(?:저는|제 이름은|i am|i'm|my name is)\s+([^\n,.!?]{2,40})/i,
+  ]);
+  const phone = firstMatch(source, [
+    /(01[016789][\s.-]?\d{3,4}[\s.-]?\d{4})/,
+    /(\+?\d[\d\s().-]{7,}\d)/,
+  ]);
+  const date = firstMatch(source, [
+    /(?:날짜|예약일|방문일|date|day)\s*[:：]?\s*([^\n,]{2,40})/i,
+    /(\d{1,2}\s*월\s*\d{1,2}\s*일(?:\s*[가-힣]*)?)/,
+    /((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2}(?:,?\s*\d{4})?)/i,
+    /(\d{4}[./-]\d{1,2}[./-]\d{1,2})/,
+    /(\d{1,2}[./-]\d{1,2})/,
+  ]);
+  const time = firstMatch(source, [
+    /(?:시간|time)\s*[:：]?\s*([^\n,]{2,30})/i,
+    /((?:오전|오후)\s*\d{1,2}\s*(?:시|:\d{2})?)/,
+    /(\d{1,2}:\d{2}\s*(?:am|pm)?)/i,
+    /(\d{1,2}\s*(?:am|pm))/i,
+  ]);
+  const concerns = firstMatch(source, [
+    /(?:문의|상담|증상|고민|치료|concern|concerns|treatment)\s*[:：]\s*([^\n]{2,220})/i,
+  ]) || source
+    .split(/\n+/)
+    .map(cleanText)
+    .filter((line) => line.length > 4)
+    .filter((line) => reservationKeywords.concat(treatmentKeywords).some((keyword) => line.toLowerCase().includes(keyword)))
+    .slice(-4)
+    .join(" / ");
+
+  return {
+    isReservationRelated,
+    name,
+    phone,
+    date,
+    time,
+    concerns: cleanText(concerns).slice(0, 1200),
+  };
+}
+
 function collectCurrentConversation() {
   if (!location.hostname.endsWith("instagram.com") || !location.pathname.startsWith("/direct/t/")) return null;
   const messages = extractConversationMessages();
   const text = messages.map((message) => message.text).join("\n");
   if (!text || text.length < 20) return null;
 
+  const title = extractConversationTitle();
   return {
     senderId: getThreadIdFromUrl(location.href) || location.href,
     threadId: getThreadIdFromUrl(location.href),
-    title: extractConversationTitle(),
+    title,
     url: location.href,
     capturedAt: new Date().toISOString(),
     messages,
     text,
+    reservationInfo: extractReservationInfo(text, title),
   };
 }
 
@@ -130,6 +193,8 @@ async function autoSaveCurrentConversation() {
 
   const conversation = collectCurrentConversation();
   if (!conversation) return;
+
+  if (!conversation.reservationInfo?.isReservationRelated) return;
 
   const signature = `${conversation.threadId}:${conversation.text.slice(-1600)}`;
   if (signature === lastAutoSaveSignature) return;
@@ -186,21 +251,29 @@ async function scanInstagramDms(options = {}, onProgress) {
     await sleep(LOFI_SCAN_DELAY_MS);
 
     const messages = extractConversationMessages();
+    const title = extractConversationTitle() || thread.title;
+    const text = messages.map((message) => message.text).join("\n");
     conversations.push({
       senderId: getThreadIdFromUrl(thread.url) || `thread-${index + 1}`,
       threadId: getThreadIdFromUrl(thread.url),
-      title: extractConversationTitle() || thread.title,
+      title,
       url: thread.url,
       capturedAt: new Date().toISOString(),
       messages,
-      text: messages.map((message) => message.text).join("\n"),
+      text,
+      reservationInfo: extractReservationInfo(text, title),
     });
   }
 
-  onProgress?.(`Saving ${conversations.length} conversation${conversations.length === 1 ? "" : "s"}...`);
+  const reservationConversations = conversations.filter((conversation) => conversation.reservationInfo?.isReservationRelated);
+  if (!reservationConversations.length) {
+    throw new Error("No reservation-related DM conversations found.");
+  }
+
+  onProgress?.(`Saving ${reservationConversations.length} reservation-related conversation${reservationConversations.length === 1 ? "" : "s"}...`);
   const result = await chrome.runtime.sendMessage({
     type: "LOFI_IMPORT_INSTAGRAM_CONVERSATIONS",
-    conversations,
+    conversations: reservationConversations,
   });
   if (!result?.ok) throw new Error(result?.message || "Failed to save conversations");
   return result;
