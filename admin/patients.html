@@ -206,6 +206,29 @@
 
       .channel-tab.active { background: var(--ink); color: #fff; border-color: var(--ink); }
 
+      .ai-assist-panel {
+        display: grid; gap: 10px; padding: 12px 18px;
+        border-bottom: 1px solid var(--line); background: #fbfcff;
+      }
+
+      .ai-assist-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
+      .ai-assist-title { margin: 0; font-size: 0.9rem; font-weight: 900; color: var(--accent); }
+
+      .ai-assist-body {
+        display: none; gap: 8px; padding: 12px; border: 1px solid var(--line);
+        border-radius: 12px; background: #fff; color: var(--ink); font-size: 0.9rem; line-height: 1.5;
+      }
+
+      .ai-assist-body.open { display: grid; }
+
+      .ai-assist-row strong { color: var(--soft); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+
+      .ai-assist-reply {
+        margin: 4px 0 0; padding: 10px; border-radius: 10px; background: #f8faff;
+        border: 1px solid rgba(90,111,218,0.12); white-space: pre-wrap;
+      }
+
       .modal {
         position: fixed; inset: 0; z-index: 1000;
         display: none; align-items: center; justify-content: center;
@@ -330,6 +353,13 @@
           <button class="btn channel-tab" type="button" data-channel="instagram">Instagram DM</button>
           <button class="btn channel-tab" type="button" data-channel="email">Email</button>
         </div>
+        <div class="ai-assist-panel">
+          <div class="ai-assist-head">
+            <p class="ai-assist-title">AI Assist</p>
+            <button class="btn" id="aiAssistBtn" type="button">Generate draft</button>
+          </div>
+          <div class="ai-assist-body" id="aiAssistBody"></div>
+        </div>
         <div class="thread-content" id="threadContent"></div>
         <form class="reply-form" id="threadReplyForm">
           <textarea class="reply-input" id="threadReplyInput" maxlength="2000" placeholder="Reply to this thread"></textarea>
@@ -356,6 +386,7 @@
       let patientPollTimer = null;
       let lastRenderedThreadSignature = "";
       let lastRenderedPatientSignature = "";
+      let latestAiSuggestedReply = "";
 
       function esc(v) {
         return String(v || "")
@@ -423,6 +454,76 @@
         const images = attachments.filter((attachment) => String(attachment?.type || "").startsWith("image/") && attachment.dataUrl);
         if (!images.length) return "";
         return `<div class="thread-attachments">${images.map((attachment) => `<img class="thread-photo" src="${esc(attachment.dataUrl)}" alt="${esc(attachment.name || "Attached photo")}" loading="lazy" />`).join("")}</div>`;
+      }
+
+      function resetAiAssist() {
+        latestAiSuggestedReply = "";
+        const body = document.getElementById("aiAssistBody");
+        if (!body) return;
+        body.classList.remove("open");
+        body.innerHTML = "";
+      }
+
+      function renderAiAssist(assist, model) {
+        const body = document.getElementById("aiAssistBody");
+        const patientInfo = assist?.patientInfo || {};
+        latestAiSuggestedReply = String(assist?.suggestedReply || "");
+        const details = [
+          patientInfo.name ? `Name: ${patientInfo.name}` : "",
+          patientInfo.phone ? `Phone: ${patientInfo.phone}` : "",
+          patientInfo.email ? `Email: ${patientInfo.email}` : "",
+          patientInfo.treatment ? `Treatment: ${patientInfo.treatment}` : "",
+          patientInfo.preferredDate ? `Preferred: ${patientInfo.preferredDate}` : "",
+          patientInfo.visitingFrom ? `From: ${patientInfo.visitingFrom}` : "",
+        ].filter(Boolean).join(" · ");
+        body.classList.add("open");
+        body.innerHTML = `
+          <div class="ai-assist-row"><strong>Summary</strong><br>${esc(assist?.summary || "No summary returned.")}</div>
+          <div class="ai-assist-row"><strong>Intent</strong><br>${esc([assist?.intent, assist?.language, assist?.urgency].filter(Boolean).join(" · ") || "-")}</div>
+          <div class="ai-assist-row"><strong>Patient Info</strong><br>${esc(details || "No new details detected.")}</div>
+          <div class="ai-assist-row"><strong>Suggested Reply</strong><div class="ai-assist-reply">${esc(latestAiSuggestedReply || "No reply draft returned.")}</div></div>
+          <div class="reply-actions">
+            <span class="reply-status">${esc(assist?.needsHumanReview ? "Review before sending." : `Ready to review · ${model || "AI"}`)}</span>
+            <button class="btn" id="useAiReplyBtn" type="button" ${latestAiSuggestedReply ? "" : "disabled"}>Use draft</button>
+          </div>
+        `;
+        const useBtn = document.getElementById("useAiReplyBtn");
+        if (useBtn) useBtn.addEventListener("click", useAiSuggestedReply);
+      }
+
+      async function generateAiAssist() {
+        const button = document.getElementById("aiAssistBtn");
+        const body = document.getElementById("aiAssistBody");
+        if (!currentThreadEmail) return;
+        button.disabled = true;
+        button.textContent = "Generating...";
+        body.classList.add("open");
+        body.innerHTML = '<p class="reply-status">Generating AI summary and draft...</p>';
+        try {
+          const res = await fetch(`/api/admin/email-thread/${encodeURIComponent(currentThreadEmail)}/ai-assist`, {
+            method: "POST",
+            headers: { Accept: "application/json", "Content-Type": "application/json" },
+            body: JSON.stringify({ channel: currentChannel }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            body.innerHTML = `<p class="reply-status">${esc(data.message || "Failed to generate AI assist.")}</p>`;
+            return;
+          }
+          renderAiAssist(data.assist || {}, data.model || "");
+        } catch {
+          body.innerHTML = '<p class="reply-status">Failed to generate AI assist.</p>';
+        } finally {
+          button.disabled = false;
+          button.textContent = "Generate draft";
+        }
+      }
+
+      function useAiSuggestedReply() {
+        if (!latestAiSuggestedReply) return;
+        const input = document.getElementById("threadReplyInput");
+        input.value = latestAiSuggestedReply;
+        input.focus();
       }
 
       function renderThreadChannel() {
@@ -545,6 +646,7 @@
         document.querySelectorAll(".channel-tab").forEach(button => {
           button.classList.toggle("active", button.dataset.channel === channel);
         });
+        resetAiAssist();
         renderThreadChannel();
         if (channel === "web") markCurrentWebThreadRead();
       }
@@ -559,6 +661,7 @@
         currentThreadEmail = email;
         currentReservationId = "";
         lastRenderedThreadSignature = "";
+        resetAiAssist();
         replyStatus.textContent = "";
         replyInput.value = "";
         document.querySelectorAll(".channel-tab").forEach(button => {
@@ -574,6 +677,7 @@
         document.getElementById("threadContent").innerHTML = "";
         document.getElementById("threadReplyInput").value = "";
         document.getElementById("threadReplyStatus").textContent = "";
+        resetAiAssist();
         currentThread = [];
         currentThreadEmail = "";
         currentReservationId = "";
@@ -854,6 +958,7 @@
       document.getElementById("refreshBtn").addEventListener("click", load);
       document.getElementById("closeThreadBtn").addEventListener("click", closeThread);
       document.getElementById("threadReplyForm").addEventListener("submit", sendThreadReply);
+      document.getElementById("aiAssistBtn").addEventListener("click", generateAiAssist);
       document.getElementById("editNameOption").addEventListener("click", () => {
         const nameEl = selectedNameEl;
         hideNameContextMenu();

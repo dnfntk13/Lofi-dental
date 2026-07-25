@@ -67,6 +67,8 @@ const imapSentMailboxes = (process.env.IMAP_SENT_MAILBOXES || "[Gmail]/Sent Mail
 const reservationNotifyTo = process.env.RESERVATION_NOTIFY_TO || "";
 const resendApiKey = process.env.RESEND_API_KEY || "";
 const resendFrom = process.env.RESEND_FROM || smtpFrom;
+const openaiApiKey = process.env.OPENAI_API_KEY || "";
+const openaiModel = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const emailDnsServers = (process.env.EMAIL_DNS_SERVERS || "8.8.8.8,1.1.1.1")
   .split(",")
   .map((server) => server.trim())
@@ -848,6 +850,106 @@ function getStoredMessageChannel(message) {
   if (source === "consult-chat" || source === "web") return "web";
   if (source === "instagram" || source === "instagram-dm" || source === "instagram_dm") return "instagram";
   return "email";
+}
+
+function getMessageTextForAi(message) {
+  const text = String(message?.content || message?.concerns || "").trim();
+  const attachments = Array.isArray(message?.attachments) ? message.attachments : [];
+  const imageCount = attachments.filter((attachment) => String(attachment?.type || "").startsWith("image/")).length;
+  return [text, imageCount ? `[${imageCount} image attachment${imageCount === 1 ? "" : "s"}]` : ""].filter(Boolean).join("\n").slice(0, 1800);
+}
+
+function getMessageTimeForAi(message) {
+  return String(message?.receivedAt || message?.sentAt || message?.createdAt || "").slice(0, 40);
+}
+
+function normalizeAiAssistPayload(value) {
+  const patientInfo = value?.patientInfo && typeof value.patientInfo === "object" ? value.patientInfo : {};
+  return {
+    summary: String(value?.summary || "").trim().slice(0, 800),
+    intent: String(value?.intent || "other").trim().slice(0, 80),
+    language: String(value?.language || "unknown").trim().slice(0, 40),
+    urgency: String(value?.urgency || "normal").trim().slice(0, 40),
+    patientInfo: {
+      name: String(patientInfo.name || "").trim().slice(0, 80),
+      phone: String(patientInfo.phone || "").trim().slice(0, 30),
+      email: String(patientInfo.email || "").trim().toLowerCase().slice(0, 120),
+      treatment: String(patientInfo.treatment || "").trim().slice(0, 120),
+      preferredDate: String(patientInfo.preferredDate || "").trim().slice(0, 120),
+      visitingFrom: String(patientInfo.visitingFrom || "").trim().slice(0, 120),
+    },
+    suggestedReply: String(value?.suggestedReply || "").trim().slice(0, 1800),
+    needsHumanReview: value?.needsHumanReview !== false,
+    safetyNote: String(value?.safetyNote || "").trim().slice(0, 300),
+  };
+}
+
+async function generateAiAssist({ email, channel, thread, patient }) {
+  if (!openaiApiKey) {
+    const error = new Error("OpenAI API key is not configured");
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const channelMessages = (Array.isArray(thread) ? thread : [])
+    .filter((message) => getStoredMessageChannel(message) === channel)
+    .slice(-12)
+    .map((message) => ({
+      role: message.type === "admin-reply" || message.type === "auto-reply" ? "lofi" : "patient",
+      at: getMessageTimeForAi(message),
+      text: getMessageTextForAi(message),
+    }))
+    .filter((message) => message.text);
+
+  if (!channelMessages.length) {
+    const error = new Error("No messages to analyze");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const prompt = {
+    email,
+    channel,
+    patient: patient ? {
+      name: patient.name || "",
+      phone: patient.phone || "",
+      realEmail: patient.realEmail || "",
+      latestReservation: patient.latestReservation || null,
+    } : null,
+    messages: channelMessages,
+  };
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${openaiApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: openaiModel,
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: "You are an assistant for lofi dental, a dental/aesthetic clinic. Analyze patient inquiries from email, Instagram DM, and web consult. Return only JSON with keys: summary, intent, language, urgency, patientInfo, suggestedReply, needsHumanReview, safetyNote. patientInfo must include name, phone, email, treatment, preferredDate, visitingFrom when present. Suggested replies must match the patient's language, be warm and concise, help with reservations, and never diagnose or promise treatment outcomes. If medical judgment, photos, side effects, or suitability are involved, say that clinical review or an in-person consultation is needed and set needsHumanReview true. For simple logistics, price-guide, contact, or appointment information, still keep the reply review-ready. Do not mention AI.",
+        },
+        { role: "user", content: JSON.stringify(prompt) },
+      ],
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data?.error?.message || "OpenAI request failed");
+    error.statusCode = response.status;
+    throw error;
+  }
+
+  const content = data?.choices?.[0]?.message?.content || "{}";
+  let parsed = {};
+  try { parsed = JSON.parse(content); } catch { parsed = {}; }
+  return normalizeAiAssistPayload(parsed);
 }
 
 async function markEmailThreadMessagesRead(email, channel = "web") {
@@ -3301,6 +3403,42 @@ createServer(async (request, response) => {
       console.error("Failed to delete reservation", error);
       response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ message: "Failed to delete" }));
+    }
+    return;
+  }
+
+  if (pathname.startsWith("/api/admin/email-thread/") && pathname.endsWith("/ai-assist") && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+
+    const prefix = "/api/admin/email-thread/";
+    const suffix = "/ai-assist";
+    const encodedEmail = pathname.slice(prefix.length, pathname.length - suffix.length);
+    const email = decodeURIComponent(encodedEmail || "").trim().toLowerCase();
+
+    if (!email || !isValidEmail(email)) {
+      response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Valid email is required" }));
+      return;
+    }
+
+    try {
+      const payload = await getJsonBody(request).catch(() => ({}));
+      const channel = ["web", "instagram", "email"].includes(String(payload.channel || "").toLowerCase())
+        ? String(payload.channel || "").toLowerCase()
+        : "email";
+      const threads = await readEmailThreads();
+      const threadRecord = threads.find((thread) => String(thread.email || "").toLowerCase() === email);
+      const thread = Array.isArray(threadRecord?.messages) ? threadRecord.messages : [];
+      const patients = await readPatients();
+      const patient = patients.find((item) => getPatientEmailKeys(item).has(email)) || null;
+      const assist = await generateAiAssist({ email, channel, thread, patient });
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      response.end(JSON.stringify({ ok: true, assist, model: openaiModel }));
+    } catch (error) {
+      console.error("Failed to generate AI assist", error);
+      const statusCode = Number(error?.statusCode || 500);
+      response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      response.end(JSON.stringify({ message: error instanceof Error ? error.message : "Failed to generate AI assist" }));
     }
     return;
   }
