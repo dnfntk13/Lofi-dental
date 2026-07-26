@@ -282,17 +282,17 @@
   const launch = document.createElement("button");
   launch.type = "button";
   launch.className = "consult-chat-launch";
-  launch.textContent = "Consult with us";
+  launch.textContent = "Ask Lofi AI";
   launch.setAttribute("aria-expanded", "false");
   launch.setAttribute("aria-controls", "consultChatPanel");
 
   const panel = document.createElement("section");
   panel.className = "consult-chat-panel";
   panel.id = "consultChatPanel";
-  panel.setAttribute("aria-label", "Live Chat with Dr.Ryan Kim.");
+  panel.setAttribute("aria-label", "Lofi Dental AI assistant");
   panel.innerHTML = `
     <div class="consult-chat-head">
-      <span>Live Chat with Dr.Ryan Kim.</span>
+      <span>Lofi Dental AI Assistant</span>
       <button class="consult-chat-close" type="button" aria-label="Close chat">×</button>
     </div>
     <div class="consult-chat-log" aria-live="polite"></div>
@@ -305,7 +305,7 @@
       </div>
       <div class="consult-chat-emoji-panel" aria-label="Emoji picker"></div>
       <div class="consult-chat-row">
-        <input class="consult-chat-input" type="text" maxlength="2000" autocomplete="off" placeholder="Type your message" />
+        <input class="consult-chat-input" type="text" maxlength="2000" autocomplete="off" placeholder="Ask about reservations, treatments, location..." />
         <button class="consult-chat-send" type="submit">Send</button>
       </div>
     </form>
@@ -547,6 +547,11 @@
       displayName = data.displayName || displayName;
       saveSession();
       setMessageStatus(message, "Sent");
+      if (data.aiReply?.content) {
+        addMessage(data.aiReply.content, "system");
+      } else if (data.aiConfigured === false) {
+        addMessage("Your message was saved for the lofi dental team. AI replies are not configured yet, so staff will follow up after review.", "system");
+      }
     } catch {
       setMessageStatus(message, "Not sent");
     } finally {

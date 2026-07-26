@@ -69,8 +69,9 @@ To check which email provider Render is using, open `/api/admin/email-status` wi
 
 ### AI Assist
 
-Admin tools can generate AI-assisted summaries and drafts for staff review:
+The public chat widget and admin tools can generate AI-assisted information, summaries, and drafts:
 
+- Public website AI assistant: answers visitor questions from site content, explains reservation/contact flow, and saves the conversation to Patients for staff review.
 - Patient message threads: summary, patient info extraction, and suggested reply drafts for Web, Instagram DM, and Email channels.
 - Calendar day detail: schedule summary, operational risks, prep notes, follow-ups, and short patient message draft snippets.
 - Website insights: traffic summary, notable changes, acquisition notes, content opportunities, and recommended actions.
@@ -82,7 +83,7 @@ OPENAI_API_KEY=your_openai_api_key
 OPENAI_MODEL=gpt-4o-mini
 ```
 
-`OPENAI_MODEL` is optional and defaults to `gpt-4o-mini`. AI output is generated for staff review; the assistant is instructed not to diagnose, prescribe, or promise treatment outcomes.
+`OPENAI_MODEL` is optional and defaults to `gpt-4o-mini`. AI output is generated for visitor information and staff review; the assistant is instructed not to diagnose, prescribe, evaluate clinical photos, or promise treatment outcomes.
 
 For local testing, the server also reads a local `.env` file in the repository root:
 

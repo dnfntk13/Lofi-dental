@@ -118,6 +118,25 @@ const reservationCorsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Accept",
 };
+const publicSiteKnowledgePages = [
+  { path: "index.html", title: "Korean home" },
+  { path: "english.html", title: "English home" },
+  { path: "english/index.html", title: "English home" },
+  { path: "meetdrkim.html", title: "Dr. Kim story" },
+  { path: "로우파이 이야기.html", title: "Lofi Korean story" },
+  { path: "before-after.html", title: "Before and after Korean" },
+  { path: "before-after-en.html", title: "Before and after" },
+  { path: "lofi-lab.html", title: "Lofi lab Korean" },
+  { path: "lofi-lab-en.html", title: "Lofi lab" },
+  { path: "reservation/index.html", title: "Reservation" },
+  { path: "reservation/concerns.html", title: "Reservation concerns" },
+  { path: "contact-options.html", title: "Contact options" },
+  { path: "concourse-app.html", title: "Concourse app" },
+  { path: "whatsapp/index.html", title: "WhatsApp" },
+  { path: "instagram/index.html", title: "Instagram" },
+  { path: "mobile/index.html", title: "Mobile page" },
+];
+let publicSiteKnowledgeCache;
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -1252,6 +1271,143 @@ async function generateAdminAiConsoleReply({ messages }) {
   let parsed = {};
   try { parsed = JSON.parse(content); } catch { parsed = {}; }
   return normalizeAdminAiConsolePayload(parsed);
+}
+
+function stripHtmlForAi(value) {
+  return String(value || "")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#x27;|&#39;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function getPublicSiteKnowledge() {
+  if (publicSiteKnowledgeCache) return publicSiteKnowledgeCache;
+  const pages = [];
+  for (const page of publicSiteKnowledgePages) {
+    try {
+      const fileContent = await readFile(path.join(rootDir, page.path), "utf-8");
+      const text = stripHtmlForAi(fileContent).slice(0, 4500);
+      if (text) pages.push({ ...page, url: `/${page.path.replace(/\\/g, "/")}`, text });
+    } catch {
+      // Some optional pages may not exist in every deployment snapshot.
+    }
+  }
+
+  publicSiteKnowledgeCache = {
+    clinic: {
+      name: "lofi dental",
+      address: "49, Apgujeong-ro 28-gil, Gangnam, Seoul, Republic of Korea",
+      phone: "+82-70-7755-8823",
+      kakao: "@lofidental",
+      website: "https://lofiesthetic.com",
+    },
+    pages,
+  };
+  return publicSiteKnowledgeCache;
+}
+
+function scoreKnowledgePage(page, query) {
+  const haystack = `${page.title} ${page.path} ${page.text}`.toLowerCase();
+  const tokens = String(query || "")
+    .toLowerCase()
+    .split(/[^a-z0-9가-힣]+/)
+    .filter((token) => token.length >= 2)
+    .slice(0, 24);
+  return tokens.reduce((score, token) => score + (haystack.includes(token) ? 1 : 0), 0);
+}
+
+function pickPublicSiteKnowledge(knowledge, conversation) {
+  const query = conversation.map((message) => message.content).join(" ");
+  const pages = [...(knowledge.pages || [])]
+    .map((page) => ({ ...page, score: scoreKnowledgePage(page, query) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6)
+    .map(({ score, ...page }) => page);
+  return { clinic: knowledge.clinic, pages };
+}
+
+function normalizePublicConsultAiPayload(value) {
+  return {
+    answer: String(value?.answer || "").trim().slice(0, 1800),
+    quickActions: Array.isArray(value?.quickActions) ? value.quickActions.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 5) : [],
+    shouldCollectContact: value?.shouldCollectContact !== false,
+    needsHumanReview: value?.needsHumanReview !== false,
+    safetyNote: String(value?.safetyNote || "").trim().slice(0, 300),
+  };
+}
+
+async function generatePublicConsultAiReply({ conversation, patientInfo, attachments }) {
+  if (!openaiApiKey) {
+    const error = new Error("OpenAI API key is not configured");
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const compactConversation = (Array.isArray(conversation) ? conversation : [])
+    .map((message) => ({
+      role: message?.role === "assistant" ? "assistant" : "user",
+      at: String(message?.at || "").slice(0, 40),
+      content: String(message?.content || "").trim().slice(0, 1500),
+    }))
+    .filter((message) => message.content)
+    .slice(-10);
+
+  if (!compactConversation.length) {
+    const error = new Error("Message is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const siteKnowledge = await getPublicSiteKnowledge();
+  const prompt = {
+    site: pickPublicSiteKnowledge(siteKnowledge, compactConversation),
+    patientInfo: patientInfo || {},
+    attachments: Array.isArray(attachments) ? attachments.map((attachment) => ({
+      name: String(attachment?.name || "photo").slice(0, 80),
+      type: String(attachment?.type || "").slice(0, 80),
+    })) : [],
+    conversation: compactConversation,
+  };
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${openaiApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: openaiModel,
+      temperature: 0.25,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: "You are lofi dental's public website AI assistant replacing the old Chat with Dr. Kim widget. Help patients using only the supplied site context and general safe dental-clinic guidance. Provide practical information about the clinic, Dr. Kim, reservation flow, contact options, treatments/pages described in the site context, directions, and what information staff may need. Never diagnose, prescribe, evaluate photos clinically, guarantee treatment suitability/results, or quote exact prices unless the site context explicitly says so. For symptoms, side effects, photos, suitability, or treatment decisions, explain that clinical review or an in-person consultation is needed. Encourage booking or leaving contact details when appropriate. Return only JSON with keys: answer, quickActions, shouldCollectContact, needsHumanReview, safetyNote. Match the visitor's language.",
+        },
+        { role: "user", content: JSON.stringify(prompt) },
+      ],
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data?.error?.message || "OpenAI request failed");
+    error.statusCode = response.status;
+    throw error;
+  }
+
+  const content = data?.choices?.[0]?.message?.content || "{}";
+  let parsed = {};
+  try { parsed = JSON.parse(content); } catch { parsed = {}; }
+  return normalizePublicConsultAiPayload(parsed);
 }
 
 async function markEmailThreadMessagesRead(email, channel = "web") {
@@ -3056,11 +3212,41 @@ createServer(async (request, response) => {
         phone,
       });
 
+      let aiReply = null;
+      try {
+        const existingThread = await getConsultThread({ email: chatEmail });
+        const conversation = existingThread.map((message) => ({
+          role: message.type === "admin-reply" || message.type === "auto-reply" ? "assistant" : "user",
+          at: getMessageTimeForAi(message),
+          content: getMessageTextForAi(message),
+        }));
+        const assist = await generatePublicConsultAiReply({ conversation, patientInfo, attachments });
+        if (assist.answer) {
+          aiReply = {
+            type: "admin-reply",
+            sentAt: new Date().toISOString(),
+            content: assist.answer,
+            source: "consult-chat-ai",
+            channel: "web",
+            aiAssist: {
+              quickActions: assist.quickActions,
+              shouldCollectContact: assist.shouldCollectContact,
+              needsHumanReview: assist.needsHumanReview,
+              safetyNote: assist.safetyNote,
+              model: openaiModel,
+            },
+          };
+          await saveOrUpdateEmailThread(chatEmail, sessionId, aiReply);
+        }
+      } catch (error) {
+        console.error("Failed to generate public consult AI reply", error);
+      }
+
       response.writeHead(201, {
         "Content-Type": "application/json; charset=utf-8",
         ...reservationCorsHeaders,
       });
-      response.end(JSON.stringify({ ok: true, sessionId, displayName, email: chatEmail, patientInfo }));
+      response.end(JSON.stringify({ ok: true, sessionId, displayName, email: chatEmail, patientInfo, aiReply, aiConfigured: Boolean(openaiApiKey) }));
       return;
     } catch (error) {
       console.error("Failed to save consult chat", error);
