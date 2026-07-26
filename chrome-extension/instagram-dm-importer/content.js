@@ -15,6 +15,14 @@ function cleanText(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
 
+function cleanLines(value) {
+  return String(value || "")
+    .replace(/\r/g, "\n")
+    .split(/\n+/)
+    .map(cleanText)
+    .filter(Boolean);
+}
+
 function isVisibleElement(element) {
   const rect = element.getBoundingClientRect();
   return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0;
@@ -137,16 +145,24 @@ function getThreadListPane() {
     .map((element) => {
       const rect = element.getBoundingClientRect();
       const links = Array.from(element.querySelectorAll('a[href*="/direct/t/"]'));
-      return { element, rect, links };
+      const text = cleanText(element.innerText || "");
+      const rowLikeCount = Array.from(element.querySelectorAll('a, button, [role="button"], [tabindex], div'))
+        .filter((child) => child !== element && !child.closest("#lofi-importer-panel"))
+        .map((child) => child.getBoundingClientRect())
+        .filter((childRect) => childRect.width >= rect.width * 0.55 && childRect.height >= 42 && childRect.height <= 112)
+        .length;
+      return { element, rect, links, text, rowLikeCount };
     })
     .filter((item) => isVisibleElement(item.element))
-    .filter((item) => item.links.length > 0)
     .filter((item) => item.rect.width >= 220 && item.rect.height >= 240)
     .filter((item) => item.rect.left < window.innerWidth * 0.62)
+    .filter((item) => item.text.length >= 10)
+    .filter((item) => item.links.length > 0 || item.rowLikeCount > 0 || item.element.scrollHeight > item.element.clientHeight + 80)
     .sort((a, b) => {
       const aLooksLikeList = a.rect.width <= Math.min(560, window.innerWidth * 0.48);
       const bLooksLikeList = b.rect.width <= Math.min(560, window.innerWidth * 0.48);
       if (aLooksLikeList !== bLooksLikeList) return bLooksLikeList ? 1 : -1;
+      if (b.rowLikeCount !== a.rowLikeCount) return b.rowLikeCount - a.rowLikeCount;
       if (b.links.length !== a.links.length) return b.links.length - a.links.length;
       return (b.element.scrollHeight - b.element.clientHeight) - (a.element.scrollHeight - a.element.clientHeight);
     });
@@ -183,6 +199,48 @@ function getConversationPane() {
     });
 
   return candidates[0]?.element || main;
+}
+
+function getConversationScrollTarget() {
+  const conversationPane = getConversationPane();
+  const scrollTargets = [conversationPane, ...Array.from(conversationPane.querySelectorAll("section, div"))]
+    .filter((element) => element.scrollHeight > element.clientHeight + 120)
+    .sort((a, b) => (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight));
+  return scrollTargets[0] || conversationPane;
+}
+
+function getThreadRows() {
+  const pane = getThreadListPane();
+  const paneRect = pane.getBoundingClientRect();
+  const rows = Array.from(pane.querySelectorAll('a[href*="/direct/t/"], button, [role="button"], [tabindex], div'))
+    .filter((element) => element !== pane && !element.closest("#lofi-importer-panel"))
+    .map((element) => {
+      const rect = element.getBoundingClientRect();
+      const text = cleanText(element.innerText || element.textContent || "");
+      const clickTarget = element.matches('a, button, [role="button"], [tabindex]')
+        ? element
+        : element.querySelector('a, button, [role="button"], [tabindex]') || element;
+      const url = element.href || clickTarget.href || "";
+      const lines = cleanLines(element.innerText || element.textContent || "");
+      const title = lines.find((line) => !isChromeText(line) && !/^\d+[분시간일주년]\b/.test(line)) || text.slice(0, 80) || "Instagram DM";
+      return { element, clickTarget, rect, text, url, title };
+    })
+    .filter((item) => isVisibleElement(item.element))
+    .filter((item) => item.rect.width >= paneRect.width * 0.55)
+    .filter((item) => item.rect.height >= 42 && item.rect.height <= 112)
+    .filter((item) => item.rect.left >= paneRect.left - 8 && item.rect.right <= paneRect.right + 8)
+    .filter((item) => item.rect.top >= paneRect.top + 48 && item.rect.bottom <= paneRect.bottom + 8)
+    .filter((item) => item.text.length >= 2 && item.text.length <= 500)
+    .filter((item) => !/^(검색|search|notes?|메시지|messages?)$/i.test(item.text))
+    .sort((a, b) => a.rect.top - b.rect.top || b.rect.width - a.rect.width);
+
+  const uniqueRows = [];
+  for (const row of rows) {
+    const overlapsExisting = uniqueRows.some((existing) => Math.abs(existing.rect.top - row.rect.top) < 8 && Math.abs(existing.rect.height - row.rect.height) < 16);
+    if (!overlapsExisting) uniqueRows.push(row);
+  }
+
+  return uniqueRows;
 }
 
 function getThreadLinks() {
@@ -282,10 +340,7 @@ async function collectThreadLinks(maxThreads, maxListScrolls, onProgress) {
 async function scrollConversationToTop(maxMessageScrolls) {
   let lastTop = null;
   for (let index = 0; index < maxMessageScrolls; index += 1) {
-    const conversationPane = getConversationPane();
-    const scrollTarget = Array.from(conversationPane.querySelectorAll("section, div"))
-      .filter((element) => element.scrollHeight > element.clientHeight + 120)
-      .sort((a, b) => (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight))[0] || conversationPane;
+    const scrollTarget = getConversationScrollTarget();
     if (!scrollTarget) {
       window.scrollTo(0, 0);
       await sleep(LOFI_SCAN_DELAY_MS);
@@ -297,6 +352,37 @@ async function scrollConversationToTop(maxMessageScrolls) {
     if (lastTop === scrollTarget.scrollTop) break;
     lastTop = scrollTarget.scrollTop;
   }
+}
+
+async function extractConversationMessagesByScrolling(maxMessageScrolls) {
+  const scrollTarget = getConversationScrollTarget();
+  const seen = new Set();
+  const messages = [];
+
+  const addVisibleMessages = () => {
+    for (const message of extractConversationMessages()) {
+      const text = cleanText(message.text);
+      if (!text || seen.has(text)) continue;
+      seen.add(text);
+      messages.push({ text });
+    }
+  };
+
+  scrollTarget.scrollTop = 0;
+  await sleep(LOFI_SCAN_DELAY_MS);
+
+  for (let index = 0; index < maxMessageScrolls; index += 1) {
+    addVisibleMessages();
+    const beforeTop = scrollTarget.scrollTop;
+    const reachedBottom = beforeTop + scrollTarget.clientHeight >= scrollTarget.scrollHeight - 8;
+    if (reachedBottom) break;
+    scrollTarget.scrollTop += Math.max(420, scrollTarget.clientHeight * 0.8);
+    await sleep(LOFI_SCAN_DELAY_MS);
+    if (scrollTarget.scrollTop === beforeTop) break;
+  }
+
+  addVisibleMessages();
+  return messages.slice(-500);
 }
 
 function extractConversationTitle() {
@@ -400,14 +486,15 @@ function extractReservationInfo(text, title = "") {
 }
 
 function collectCurrentConversation() {
-  if (!location.hostname.endsWith("instagram.com") || !location.pathname.startsWith("/direct/t/")) return null;
+  if (!location.hostname.endsWith("instagram.com") || !location.pathname.startsWith("/direct")) return null;
   const messages = extractConversationMessages();
   const text = messages.map((message) => message.text).join("\n");
   if (!text || text.length < 20) return null;
 
   const title = extractConversationTitle();
+  const fallbackThreadId = cleanText(title || text.slice(0, 80)).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || "instagram-dm";
   return {
-    senderId: getThreadIdFromUrl(location.href) || location.href,
+    senderId: getThreadIdFromUrl(location.href) || fallbackThreadId,
     threadId: getThreadIdFromUrl(location.href),
     title,
     url: location.href,
@@ -448,7 +535,20 @@ async function autoSaveCurrentConversation() {
 }
 
 async function saveCurrentConversationNow() {
-  const conversation = collectCurrentConversation();
+  const currentConversation = collectCurrentConversation();
+  const messages = currentConversation ? await extractConversationMessagesByScrolling(30) : [];
+  const text = messages.map((message) => message.text).join("\n");
+  const title = extractConversationTitle();
+  const fallbackThreadId = cleanText(title || text.slice(0, 80)).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || "instagram-dm";
+  const conversation = currentConversation && text.length >= 20 ? {
+    ...currentConversation,
+    senderId: getThreadIdFromUrl(location.href) || fallbackThreadId,
+    title,
+    capturedAt: new Date().toISOString(),
+    messages,
+    text,
+    reservationInfo: extractReservationInfo(text, title),
+  } : null;
   if (!conversation) {
     throw new Error("Open one Instagram DM thread first, then try Save open DM now.");
   }
@@ -518,39 +618,72 @@ async function scanInstagramDms(options = {}, onProgress) {
   }
 
   onProgress?.("Scanning DM list...");
-  const threadLinks = await collectThreadLinks(maxThreads, maxListScrolls, onProgress);
-  if (!threadLinks.length) {
-    throw new Error("No DM threads found. Make sure you are logged in and the DM list is visible.");
-  }
-
   const conversations = [];
-  for (let index = 0; index < threadLinks.length; index += 1) {
-    const thread = threadLinks[index];
-    onProgress?.(`Opening ${index + 1}/${threadLinks.length}: ${thread.title}`);
-    let openedConversation = null;
-    try {
-      openedConversation = await openThread(thread);
-    } catch (error) {
-      onProgress?.(error.message || `Skipped ${thread.title}`);
-      continue;
-    }
-
-    await scrollConversationToTop(maxMessageScrolls);
+  const seenRows = new Set();
+  const scrollTarget = getThreadListScrollTarget();
+  scrollTarget.scrollTop = 0;
     await sleep(LOFI_SCAN_DELAY_MS);
 
-    const messages = extractConversationMessages();
-    const title = extractConversationTitle() || openedConversation?.title || thread.title;
-    const text = messages.map((message) => message.text).join("\n");
-    conversations.push({
-      senderId: getThreadIdFromUrl(thread.url) || `thread-${index + 1}`,
-      threadId: getThreadIdFromUrl(thread.url),
-      title,
-      url: thread.url,
-      capturedAt: new Date().toISOString(),
-      messages,
-      text,
-      reservationInfo: extractReservationInfo(text, title),
-    });
+  for (let scrollIndex = 0; scrollIndex < maxListScrolls && conversations.length < maxThreads; scrollIndex += 1) {
+    const rows = getThreadRows();
+    onProgress?.(`Found ${rows.length} visible DM row${rows.length === 1 ? "" : "s"}; saved ${conversations.length}.`);
+
+    for (const row of rows) {
+      if (conversations.length >= maxThreads) break;
+      const rowSignature = `${row.title}:${row.text.slice(0, 180)}`;
+      if (seenRows.has(rowSignature)) continue;
+      seenRows.add(rowSignature);
+
+      onProgress?.(`Opening ${conversations.length + 1}: ${row.title}`);
+      row.element.scrollIntoView({ block: "center" });
+      await sleep(180);
+      clickLikeUser(row.clickTarget || row.element);
+      await sleep(1400);
+
+      let messages = [];
+      let title = row.title;
+      let text = "";
+      const currentUrl = location.href;
+      const threadId = getThreadIdFromUrl(currentUrl);
+
+      try {
+        messages = await extractConversationMessagesByScrolling(maxMessageScrolls);
+        title = extractConversationTitle() || row.title;
+        text = messages.map((message) => message.text).join("\n");
+      } catch (error) {
+        onProgress?.(error.message || `Skipped ${row.title}`);
+        continue;
+      }
+
+      if (cleanText(text).length < 20) {
+        onProgress?.(`Skipped ${row.title}: no readable messages.`);
+        continue;
+      }
+
+      const fallbackThreadId = cleanText(threadId || row.title || text.slice(0, 80)).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || `thread-${conversations.length + 1}`;
+      conversations.push({
+        senderId: threadId || fallbackThreadId,
+        threadId,
+        title,
+        url: row.url || currentUrl,
+        capturedAt: new Date().toISOString(),
+        messages,
+        text,
+        reservationInfo: extractReservationInfo(text, title),
+      });
+    }
+
+    if (conversations.length >= maxThreads) break;
+    const beforeTop = scrollTarget.scrollTop;
+    const reachedBottom = beforeTop + scrollTarget.clientHeight >= scrollTarget.scrollHeight - 8;
+    if (reachedBottom) break;
+    scrollTarget.scrollTop += Math.max(360, scrollTarget.clientHeight * 0.8);
+    await sleep(LOFI_SCAN_DELAY_MS);
+    if (scrollTarget.scrollTop === beforeTop) break;
+  }
+
+  if (!seenRows.size) {
+    throw new Error("No DM rows found. Make sure you are logged in and the left DM list is visible.");
   }
 
   const validConversations = conversations.filter((conversation) => cleanText(conversation.text).length >= 20);
