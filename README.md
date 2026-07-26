@@ -74,6 +74,7 @@ The public chat widget and admin tools can generate AI-assisted information, sum
 - Public website AI assistant: answers visitor questions from site content, explains reservation/contact flow, and saves the conversation to Patients for staff review.
 - Patient message threads: summary, patient info extraction, and suggested reply drafts for Web, Instagram DM, and Email channels.
 - Admin AI Assistant: conversationally reads recent schedules plus Web, Email, and Instagram DM threads, then suggests follow-ups and staff-reviewed reply drafts.
+- Instagram DM import without webhook: paste DM conversation text into Admin AI Assistant, or use the local Chrome importer; saved DMs appear in Patients and can be checked one by one by AI.
 - Calendar day detail: schedule summary, operational risks, prep notes, follow-ups, and short patient message draft snippets.
 - Website insights: traffic summary, notable changes, acquisition notes, content opportunities, and recommended actions.
 
