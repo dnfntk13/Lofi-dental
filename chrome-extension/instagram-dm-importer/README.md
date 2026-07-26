@@ -1,6 +1,6 @@
 # Lofi Instagram DM Importer
 
-This Chrome Extension scans Instagram Direct in the browser and sends the extracted conversations to the Lofi Dental admin server.
+This Chrome Extension scans Instagram Direct in the browser and sends the extracted conversations to the Lofi Dental admin server. Admin AI can then read the saved Instagram DM threads and check them one by one.
 
 ## Install locally
 
@@ -18,7 +18,7 @@ This Chrome Extension scans Instagram Direct in the browser and sends the extrac
 5. Click `Open Instagram DM`.
 6. Log in to Instagram in that tab if needed.
 7. Open a conversation. New visible messages are auto-saved while the tab is open.
-8. Click `Scan & save DMs` any time to scan the DM list manually.
+8. Click `Read each DM & save` any time to scan the DM list manually.
 
 The server saves imported conversations into Patients through the existing Instagram DM storage path.
 
@@ -27,5 +27,6 @@ The server saves imported conversations into Patients through the existing Insta
 - Production import uses `/api/instagram-extension/import`.
 - Local testing uses `/api/local/instagram-extension/import`.
 - The extension reads the Instagram page that is already open in Chrome; it does not ask for or store Instagram passwords.
+- Manual scan opens visible DM threads one by one in your already logged-in Instagram tab and saves readable conversations.
 - Auto-save is near-live only while an Instagram Direct thread is open in Chrome.
 - Instagram changes its page markup often, so the scanner may need adjustment if the UI changes.

@@ -1960,7 +1960,7 @@ async function importInstagramExtensionConversations(request, response) {
         messageText || fallbackText,
       ].filter(Boolean).join("\n\n").trim().slice(0, 20000);
 
-      if (!reservationInfo.isReservationRelated || !senderId || !content || content.length < 20) {
+      if (!senderId || !content || content.length < 20) {
         skippedCount += 1;
         continue;
       }

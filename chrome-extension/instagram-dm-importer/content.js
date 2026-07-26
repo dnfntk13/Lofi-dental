@@ -265,15 +265,15 @@ async function scanInstagramDms(options = {}, onProgress) {
     });
   }
 
-  const reservationConversations = conversations.filter((conversation) => conversation.reservationInfo?.isReservationRelated);
-  if (!reservationConversations.length) {
-    throw new Error("No reservation-related DM conversations found.");
+  const validConversations = conversations.filter((conversation) => cleanText(conversation.text).length >= 20);
+  if (!validConversations.length) {
+    throw new Error("No readable DM conversations found.");
   }
 
-  onProgress?.(`Saving ${reservationConversations.length} reservation-related conversation${reservationConversations.length === 1 ? "" : "s"}...`);
+  onProgress?.(`Saving ${validConversations.length} DM conversation${validConversations.length === 1 ? "" : "s"}...`);
   const result = await chrome.runtime.sendMessage({
     type: "LOFI_IMPORT_INSTAGRAM_CONVERSATIONS",
-    conversations: reservationConversations,
+    conversations: validConversations,
   });
   if (!result?.ok) throw new Error(result?.message || "Failed to save conversations");
   return result;

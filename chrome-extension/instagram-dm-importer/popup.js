@@ -61,7 +61,7 @@ async function saveSettings() {
 openInstagramButton.addEventListener("click", async () => {
   setStatus("Opening Instagram Direct...");
   await getInstagramTab();
-  setStatus("Log in if needed, then click Scan & save DMs.");
+  setStatus("Log in if needed, then click Read each DM & save.");
 });
 
 scanButton.addEventListener("click", async () => {
