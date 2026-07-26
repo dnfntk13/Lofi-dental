@@ -35,6 +35,58 @@ function getThreadLinks() {
     .filter((item, index, items) => items.findIndex((other) => other.url === item.url) === index);
 }
 
+function findThreadAnchor(url) {
+  const targetThreadId = getThreadIdFromUrl(url);
+  return Array.from(document.querySelectorAll('a[href*="/direct/t/"]'))
+    .find((anchor) => anchor.href === url || getThreadIdFromUrl(anchor.href) === targetThreadId);
+}
+
+async function findThreadAnchorByScrolling(url, maxScrolls = 25) {
+  let anchor = findThreadAnchor(url);
+  if (anchor) return anchor;
+
+  const scrollTargets = getScrollableElements();
+  for (const scrollTarget of scrollTargets) {
+    scrollTarget.scrollTop = 0;
+    await sleep(250);
+
+    for (let index = 0; index < maxScrolls; index += 1) {
+      anchor = findThreadAnchor(url);
+      if (anchor) return anchor;
+      scrollTarget.scrollTop += Math.max(320, scrollTarget.clientHeight * 0.75);
+      await sleep(250);
+    }
+  }
+
+  return null;
+}
+
+async function waitForThreadContent(threadUrl, timeoutMs = 7000) {
+  const startedAt = Date.now();
+  const threadId = getThreadIdFromUrl(threadUrl);
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const isTargetThread = location.pathname.startsWith("/direct/t/") && (!threadId || getThreadIdFromUrl(location.href) === threadId);
+    const conversation = collectCurrentConversation();
+    if (isTargetThread && conversation?.text) return conversation;
+    await sleep(300);
+  }
+
+  return collectCurrentConversation();
+}
+
+async function openThread(thread) {
+  const anchor = await findThreadAnchorByScrolling(thread.url);
+  if (!anchor) throw new Error(`Could not find DM thread link: ${thread.title}`);
+
+  anchor.scrollIntoView({ block: "center" });
+  await sleep(250);
+  anchor.click();
+
+  await sleep(1200);
+  return waitForThreadContent(thread.url);
+}
+
 async function collectThreadLinks(maxThreads, maxListScrolls, onProgress) {
   const links = new Map();
 
@@ -272,21 +324,20 @@ async function scanInstagramDms(options = {}, onProgress) {
   const conversations = [];
   for (let index = 0; index < threadLinks.length; index += 1) {
     const thread = threadLinks[index];
-    onProgress?.(`Reading ${index + 1}/${threadLinks.length}: ${thread.title}`);
-    history.pushState(null, "", thread.url);
-    window.dispatchEvent(new PopStateEvent("popstate"));
-    await sleep(1400);
-
-    if (location.href !== thread.url) {
-      location.href = thread.url;
-      await sleep(1800);
+    onProgress?.(`Opening ${index + 1}/${threadLinks.length}: ${thread.title}`);
+    let openedConversation = null;
+    try {
+      openedConversation = await openThread(thread);
+    } catch (error) {
+      onProgress?.(error.message || `Skipped ${thread.title}`);
+      continue;
     }
 
     await scrollConversationToTop(maxMessageScrolls);
     await sleep(LOFI_SCAN_DELAY_MS);
 
     const messages = extractConversationMessages();
-    const title = extractConversationTitle() || thread.title;
+    const title = extractConversationTitle() || openedConversation?.title || thread.title;
     const text = messages.map((message) => message.text).join("\n");
     conversations.push({
       senderId: getThreadIdFromUrl(thread.url) || `thread-${index + 1}`,
