@@ -67,16 +67,29 @@ EMAIL_DNS_SERVERS=8.8.8.8,1.1.1.1
 
 To check which email provider Render is using, open `/api/admin/email-status` with admin credentials. The response shows only whether each value is set; secret values are not returned.
 
-### AI Message Assist
+### AI Assist
 
-Patients message threads can generate an AI summary, patient info extraction, and a suggested reply draft for Web, Instagram DM, and Email channels. Set these environment variables in Render:
+Admin tools can generate AI-assisted summaries and drafts for staff review:
+
+- Patient message threads: summary, patient info extraction, and suggested reply drafts for Web, Instagram DM, and Email channels.
+- Calendar day detail: schedule summary, operational risks, prep notes, follow-ups, and short patient message draft snippets.
+- Website insights: traffic summary, notable changes, acquisition notes, content opportunities, and recommended actions.
+
+Set these environment variables in Render:
 
 ```bash
 OPENAI_API_KEY=your_openai_api_key
 OPENAI_MODEL=gpt-4o-mini
 ```
 
-`OPENAI_MODEL` is optional and defaults to `gpt-4o-mini`. Replies are generated as drafts for staff review; the assistant is instructed not to diagnose or promise treatment outcomes.
+`OPENAI_MODEL` is optional and defaults to `gpt-4o-mini`. AI output is generated for staff review; the assistant is instructed not to diagnose, prescribe, or promise treatment outcomes.
+
+For local testing, the server also reads a local `.env` file in the repository root:
+
+```bash
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-4o-mini
+```
 
 ## Notes
 

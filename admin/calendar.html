@@ -400,6 +400,28 @@
         background: rgba(255, 255, 255, 0.72);
       }
 
+      .detail-ai-panel {
+        display: none;
+        margin: 0 0 18px;
+        padding: 14px;
+        border: 1px solid rgba(91, 61, 143, 0.18);
+        border-radius: 14px;
+        background: #fbf8ff;
+        color: var(--ink);
+        font-size: 0.9rem;
+        line-height: 1.55;
+        white-space: pre-wrap;
+      }
+
+      .detail-ai-panel.open { display: block; }
+
+      .detail-ai-title {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--accent);
+        font-weight: 900;
+      }
+
       .detail-actions {
         display: flex;
         justify-content: flex-end;
@@ -805,6 +827,7 @@
           <img src="../assets/영문로고.png" alt="lofi dental" class="logo-img" />
         </a>
         <nav class="nav-links" aria-label="Admin navigation">
+          <a class="nav-link" href="/admin/ai">AI Assistant</a>
           <a class="nav-link active" href="/admin/calendar">Calendar</a>
           <a class="nav-link" href="/admin/patients">Patients</a>
           <a class="nav-link" href="/admin/insights">Insights</a>
@@ -863,6 +886,10 @@
         <button class="detail-close" id="detailClose" aria-label="Close">&#x2715;</button>
         <h2 class="detail-date" id="detailDate"></h2>
         <p class="detail-subtitle" id="detailSubtitle"></p>
+        <div class="detail-actions" style="justify-content:flex-start;margin-bottom:12px;">
+          <button class="detail-action" type="button" id="scheduleAiBtn">AI schedule summary</button>
+        </div>
+        <div class="detail-ai-panel" id="scheduleAiPanel" aria-live="polite"></div>
         <div class="detail-list" id="detailList"></div>
         <p class="undo-hint">Tip: Press Ctrl+Z or tap Undo to reverse your last change.</p>
       </div>
@@ -1018,6 +1045,8 @@
       const detailList = document.getElementById("detailList");
       const detailDate = document.getElementById("detailDate");
       const detailSubtitle = document.getElementById("detailSubtitle");
+      const scheduleAiBtn = document.getElementById("scheduleAiBtn");
+      const scheduleAiPanel = document.getElementById("scheduleAiPanel");
       const reservationMenu = document.getElementById("reservationMenu");
       const emptyCellMenu = document.getElementById("emptyCellMenu");
       const editOverlay = document.getElementById("editOverlay");
@@ -1611,9 +1640,58 @@
       function openDetail(dateKey) {
         currentDetailDateKey = dateKey;
         setDetailHeading(dateKey);
+        resetScheduleAiPanel();
         renderDetailList(dateKey);
         detailOverlay.classList.add("open");
         document.getElementById("detailClose").focus();
+      }
+
+      function resetScheduleAiPanel() {
+        scheduleAiPanel.classList.remove("open");
+        scheduleAiPanel.innerHTML = "";
+      }
+
+      function formatAiList(items) {
+        const values = Array.isArray(items) ? items.filter(Boolean) : [];
+        if (!values.length) return "None flagged.";
+        return values.map((item) => `- ${item}`).join("\n");
+      }
+
+      function renderScheduleAiAssist(assist) {
+        scheduleAiPanel.classList.add("open");
+        scheduleAiPanel.innerHTML = [
+          `<span class="detail-ai-title">Summary</span>${escHtml(assist.summary || "No summary generated.")}`,
+          `<span class="detail-ai-title">Schedule risks</span>${escHtml(formatAiList(assist.scheduleRisks))}`,
+          `<span class="detail-ai-title">Prep notes</span>${escHtml(formatAiList(assist.prepNotes))}`,
+          `<span class="detail-ai-title">Follow-ups</span>${escHtml(formatAiList(assist.followUps))}`,
+          `<span class="detail-ai-title">Patient message drafts</span>${escHtml(formatAiList(assist.patientMessages))}`,
+        ].join("\n\n");
+      }
+
+      async function generateScheduleAiAssist() {
+        if (!currentDetailDateKey) return;
+        const originalText = scheduleAiBtn.textContent;
+        scheduleAiBtn.disabled = true;
+        scheduleAiBtn.textContent = "AI working...";
+        scheduleAiPanel.classList.add("open");
+        scheduleAiPanel.innerHTML = '<span class="detail-ai-title">AI schedule summary</span>Generating day summary...';
+
+        try {
+          const response = await fetch("/api/admin/schedule/ai-assist", {
+            method: "POST",
+            headers: { "Accept": "application/json", "Content-Type": "application/json" },
+            body: JSON.stringify({ date: currentDetailDateKey }),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.message || "Failed to generate schedule summary.");
+          renderScheduleAiAssist(data.assist || {});
+        } catch (error) {
+          scheduleAiPanel.classList.add("open");
+          scheduleAiPanel.innerHTML = `<span class="detail-ai-title">AI schedule summary</span>${escHtml(error.message || "Failed to generate schedule summary.")}`;
+        } finally {
+          scheduleAiBtn.disabled = false;
+          scheduleAiBtn.textContent = originalText;
+        }
       }
 
       function renderDetailList(dateKey) {
@@ -1913,6 +1991,7 @@
       });
 
       document.getElementById("detailClose").addEventListener("click", closeDetail);
+      scheduleAiBtn.addEventListener("click", generateScheduleAiAssist);
       detailOverlay.addEventListener("click", (e) => {
         if (e.target === e.currentTarget) closeDetail();
       });

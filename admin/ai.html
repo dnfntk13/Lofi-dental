@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Assistant | lofi dental admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Nunito+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f5f7ff;
+        --ink: #1f2d66;
+        --soft: #5a6fda;
+        --line: rgba(90, 111, 218, 0.16);
+        --card: rgba(255, 255, 255, 0.95);
+        --accent: #5b3d8f;
+        --green: #2e7d32;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Nunito Sans", "Segoe UI", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 12% 8%, rgba(220, 200, 237, 0.66), transparent 42%),
+          radial-gradient(circle at 88% 14%, rgba(230, 213, 245, 0.72), transparent 46%),
+          linear-gradient(170deg, #f5f7ff 0%, #e7edff 100%);
+      }
+
+      .wrap { width: min(1120px, 94vw); margin: 0 auto; padding: 28px 0 60px; }
+
+      .topbar {
+        display: flex; align-items: center; gap: 18px;
+        flex-wrap: wrap; margin-bottom: 32px;
+      }
+
+      .logo-img { max-width: 300px; width: min(300px, 56vw); height: auto; display: block; margin-left: -10px; }
+      .logo-link { display: inline-block; line-height: 0; text-decoration: none; }
+      .nav-links { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+      .nav-link {
+        text-decoration: none; color: var(--soft); font-size: 0.92rem; font-weight: 700;
+        padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line);
+        transition: 180ms ease; white-space: nowrap; background: rgba(255,255,255,0.72);
+      }
+
+      .nav-link:hover { background: #e6d5f5; transform: translateY(-1px); }
+      .nav-link.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+      .header { margin-bottom: 18px; }
+      h1 { margin: 0; font-family: "Cormorant Garamond", serif; font-size: clamp(1.9rem, 3vw, 2.8rem); font-weight: 600; }
+      .subtitle { margin: 4px 0 0; color: var(--soft); font-size: 0.95rem; }
+
+      .layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr); gap: 14px; align-items: start; }
+      .panel {
+        border: 1px solid var(--line); border-radius: 18px;
+        background: var(--card); box-shadow: 0 14px 34px rgba(31, 45, 102, 0.08);
+      }
+
+      .chat-panel { min-height: 680px; display: grid; grid-template-rows: auto 1fr auto; overflow: hidden; }
+      .panel-head { padding: 18px; border-bottom: 1px solid var(--line); }
+      .panel-title { margin: 0; font-size: 1.02rem; font-weight: 800; }
+      .panel-note { margin: 4px 0 0; color: var(--soft); font-size: 0.84rem; }
+
+      .quick-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+      .quick-btn,
+      .send-btn {
+        border: 1px solid var(--line); border-radius: 999px; padding: 9px 13px;
+        background: #fff; color: var(--ink); font: inherit; font-weight: 800; cursor: pointer;
+        transition: 150ms;
+      }
+
+      .quick-btn:hover,
+      .send-btn:hover { background: #e6d5f5; transform: translateY(-1px); }
+      .send-btn { background: var(--accent); color: #fff; border-color: var(--accent); padding: 11px 18px; }
+      .send-btn:disabled { opacity: 0.58; cursor: wait; transform: none; }
+
+      .messages { padding: 18px; display: grid; align-content: start; gap: 12px; overflow: auto; max-height: 500px; }
+      .bubble { max-width: 88%; padding: 12px 14px; border-radius: 16px; line-height: 1.58; white-space: pre-wrap; }
+      .bubble.user { justify-self: end; color: #fff; background: var(--accent); border-bottom-right-radius: 5px; }
+      .bubble.assistant { justify-self: start; background: #fbf8ff; border: 1px solid rgba(91, 61, 143, 0.16); border-bottom-left-radius: 5px; }
+      .bubble.error { background: #fff0f0; color: #a32626; border-color: rgba(163, 38, 38, 0.22); }
+
+      .composer { padding: 14px; border-top: 1px solid var(--line); display: grid; gap: 10px; }
+      .composer textarea {
+        width: 100%; min-height: 92px; resize: vertical; border: 1px solid var(--line);
+        border-radius: 14px; padding: 12px 14px; font: inherit; color: var(--ink);
+        background: rgba(255, 255, 255, 0.88); outline: none; line-height: 1.55;
+      }
+
+      .composer textarea:focus { border-color: var(--accent); }
+      .composer-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .status { color: var(--soft); font-size: 0.86rem; }
+
+      .side { display: grid; gap: 14px; }
+      .info-panel { padding: 18px; }
+      .section-title { display: block; margin: 0 0 8px; color: var(--accent); font-size: 0.88rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; }
+      .note-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+      .note-list li { padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(248, 250, 255, 0.76); line-height: 1.5; }
+      .empty { margin: 0; color: var(--soft); line-height: 1.65; }
+      .action-card { padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,0.78); display: grid; gap: 5px; }
+      .action-label { font-weight: 900; color: var(--ink); }
+      .action-meta { color: var(--soft); font-size: 0.85rem; }
+      .action-details { white-space: pre-wrap; line-height: 1.55; }
+      .link-row { display: flex; flex-wrap: wrap; gap: 8px; }
+      .small-link { text-decoration: none; color: var(--accent); font-weight: 900; border: 1px solid rgba(91, 61, 143, 0.18); border-radius: 999px; padding: 8px 12px; background: #fff; }
+
+      @media (max-width: 880px) {
+        .layout { grid-template-columns: 1fr; }
+        .chat-panel { min-height: 620px; }
+        .messages { max-height: 430px; }
+        .nav-links { margin-left: 0; width: 100%; }
+      }
+
+      @media (max-width: 520px) {
+        .messages { padding: 14px; }
+        .bubble { max-width: 96%; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="topbar">
+        <a class="logo-link" href="/english" aria-label="Lofi Dental home">
+          <img src="../assets/영문로고.png" alt="lofi dental" class="logo-img" />
+        </a>
+        <nav class="nav-links" aria-label="Admin navigation">
+          <a class="nav-link active" href="/admin/ai">AI Assistant</a>
+          <a class="nav-link" href="/admin/calendar">Calendar</a>
+          <a class="nav-link" href="/admin/patients">Patients</a>
+          <a class="nav-link" href="/admin/insights">Insights</a>
+          <a class="nav-link" href="/admin">Admin home</a>
+        </nav>
+      </header>
+
+      <div class="header">
+        <h1>AI Assistant</h1>
+        <p class="subtitle">Ask about schedules and patient messages. Changes still stay under staff control.</p>
+      </div>
+
+      <main class="layout">
+        <section class="panel chat-panel" aria-label="AI admin conversation">
+          <div class="panel-head">
+            <p class="panel-title">Admin conversation</p>
+            <p class="panel-note">The assistant can summarize, prioritize, and draft. It does not directly edit, delete, reschedule, or send.</p>
+            <div class="quick-row" aria-label="Quick prompts">
+              <button class="quick-btn" type="button" data-prompt="오늘 일정과 확인해야 할 메시지를 요약해줘.">Today summary</button>
+              <button class="quick-btn" type="button" data-prompt="답장이 필요한 환자 메시지를 우선순위로 정리해줘.">Message follow-ups</button>
+              <button class="quick-btn" type="button" data-prompt="이번 주 스케줄에서 운영상 주의할 점을 찾아줘.">Schedule risks</button>
+              <button class="quick-btn" type="button" data-prompt="최근 환자 문의에 보낼 답장 초안을 만들어줘.">Draft replies</button>
+            </div>
+          </div>
+          <div class="messages" id="messages"></div>
+          <form class="composer" id="composer">
+            <textarea id="promptInput" placeholder="예: 내일 예약 중 연락처가 빠진 환자 있어? 답장 초안까지 만들어줘."></textarea>
+            <div class="composer-actions">
+              <span class="status" id="statusText">Ready</span>
+              <button class="send-btn" id="sendBtn" type="submit">Send</button>
+            </div>
+          </form>
+        </section>
+
+        <aside class="side" aria-label="AI output details">
+          <section class="panel info-panel">
+            <span class="section-title">Schedule notes</span>
+            <ul class="note-list" id="scheduleNotes"></ul>
+          </section>
+          <section class="panel info-panel">
+            <span class="section-title">Message notes</span>
+            <ul class="note-list" id="messageNotes"></ul>
+          </section>
+          <section class="panel info-panel">
+            <span class="section-title">Suggested actions</span>
+            <div class="note-list" id="suggestedActions"></div>
+          </section>
+          <section class="panel info-panel">
+            <span class="section-title">Open tools</span>
+            <div class="link-row">
+              <a class="small-link" href="/admin/calendar">Calendar</a>
+              <a class="small-link" href="/admin/patients">Patients</a>
+              <a class="small-link" href="/admin/insights">Insights</a>
+            </div>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <script>
+      const messagesEl = document.getElementById("messages");
+      const composer = document.getElementById("composer");
+      const promptInput = document.getElementById("promptInput");
+      const sendBtn = document.getElementById("sendBtn");
+      const statusText = document.getElementById("statusText");
+      const scheduleNotesEl = document.getElementById("scheduleNotes");
+      const messageNotesEl = document.getElementById("messageNotes");
+      const suggestedActionsEl = document.getElementById("suggestedActions");
+      const conversation = [];
+
+      function escapeHtml(value) {
+        return String(value ?? "").replace(/[&<>"]/g, (char) => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+        }[char]));
+      }
+
+      function addBubble(role, content, isError = false) {
+        const bubble = document.createElement("div");
+        bubble.className = `bubble ${role}${isError ? " error" : ""}`;
+        bubble.textContent = content;
+        messagesEl.appendChild(bubble);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      function renderList(element, items) {
+        const values = Array.isArray(items) ? items.filter(Boolean) : [];
+        if (!values.length) {
+          element.innerHTML = '<p class="empty">No notes yet.</p>';
+          return;
+        }
+        element.innerHTML = values.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+      }
+
+      function renderActions(actions) {
+        const values = Array.isArray(actions) ? actions.filter((action) => action.label || action.details) : [];
+        if (!values.length) {
+          suggestedActionsEl.innerHTML = '<p class="empty">No suggested actions yet.</p>';
+          return;
+        }
+        suggestedActionsEl.innerHTML = values.map((action) => `
+          <div class="action-card">
+            <div class="action-label">${escapeHtml(action.label || "Suggested action")}</div>
+            <div class="action-meta">${escapeHtml([action.type, action.target].filter(Boolean).join(" · "))}</div>
+            <div class="action-details">${escapeHtml(action.details || "")}</div>
+          </div>
+        `).join("");
+      }
+
+      function renderReply(reply) {
+        const answer = reply.answer || "No answer generated.";
+        conversation.push({ role: "assistant", content: answer });
+        addBubble("assistant", answer);
+        renderList(scheduleNotesEl, reply.scheduleNotes);
+        renderList(messageNotesEl, reply.messageNotes);
+        renderActions(reply.suggestedActions);
+      }
+
+      async function sendPrompt(prompt) {
+        const text = String(prompt || "").trim();
+        if (!text) return;
+        conversation.push({ role: "user", content: text });
+        addBubble("user", text);
+        promptInput.value = "";
+        sendBtn.disabled = true;
+        statusText.textContent = "AI is checking schedules and messages...";
+
+        try {
+          const response = await fetch("/api/admin/ai-console", {
+            method: "POST",
+            headers: { "Accept": "application/json", "Content-Type": "application/json" },
+            body: JSON.stringify({ messages: conversation.slice(-10) }),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.message || "Failed to get AI reply.");
+          renderReply(data.reply || {});
+          statusText.textContent = data.model ? `Ready · ${data.model}` : "Ready";
+        } catch (error) {
+          const message = error.message || "Failed to get AI reply.";
+          addBubble("assistant", message, true);
+          statusText.textContent = message;
+        } finally {
+          sendBtn.disabled = false;
+          promptInput.focus();
+        }
+      }
+
+      composer.addEventListener("submit", (event) => {
+        event.preventDefault();
+        sendPrompt(promptInput.value);
+      });
+
+      document.querySelectorAll(".quick-btn").forEach((button) => {
+        button.addEventListener("click", () => sendPrompt(button.dataset.prompt));
+      });
+
+      renderList(scheduleNotesEl, []);
+      renderList(messageNotesEl, []);
+      renderActions([]);
+      addBubble("assistant", "Ask me about today's reservations, patient messages that need follow-up, or reply drafts. I can organize the work, but staff still applies changes in Calendar or Patients.");
+    </script>
+  </body>
+</html>

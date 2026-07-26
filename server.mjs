@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { Resolver } from "node:dns/promises";
+import { readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +13,29 @@ import { simpleParser } from "mailparser";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = __dirname;
+
+function loadLocalEnvFile() {
+  try {
+    const content = readFileSync(path.join(rootDir, ".env"), "utf-8");
+    for (const line of content.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+      const index = trimmed.indexOf("=");
+      const key = trimmed.slice(0, index).trim();
+      let value = trimmed.slice(index + 1).trim();
+      if (!key || process.env[key] !== undefined) continue;
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      process.env[key] = value;
+    }
+  } catch {
+    // Local .env is optional; production should use platform environment variables.
+  }
+}
+
+loadLocalEnvFile();
+
 const port = Number(process.env.PORT || 5173);
 const adminUser = process.env.ADMIN_USER || "lofidental";
 const adminPass = process.env.ADMIN_PASS || "Lofidental1!";
@@ -136,6 +160,10 @@ function resolvePath(urlPath) {
 
   if (["/admin/patients", "/admin/patients/"].includes(pathname)) {
     return "/admin/patients.html";
+  }
+
+  if (["/admin/ai", "/admin/ai/", "/admin/assistant", "/admin/assistant/"].includes(pathname)) {
+    return "/admin/ai.html";
   }
 
   if (["/admin/instagram-settings", "/admin/instagram-settings/"].includes(pathname)) {
@@ -950,6 +978,280 @@ async function generateAiAssist({ email, channel, thread, patient }) {
   let parsed = {};
   try { parsed = JSON.parse(content); } catch { parsed = {}; }
   return normalizeAiAssistPayload(parsed);
+}
+
+function normalizeScheduleAiAssistPayload(value) {
+  return {
+    summary: String(value?.summary || "").trim().slice(0, 900),
+    scheduleRisks: Array.isArray(value?.scheduleRisks) ? value.scheduleRisks.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 8) : [],
+    prepNotes: Array.isArray(value?.prepNotes) ? value.prepNotes.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 10) : [],
+    followUps: Array.isArray(value?.followUps) ? value.followUps.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 10) : [],
+    patientMessages: Array.isArray(value?.patientMessages) ? value.patientMessages.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 8) : [],
+    needsHumanReview: value?.needsHumanReview !== false,
+  };
+}
+
+async function generateScheduleAiAssist({ date, reservations }) {
+  if (!openaiApiKey) {
+    const error = new Error("OpenAI API key is not configured");
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const dayReservations = (Array.isArray(reservations) ? reservations : [])
+    .map((record) => ({
+      time: String(record?.time || "").slice(0, 80),
+      name: String(record?.name || "").slice(0, 120),
+      email: String(record?.email || "").slice(0, 140),
+      phone: String(record?.phone || "").slice(0, 80),
+      visitingFrom: String(record?.visitingFrom || "").slice(0, 140),
+      source: String(record?.source || record?.channel || "reservation").slice(0, 80),
+      concerns: String(record?.concerns || "").trim().slice(0, 1500),
+    }))
+    .filter((record) => record.time || record.name || record.email || record.concerns);
+
+  if (!dayReservations.length) {
+    const error = new Error("No reservations to analyze");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${openaiApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: openaiModel,
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: "You are an operations assistant for lofi dental. Summarize one admin calendar day for staff. Return only JSON with keys: summary, scheduleRisks, prepNotes, followUps, patientMessages, needsHumanReview. Do not diagnose, prescribe, or promise treatment outcomes. Focus on reservation logistics, patient preparation, missing contact details, language/visitor context, and follow-up tasks. Keep patientMessages as short optional draft snippets staff can review before sending.",
+        },
+        { role: "user", content: JSON.stringify({ date, reservations: dayReservations }) },
+      ],
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data?.error?.message || "OpenAI request failed");
+    error.statusCode = response.status;
+    throw error;
+  }
+
+  const content = data?.choices?.[0]?.message?.content || "{}";
+  let parsed = {};
+  try { parsed = JSON.parse(content); } catch { parsed = {}; }
+  return normalizeScheduleAiAssistPayload(parsed);
+}
+
+function normalizeTrafficAiAssistPayload(value) {
+  return {
+    summary: String(value?.summary || "").trim().slice(0, 900),
+    notableChanges: Array.isArray(value?.notableChanges) ? value.notableChanges.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 8) : [],
+    acquisitionNotes: Array.isArray(value?.acquisitionNotes) ? value.acquisitionNotes.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 8) : [],
+    contentOpportunities: Array.isArray(value?.contentOpportunities) ? value.contentOpportunities.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 8) : [],
+    recommendedActions: Array.isArray(value?.recommendedActions) ? value.recommendedActions.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 10) : [],
+  };
+}
+
+async function generateTrafficAiAssist(summary) {
+  if (!openaiApiKey) {
+    const error = new Error("OpenAI API key is not configured");
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const prompt = {
+    range: summary?.range || null,
+    totals: summary?.totals || {},
+    daily: Array.isArray(summary?.daily) ? summary.daily.slice(-30) : [],
+    topPages: Array.isArray(summary?.topPages) ? summary.topPages.slice(0, 12) : [],
+    externalSites: Array.isArray(summary?.externalSites) ? summary.externalSites.slice(0, 10) : [],
+    acquisitionPaths: Array.isArray(summary?.acquisitionPaths) ? summary.acquisitionPaths.slice(0, 10) : [],
+    devices: Array.isArray(summary?.devices) ? summary.devices.slice(0, 6) : [],
+    browsers: Array.isArray(summary?.browsers) ? summary.browsers.slice(0, 6) : [],
+  };
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${openaiApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: openaiModel,
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: "You are a marketing operations analyst for lofi dental. Interpret website analytics for clinic staff. Return only JSON with keys: summary, notableChanges, acquisitionNotes, contentOpportunities, recommendedActions. Be practical, concise, and avoid claiming causation without evidence. Focus on what pages, channels, devices, or campaigns deserve attention next.",
+        },
+        { role: "user", content: JSON.stringify(prompt) },
+      ],
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data?.error?.message || "OpenAI request failed");
+    error.statusCode = response.status;
+    throw error;
+  }
+
+  const content = data?.choices?.[0]?.message?.content || "{}";
+  let parsed = {};
+  try { parsed = JSON.parse(content); } catch { parsed = {}; }
+  return normalizeTrafficAiAssistPayload(parsed);
+}
+
+function normalizeAdminAiConsolePayload(value) {
+  const actions = Array.isArray(value?.suggestedActions) ? value.suggestedActions : [];
+  return {
+    answer: String(value?.answer || "").trim().slice(0, 2400),
+    scheduleNotes: Array.isArray(value?.scheduleNotes) ? value.scheduleNotes.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 8) : [],
+    messageNotes: Array.isArray(value?.messageNotes) ? value.messageNotes.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 8) : [],
+    suggestedActions: actions.map((action) => ({
+      label: String(action?.label || "").trim().slice(0, 120),
+      type: String(action?.type || "note").trim().slice(0, 40),
+      target: String(action?.target || "").trim().slice(0, 160),
+      details: String(action?.details || "").trim().slice(0, 900),
+    })).filter((action) => action.label || action.details).slice(0, 8),
+    needsHumanReview: value?.needsHumanReview !== false,
+  };
+}
+
+function getLatestThreadMessage(thread) {
+  const messages = Array.isArray(thread?.messages) ? thread.messages : [];
+  return messages[messages.length - 1] || null;
+}
+
+function compactReservationForAdminAi(record) {
+  return {
+    id: String(record?.id || "").slice(0, 80),
+    date: String(record?.date || "").slice(0, 40),
+    time: String(record?.time || "").slice(0, 80),
+    name: String(record?.name || "").slice(0, 120),
+    email: String(record?.email || "").slice(0, 140),
+    phone: String(record?.phone || "").slice(0, 80),
+    visitingFrom: String(record?.visitingFrom || "").slice(0, 140),
+    source: String(record?.source || record?.channel || "reservation").slice(0, 80),
+    concerns: String(record?.concerns || "").trim().slice(0, 900),
+  };
+}
+
+function compactThreadForAdminAi(thread) {
+  const latest = getLatestThreadMessage(thread);
+  const messages = Array.isArray(thread?.messages) ? thread.messages : [];
+  const customerUnread = messages.filter((message) => message?.type === "customer-reply" && !message.adminReadAt).length;
+  return {
+    email: String(thread?.email || "").slice(0, 140),
+    reservationId: String(thread?.reservationId || "").slice(0, 80),
+    updatedAt: String(thread?.updatedAt || "").slice(0, 40),
+    channel: getStoredMessageChannel(latest || {}),
+    unreadCustomerMessages: customerUnread,
+    latestMessage: latest ? {
+      role: latest.type === "admin-reply" || latest.type === "auto-reply" ? "lofi" : "patient",
+      at: getMessageTimeForAi(latest),
+      text: getMessageTextForAi(latest).slice(0, 700),
+    } : null,
+  };
+}
+
+function compactPatientForAdminAi(patient) {
+  return {
+    name: String(patient?.name || "").slice(0, 120),
+    email: String(patient?.email || patient?.realEmail || patient?.latestReservation?.email || "").slice(0, 140),
+    phone: String(patient?.phone || patient?.latestReservation?.phone || "").slice(0, 80),
+    updatedAt: String(patient?.updatedAt || "").slice(0, 40),
+    latestReservation: patient?.latestReservation ? compactReservationForAdminAi(patient.latestReservation) : null,
+  };
+}
+
+async function buildAdminAiConsoleContext() {
+  const today = getKoreanDay();
+  const futureLimit = addDaysToDay(today, 30);
+  const [inbox, threads, patients] = await Promise.all([readInbox(), readEmailThreads(), readPatients()]);
+  const datedReservations = inbox
+    .filter((record) => /^\d{4}-\d{2}-\d{2}$/.test(String(record?.date || "")))
+    .filter((record) => String(record.date) >= today && String(record.date) <= futureLimit)
+    .sort((a, b) => `${a.date || ""} ${a.time || ""}`.localeCompare(`${b.date || ""} ${b.time || ""}`));
+  const recentReservations = inbox
+    .filter((record) => !/^\d{4}-\d{2}-\d{2}$/.test(String(record?.date || "")))
+    .slice(0, 12);
+
+  return {
+    today,
+    counts: {
+      upcomingReservations: datedReservations.length,
+      messageThreads: threads.length,
+      patients: patients.length,
+    },
+    upcomingReservations: datedReservations.slice(0, 80).map(compactReservationForAdminAi),
+    recentUndatedReservations: recentReservations.map(compactReservationForAdminAi),
+    recentThreads: threads.slice(0, 35).map(compactThreadForAdminAi),
+    recentPatients: patients.slice(0, 25).map(compactPatientForAdminAi),
+  };
+}
+
+async function generateAdminAiConsoleReply({ messages }) {
+  if (!openaiApiKey) {
+    const error = new Error("OpenAI API key is not configured");
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const conversation = (Array.isArray(messages) ? messages : [])
+    .map((message) => ({
+      role: message?.role === "assistant" ? "assistant" : "user",
+      content: String(message?.content || "").trim().slice(0, 1600),
+    }))
+    .filter((message) => message.content)
+    .slice(-10);
+
+  if (!conversation.length) {
+    const error = new Error("Message is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const context = await buildAdminAiConsoleContext();
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${openaiApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: openaiModel,
+      temperature: 0.25,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: "You are the admin copilot for lofi dental. Help staff manage patient messages and reservation schedules through conversation. Use the provided admin context to answer questions, find likely relevant patients/messages, summarize the day, prioritize follow-ups, and draft staff-reviewed replies. You cannot directly modify, delete, send, or reschedule records; if asked to do so, provide a clear suggested action and exact draft/details for staff to apply in Calendar or Patients. Never diagnose, prescribe, or promise treatment outcomes. For clinical suitability, side effects, photos, or medical judgment, say clinical review or in-person consultation is needed. Return only JSON with keys: answer, scheduleNotes, messageNotes, suggestedActions, needsHumanReview. suggestedActions items should have label, type, target, details. Match the user's language when possible.",
+        },
+        { role: "user", content: JSON.stringify({ adminContext: context, conversation }) },
+      ],
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data?.error?.message || "OpenAI request failed");
+    error.statusCode = response.status;
+    throw error;
+  }
+
+  const content = data?.choices?.[0]?.message?.content || "{}";
+  let parsed = {};
+  try { parsed = JSON.parse(content); } catch { parsed = {}; }
+  return normalizeAdminAiConsolePayload(parsed);
 }
 
 async function markEmailThreadMessagesRead(email, channel = "web") {
@@ -3407,6 +3709,59 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname === "/api/admin/schedule/ai-assist" && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+
+    try {
+      const payload = await getJsonBody(request);
+      const date = String(payload.date || "").trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "Valid date is required" }));
+        return;
+      }
+
+      const inbox = await readInbox();
+      const reservations = inbox
+        .filter((record) => String(record.date || "") === date)
+        .sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")));
+      const assist = await generateScheduleAiAssist({ date, reservations });
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      response.end(JSON.stringify({ ok: true, assist, model: openaiModel }));
+    } catch (error) {
+      console.error("Failed to generate schedule AI assist", error);
+      const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+      const statusCode = isPayloadError ? 400 : Number(error?.statusCode || 500);
+      response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : error instanceof Error ? error.message : "Failed to generate schedule AI assist" }));
+    }
+    return;
+  }
+
+  if (pathname === "/api/admin/ai-console" && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+
+    try {
+      const payload = await getJsonBody(request);
+      const reply = await generateAdminAiConsoleReply({ messages: payload.messages });
+      response.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+      });
+      response.end(JSON.stringify({ ok: true, reply, model: openaiModel }));
+    } catch (error) {
+      console.error("Failed to generate admin AI console reply", error);
+      const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+      const statusCode = isPayloadError ? 400 : Number(error?.statusCode || 500);
+      response.writeHead(statusCode, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+      });
+      response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : error instanceof Error ? error.message : "Failed to generate admin AI reply" }));
+    }
+    return;
+  }
+
   if (pathname.startsWith("/api/admin/email-thread/") && pathname.endsWith("/ai-assist") && request.method === "POST") {
     if (!adminAuthorized) { requestAuth(response); return; }
 
@@ -3670,6 +4025,31 @@ createServer(async (request, response) => {
       console.error("Failed to load traffic analytics", error);
       response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ message: "Failed to load traffic analytics" }));
+    }
+    return;
+  }
+
+  if (pathname === "/api/admin/traffic/ai-assist" && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    try {
+      const today = getKoreanDay();
+      const sinceDay = addDaysToDay(today, -29);
+      const events = await readTrafficEvents({ sinceDay, limit: 15000 });
+      const assist = await generateTrafficAiAssist(summarizeTraffic(events));
+      response.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+      });
+      response.end(JSON.stringify({ ok: true, assist, model: openaiModel }));
+    } catch (error) {
+      console.error("Failed to generate traffic AI assist", error);
+      const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+      const statusCode = isPayloadError ? 400 : Number(error?.statusCode || 500);
+      response.writeHead(statusCode, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+      });
+      response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : error instanceof Error ? error.message : "Failed to generate traffic AI assist" }));
     }
     return;
   }

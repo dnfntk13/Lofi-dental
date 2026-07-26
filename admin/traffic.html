@@ -78,6 +78,28 @@
       .status { margin: 0 0 14px; min-height: 1.3em; color: var(--soft); font-size: 0.9rem; }
       .status.error { color: #a32626; }
 
+      .ai-panel {
+        display: none;
+        margin-bottom: 14px;
+        padding: 16px 18px;
+        border: 1px solid rgba(91, 61, 143, 0.18);
+        border-radius: 18px;
+        background: #fbf8ff;
+        color: var(--ink);
+        box-shadow: 0 14px 34px rgba(31, 45, 102, 0.06);
+        line-height: 1.55;
+        white-space: pre-wrap;
+      }
+
+      .ai-panel.open { display: block; }
+
+      .ai-title {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--accent);
+        font-weight: 900;
+      }
+
       .metric-grid {
         display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 12px; margin-bottom: 14px;
@@ -164,6 +186,7 @@
           <img src="../assets/영문로고.png" alt="lofi dental" class="logo-img" />
         </a>
         <nav class="nav-links" aria-label="Admin navigation">
+          <a class="nav-link" href="/admin/ai">AI Assistant</a>
           <a class="nav-link" href="/admin/calendar">Calendar</a>
           <a class="nav-link" href="/admin/patients">Patients</a>
           <a class="nav-link active" href="/admin/insights">Insights</a>
@@ -177,12 +200,14 @@
           <p class="subtitle">Public page views, visitors, acquisition paths, and device mix.</p>
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap">
+          <button class="btn" id="aiInsightsBtn">AI insights</button>
           <button class="btn danger" id="optOutBtn">Exclude this computer</button>
           <button class="btn" id="refreshBtn">Refresh</button>
         </div>
       </div>
 
       <p class="status" id="statusMsg">Loading insights...</p>
+      <section class="ai-panel" id="aiInsightsPanel" aria-live="polite"></section>
 
       <section class="metric-grid" aria-label="Insights summary">
         <div class="metric">
@@ -267,6 +292,8 @@
       const statusMsg = document.getElementById("statusMsg");
       const refreshBtn = document.getElementById("refreshBtn");
       const optOutBtn = document.getElementById("optOutBtn");
+      const aiInsightsBtn = document.getElementById("aiInsightsBtn");
+      const aiInsightsPanel = document.getElementById("aiInsightsPanel");
       let currentComputerOptedOut = false;
       const formatter = new Intl.NumberFormat("en-US");
       const timeFormatter = new Intl.DateTimeFormat("en-US", {
@@ -338,6 +365,47 @@
         }[char]));
       }
 
+      function formatAiList(items) {
+        const values = Array.isArray(items) ? items.filter(Boolean) : [];
+        if (!values.length) return "None flagged.";
+        return values.map((item) => `- ${item}`).join("\n");
+      }
+
+      function renderAiInsights(assist) {
+        aiInsightsPanel.classList.add("open");
+        aiInsightsPanel.innerHTML = [
+          `<span class="ai-title">Summary</span>${escapeHtml(assist.summary || "No summary generated.")}`,
+          `<span class="ai-title">Notable changes</span>${escapeHtml(formatAiList(assist.notableChanges))}`,
+          `<span class="ai-title">Acquisition notes</span>${escapeHtml(formatAiList(assist.acquisitionNotes))}`,
+          `<span class="ai-title">Content opportunities</span>${escapeHtml(formatAiList(assist.contentOpportunities))}`,
+          `<span class="ai-title">Recommended actions</span>${escapeHtml(formatAiList(assist.recommendedActions))}`,
+        ].join("\n\n");
+      }
+
+      async function generateAiInsights() {
+        const originalText = aiInsightsBtn.textContent;
+        aiInsightsBtn.disabled = true;
+        aiInsightsBtn.textContent = "AI working...";
+        aiInsightsPanel.classList.add("open");
+        aiInsightsPanel.innerHTML = '<span class="ai-title">AI insights</span>Analyzing website insights...';
+
+        try {
+          const res = await fetch("/api/admin/traffic/ai-assist", {
+            method: "POST",
+            headers: { Accept: "application/json" },
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.message || "Failed to generate AI insights.");
+          renderAiInsights(data.assist || {});
+        } catch (error) {
+          aiInsightsPanel.classList.add("open");
+          aiInsightsPanel.innerHTML = `<span class="ai-title">AI insights</span>${escapeHtml(error.message || "Failed to generate AI insights.")}`;
+        } finally {
+          aiInsightsBtn.disabled = false;
+          aiInsightsBtn.textContent = originalText;
+        }
+      }
+
       function render(data) {
         const totals = data.totals || {};
         setText("todayViews", totals.todayViews);
@@ -403,6 +471,7 @@
 
       refreshBtn.addEventListener("click", loadTraffic);
       optOutBtn.addEventListener("click", toggleOptOut);
+      aiInsightsBtn.addEventListener("click", generateAiInsights);
       loadTraffic();
     </script>
   </body>
