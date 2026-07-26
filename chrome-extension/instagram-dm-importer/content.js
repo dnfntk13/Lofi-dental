@@ -265,6 +265,24 @@ async function autoSaveCurrentConversation() {
   }
 }
 
+async function saveCurrentConversationNow() {
+  const conversation = collectCurrentConversation();
+  if (!conversation) {
+    throw new Error("Open one Instagram DM thread first, then try Save open DM now.");
+  }
+
+  const result = await chrome.runtime.sendMessage({
+    type: "LOFI_IMPORT_INSTAGRAM_CONVERSATIONS",
+    conversations: [conversation],
+  });
+  if (!result?.ok) throw new Error(result?.message || "Failed to save the open DM thread");
+  return {
+    ...result,
+    title: conversation.title,
+    messageCount: conversation.messages.length,
+  };
+}
+
 async function autoScanInstagramDms() {
   const settings = await getImporterSettings();
   if (!settings.autoScanDms || autoScanInProgress || document.hidden) return;
@@ -366,6 +384,14 @@ async function scanInstagramDms(options = {}, onProgress) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "LOFI_SAVE_CURRENT_INSTAGRAM_DM") {
+    saveCurrentConversationNow()
+      .then((result) => sendResponse({ ok: true, ...result }))
+      .catch((error) => sendResponse({ ok: false, message: error.message || "Failed to save current Instagram DM" }));
+
+    return true;
+  }
+
   if (message?.type !== "LOFI_SCAN_INSTAGRAM_DMS") return false;
 
   scanInstagramDms(message.options, (status) => {

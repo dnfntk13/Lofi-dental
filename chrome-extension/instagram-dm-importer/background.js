@@ -64,6 +64,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "LOFI_TEST_IMPORTER_SAVE") {
+    const capturedAt = new Date().toISOString();
+    const conversation = {
+      senderId: `extension-test-${Date.now()}`,
+      threadId: "extension-test",
+      title: "Extension server test",
+      url: "https://www.instagram.com/direct/t/extension-test/",
+      capturedAt,
+      messages: [{ text: `Extension server save test at ${capturedAt}` }],
+      text: `Extension server save test at ${capturedAt}`,
+    };
+    importConversations([conversation])
+      .then((data) => sendResponse({ ok: true, ...data }))
+      .catch((error) => sendResponse({ ok: false, message: error.message || "Server save test failed" }));
+    return true;
+  }
+
   if (message?.type !== "LOFI_IMPORT_INSTAGRAM_CONVERSATIONS") return false;
 
   (async () => {

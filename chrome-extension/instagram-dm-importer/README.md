@@ -19,7 +19,9 @@ This Chrome Extension scans Instagram Direct in the browser and sends the extrac
 6. Click `Open Instagram DM`.
 7. Log in to Instagram in that tab if needed.
 8. Keep the Instagram Direct tab open. Auto-scan will run after login and then repeat while the tab is visible.
-9. Click `Read each DM & save` any time to scan the DM list manually.
+9. Click `Test server save` to verify the server URL and import token.
+10. Open one DM thread and click `Save open DM now` to verify Instagram page reading.
+11. Click `Read each DM & save` any time to scan the DM list manually.
 
 The server saves imported conversations into Patients through the existing Instagram DM storage path.
 

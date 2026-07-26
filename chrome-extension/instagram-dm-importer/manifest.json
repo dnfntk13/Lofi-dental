@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Lofi Instagram DM Importer",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Scans Instagram Direct conversations and saves them to the local Lofi Dental admin server.",
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": [

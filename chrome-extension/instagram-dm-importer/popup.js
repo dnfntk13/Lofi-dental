@@ -1,6 +1,8 @@
 const statusEl = document.getElementById("status");
 const openInstagramButton = document.getElementById("openInstagram");
 const scanButton = document.getElementById("scanDms");
+const testServerButton = document.getElementById("testServer");
+const saveCurrentDmButton = document.getElementById("saveCurrentDm");
 const serverUrlInput = document.getElementById("serverUrl");
 const importTokenInput = document.getElementById("importToken");
 const autoSaveInput = document.getElementById("autoSave");
@@ -36,6 +38,15 @@ async function sendScanMessage(tabId) {
       type: "LOFI_SCAN_INSTAGRAM_DMS",
       options: { maxThreads: 80, maxListScrolls: 30, maxMessageScrolls: 30 },
     });
+  }
+}
+
+async function sendCurrentDmSaveMessage(tabId) {
+  try {
+    return await chrome.tabs.sendMessage(tabId, { type: "LOFI_SAVE_CURRENT_INSTAGRAM_DM" });
+  } catch {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
+    return chrome.tabs.sendMessage(tabId, { type: "LOFI_SAVE_CURRENT_INSTAGRAM_DM" });
   }
 }
 
@@ -79,6 +90,37 @@ scanButton.addEventListener("click", async () => {
     setStatus(error.message || "Scan failed.");
   } finally {
     scanButton.disabled = false;
+  }
+});
+
+testServerButton.addEventListener("click", async () => {
+  testServerButton.disabled = true;
+  setStatus("Testing server save...");
+  try {
+    await saveSettings();
+    const result = await chrome.runtime.sendMessage({ type: "LOFI_TEST_IMPORTER_SAVE" });
+    if (!result?.ok) throw new Error(result?.message || "Server save test failed");
+    setStatus(`Server OK. Saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`);
+  } catch (error) {
+    setStatus(error.message || "Server save test failed.");
+  } finally {
+    testServerButton.disabled = false;
+  }
+});
+
+saveCurrentDmButton.addEventListener("click", async () => {
+  saveCurrentDmButton.disabled = true;
+  setStatus("Saving the open DM thread...");
+  try {
+    await saveSettings();
+    const tab = await getInstagramTab();
+    const result = await sendCurrentDmSaveMessage(tab.id);
+    if (!result?.ok) throw new Error(result?.message || "Current DM save failed");
+    setStatus(`Saved open DM: ${result.title || "Instagram DM"}. Saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`);
+  } catch (error) {
+    setStatus(error.message || "Current DM save failed.");
+  } finally {
+    saveCurrentDmButton.disabled = false;
   }
 });
 
