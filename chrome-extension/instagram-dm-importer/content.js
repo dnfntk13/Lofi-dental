@@ -14,6 +14,11 @@ function cleanText(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
 
+function isVisibleElement(element) {
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0;
+}
+
 function getThreadIdFromUrl(url) {
   const match = String(url || "").match(/\/direct\/t\/([^/?#]+)/);
   return match ? decodeURIComponent(match[1]) : "";
@@ -23,6 +28,29 @@ function getScrollableElements() {
   return Array.from(document.querySelectorAll("main, section, div"))
     .filter((element) => element.scrollHeight > element.clientHeight + 120)
     .sort((a, b) => (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight));
+}
+
+function getConversationPane() {
+  const main = document.querySelector("main") || document.body;
+  const mainRect = main.getBoundingClientRect();
+  const isWideLayout = window.innerWidth >= 720;
+
+  if (!isWideLayout) return main;
+
+  const candidates = Array.from(main.querySelectorAll('section, div[role="main"], div'))
+    .map((element) => ({ element, rect: element.getBoundingClientRect(), text: element.innerText || "" }))
+    .filter((item) => isVisibleElement(item.element))
+    .filter((item) => item.rect.width >= 280 && item.rect.height >= 260)
+    .filter((item) => item.rect.left > mainRect.left + Math.min(260, mainRect.width * 0.28))
+    .filter((item) => item.rect.right > window.innerWidth * 0.55)
+    .filter((item) => cleanText(item.text).length >= 20)
+    .sort((a, b) => {
+      const aArea = a.rect.width * a.rect.height;
+      const bArea = b.rect.width * b.rect.height;
+      return bArea - aArea;
+    });
+
+  return candidates[0]?.element || main;
 }
 
 function getThreadLinks() {
@@ -106,7 +134,10 @@ async function collectThreadLinks(maxThreads, maxListScrolls, onProgress) {
 async function scrollConversationToTop(maxMessageScrolls) {
   let lastTop = null;
   for (let index = 0; index < maxMessageScrolls; index += 1) {
-    const scrollTarget = getScrollableElements()[0];
+    const conversationPane = getConversationPane();
+    const scrollTarget = Array.from(conversationPane.querySelectorAll("section, div"))
+      .filter((element) => element.scrollHeight > element.clientHeight + 120)
+      .sort((a, b) => (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight))[0] || conversationPane;
     if (!scrollTarget) {
       window.scrollTo(0, 0);
       await sleep(LOFI_SCAN_DELAY_MS);
@@ -121,6 +152,7 @@ async function scrollConversationToTop(maxMessageScrolls) {
 }
 
 function extractConversationTitle() {
+  const conversationPane = getConversationPane();
   const candidates = [
     "main header h1",
     "main header h2",
@@ -131,7 +163,7 @@ function extractConversationTitle() {
   ];
 
   for (const selector of candidates) {
-    const text = cleanText(document.querySelector(selector)?.textContent);
+    const text = cleanText(conversationPane.querySelector(selector)?.textContent || document.querySelector(selector)?.textContent);
     if (text) return text;
   }
   return "Instagram DM";
@@ -142,7 +174,8 @@ function isChromeText(line) {
 }
 
 function extractConversationMessages() {
-  const articleText = cleanText(document.querySelector("main")?.innerText || document.body.innerText || "");
+  const conversationPane = getConversationPane();
+  const articleText = String(conversationPane?.innerText || "").replace(/\r/g, "\n");
   const lines = articleText
     .split(/\n+/)
     .map(cleanText)

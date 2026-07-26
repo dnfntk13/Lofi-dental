@@ -116,7 +116,7 @@ saveCurrentDmButton.addEventListener("click", async () => {
     const tab = await getInstagramTab();
     const result = await sendCurrentDmSaveMessage(tab.id);
     if (!result?.ok) throw new Error(result?.message || "Current DM save failed");
-    setStatus(`Saved open DM: ${result.title || "Instagram DM"}. Saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`);
+    setStatus(`Saved open DM: ${result.title || "Instagram DM"} (${result.messageCount || 0} lines). Saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`);
   } catch (error) {
     setStatus(error.message || "Current DM save failed.");
   } finally {
