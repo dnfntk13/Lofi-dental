@@ -131,6 +131,37 @@ function getScrollableElements() {
     .sort((a, b) => (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight));
 }
 
+function getThreadListPane() {
+  const main = document.querySelector("main") || document.body;
+  const candidates = Array.from(main.querySelectorAll("section, nav, aside, div"))
+    .map((element) => {
+      const rect = element.getBoundingClientRect();
+      const links = Array.from(element.querySelectorAll('a[href*="/direct/t/"]'));
+      return { element, rect, links };
+    })
+    .filter((item) => isVisibleElement(item.element))
+    .filter((item) => item.links.length > 0)
+    .filter((item) => item.rect.width >= 220 && item.rect.height >= 240)
+    .filter((item) => item.rect.left < window.innerWidth * 0.62)
+    .sort((a, b) => {
+      const aLooksLikeList = a.rect.width <= Math.min(560, window.innerWidth * 0.48);
+      const bLooksLikeList = b.rect.width <= Math.min(560, window.innerWidth * 0.48);
+      if (aLooksLikeList !== bLooksLikeList) return bLooksLikeList ? 1 : -1;
+      if (b.links.length !== a.links.length) return b.links.length - a.links.length;
+      return (b.element.scrollHeight - b.element.clientHeight) - (a.element.scrollHeight - a.element.clientHeight);
+    });
+
+  return candidates[0]?.element || main;
+}
+
+function getThreadListScrollTarget() {
+  const pane = getThreadListPane();
+  const scrollTargets = [pane, ...Array.from(pane.querySelectorAll("section, div"))]
+    .filter((element) => element.scrollHeight > element.clientHeight + 80)
+    .sort((a, b) => (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight));
+  return scrollTargets[0] || pane;
+}
+
 function getConversationPane() {
   const main = document.querySelector("main") || document.body;
   const mainRect = main.getBoundingClientRect();
@@ -155,7 +186,8 @@ function getConversationPane() {
 }
 
 function getThreadLinks() {
-  return Array.from(document.querySelectorAll('a[href*="/direct/t/"]'))
+  const pane = getThreadListPane();
+  return Array.from(pane.querySelectorAll('a[href*="/direct/t/"]'))
     .map((anchor) => ({
       url: anchor.href,
       title: cleanText(anchor.innerText).split("\n").filter(Boolean)[0] || "Instagram DM",
@@ -166,25 +198,41 @@ function getThreadLinks() {
 
 function findThreadAnchor(url) {
   const targetThreadId = getThreadIdFromUrl(url);
-  return Array.from(document.querySelectorAll('a[href*="/direct/t/"]'))
+  const pane = getThreadListPane();
+  return Array.from(pane.querySelectorAll('a[href*="/direct/t/"]'))
     .find((anchor) => anchor.href === url || getThreadIdFromUrl(anchor.href) === targetThreadId);
+}
+
+function clickLikeUser(element) {
+  const rect = element.getBoundingClientRect();
+  const eventOptions = {
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    view: window,
+    clientX: rect.left + Math.min(24, Math.max(1, rect.width / 2)),
+    clientY: rect.top + Math.min(24, Math.max(1, rect.height / 2)),
+  };
+  element.dispatchEvent(new PointerEvent("pointerdown", { ...eventOptions, pointerId: 1, pointerType: "mouse", isPrimary: true }));
+  element.dispatchEvent(new MouseEvent("mousedown", eventOptions));
+  element.dispatchEvent(new PointerEvent("pointerup", { ...eventOptions, pointerId: 1, pointerType: "mouse", isPrimary: true }));
+  element.dispatchEvent(new MouseEvent("mouseup", eventOptions));
+  element.dispatchEvent(new MouseEvent("click", eventOptions));
 }
 
 async function findThreadAnchorByScrolling(url, maxScrolls = 25) {
   let anchor = findThreadAnchor(url);
   if (anchor) return anchor;
 
-  const scrollTargets = getScrollableElements();
-  for (const scrollTarget of scrollTargets) {
-    scrollTarget.scrollTop = 0;
-    await sleep(250);
+  const scrollTarget = getThreadListScrollTarget();
+  scrollTarget.scrollTop = 0;
+  await sleep(250);
 
-    for (let index = 0; index < maxScrolls; index += 1) {
-      anchor = findThreadAnchor(url);
-      if (anchor) return anchor;
-      scrollTarget.scrollTop += Math.max(320, scrollTarget.clientHeight * 0.75);
-      await sleep(250);
-    }
+  for (let index = 0; index < maxScrolls; index += 1) {
+    anchor = findThreadAnchor(url);
+    if (anchor) return anchor;
+    scrollTarget.scrollTop += Math.max(320, scrollTarget.clientHeight * 0.75);
+    await sleep(250);
   }
 
   return null;
@@ -210,7 +258,7 @@ async function openThread(thread) {
 
   anchor.scrollIntoView({ block: "center" });
   await sleep(250);
-  anchor.click();
+  clickLikeUser(anchor);
 
   await sleep(1200);
   return waitForThreadContent(thread.url);
@@ -223,9 +271,8 @@ async function collectThreadLinks(maxThreads, maxListScrolls, onProgress) {
     getThreadLinks().forEach((item) => links.set(item.url, item));
     onProgress?.(`Found ${links.size} DM thread${links.size === 1 ? "" : "s"}...`);
 
-    const scrollTarget = getScrollableElements()[0];
+    const scrollTarget = getThreadListScrollTarget();
     if (scrollTarget) scrollTarget.scrollTop += Math.max(360, scrollTarget.clientHeight * 0.8);
-    else window.scrollBy(0, window.innerHeight * 0.8);
     await sleep(LOFI_SCAN_DELAY_MS);
   }
 
@@ -452,7 +499,6 @@ function startAutoScanLoop() {
   autoScanTimer = window.setInterval(() => {
     autoScanInstagramDms().catch(() => {});
   }, LOFI_AUTO_SCAN_INTERVAL_MS);
-  window.setTimeout(() => autoScanInstagramDms().catch(() => {}), 3500);
 }
 
 function scheduleAutoSave() {
