@@ -142,24 +142,25 @@
 
       <div class="header">
         <h1>AI Assistant</h1>
-        <p class="subtitle">Ask about schedules and patient messages. Changes still stay under staff control.</p>
+        <p class="subtitle">Ask about schedules, patient messages, and Instagram DMs. Changes still stay under staff control.</p>
       </div>
 
       <main class="layout">
         <section class="panel chat-panel" aria-label="AI admin conversation">
           <div class="panel-head">
             <p class="panel-title">Admin conversation</p>
-            <p class="panel-note">The assistant can summarize, prioritize, and draft. It does not directly edit, delete, reschedule, or send.</p>
+            <p class="panel-note">The assistant can read recent Web, Email, and Instagram DM threads, then summarize, prioritize, and draft. It does not directly edit, delete, reschedule, or send.</p>
             <div class="quick-row" aria-label="Quick prompts">
               <button class="quick-btn" type="button" data-prompt="오늘 일정과 확인해야 할 메시지를 요약해줘.">Today summary</button>
               <button class="quick-btn" type="button" data-prompt="답장이 필요한 환자 메시지를 우선순위로 정리해줘.">Message follow-ups</button>
+              <button class="quick-btn" type="button" data-prompt="최근 인스타 DM을 읽고 답장이 필요한 대화를 요약해줘. 답장 초안도 만들어줘.">Instagram DMs</button>
               <button class="quick-btn" type="button" data-prompt="이번 주 스케줄에서 운영상 주의할 점을 찾아줘.">Schedule risks</button>
               <button class="quick-btn" type="button" data-prompt="최근 환자 문의에 보낼 답장 초안을 만들어줘.">Draft replies</button>
             </div>
           </div>
           <div class="messages" id="messages"></div>
           <form class="composer" id="composer">
-            <textarea id="promptInput" placeholder="예: 내일 예약 중 연락처가 빠진 환자 있어? 답장 초안까지 만들어줘."></textarea>
+            <textarea id="promptInput" placeholder="예: 최근 인스타 DM 중 답장 필요한 문의를 요약하고 답장 초안을 만들어줘."></textarea>
             <div class="composer-actions">
               <span class="status" id="statusText">Ready</span>
               <button class="send-btn" id="sendBtn" type="submit">Send</button>
@@ -294,7 +295,7 @@
       renderList(scheduleNotesEl, []);
       renderList(messageNotesEl, []);
       renderActions([]);
-      addBubble("assistant", "Ask me about today's reservations, patient messages that need follow-up, or reply drafts. I can organize the work, but staff still applies changes in Calendar or Patients.");
+      addBubble("assistant", "Ask me about today's reservations, Web/Email/Instagram messages that need follow-up, or reply drafts. I can organize the work, but staff still applies changes in Calendar or Patients.");
     </script>
   </body>
 </html>

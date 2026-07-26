@@ -1182,6 +1182,34 @@ function compactThreadForAdminAi(thread) {
   };
 }
 
+function isInstagramThreadMessage(message) {
+  return getStoredMessageChannel(message) === "instagram"
+    || ["instagram", "instagram-dm", "instagram_dm"].includes(String(message?.source || "").toLowerCase());
+}
+
+function compactInstagramDmThreadForAdminAi(thread) {
+  const messages = (Array.isArray(thread?.messages) ? thread.messages : [])
+    .filter(isInstagramThreadMessage)
+    .slice(-8)
+    .map((message) => ({
+      role: message.type === "admin-reply" || message.type === "auto-reply" ? "lofi" : "patient",
+      at: getMessageTimeForAi(message),
+      text: getMessageTextForAi(message).slice(0, 900),
+      unread: message?.type === "customer-reply" && !message.adminReadAt,
+      senderId: String(message?.instagramSenderId || "").slice(0, 80),
+    }))
+    .filter((message) => message.text);
+  const latest = messages[messages.length - 1] || null;
+  return {
+    email: String(thread?.email || "").slice(0, 140),
+    reservationId: String(thread?.reservationId || "").slice(0, 80),
+    updatedAt: String(thread?.updatedAt || latest?.at || "").slice(0, 40),
+    instagramSenderId: latest?.senderId || "",
+    unreadCustomerMessages: messages.filter((message) => message.unread).length,
+    messages,
+  };
+}
+
 function compactPatientForAdminAi(patient) {
   return {
     name: String(patient?.name || "").slice(0, 120),
@@ -1203,17 +1231,23 @@ async function buildAdminAiConsoleContext() {
   const recentReservations = inbox
     .filter((record) => !/^\d{4}-\d{2}-\d{2}$/.test(String(record?.date || "")))
     .slice(0, 12);
+  const instagramThreads = threads
+    .map(compactInstagramDmThreadForAdminAi)
+    .filter((thread) => thread.messages.length)
+    .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
 
   return {
     today,
     counts: {
       upcomingReservations: datedReservations.length,
       messageThreads: threads.length,
+      instagramDmThreads: instagramThreads.length,
       patients: patients.length,
     },
     upcomingReservations: datedReservations.slice(0, 80).map(compactReservationForAdminAi),
     recentUndatedReservations: recentReservations.map(compactReservationForAdminAi),
     recentThreads: threads.slice(0, 35).map(compactThreadForAdminAi),
+    recentInstagramDms: instagramThreads.slice(0, 25),
     recentPatients: patients.slice(0, 25).map(compactPatientForAdminAi),
   };
 }
@@ -1253,7 +1287,7 @@ async function generateAdminAiConsoleReply({ messages }) {
       messages: [
         {
           role: "system",
-          content: "You are the admin copilot for lofi dental. Help staff manage patient messages and reservation schedules through conversation. Use the provided admin context to answer questions, find likely relevant patients/messages, summarize the day, prioritize follow-ups, and draft staff-reviewed replies. You cannot directly modify, delete, send, or reschedule records; if asked to do so, provide a clear suggested action and exact draft/details for staff to apply in Calendar or Patients. Never diagnose, prescribe, or promise treatment outcomes. For clinical suitability, side effects, photos, or medical judgment, say clinical review or in-person consultation is needed. Return only JSON with keys: answer, scheduleNotes, messageNotes, suggestedActions, needsHumanReview. suggestedActions items should have label, type, target, details. Match the user's language when possible.",
+          content: "You are the admin copilot for lofi dental. Help staff manage patient messages, Instagram DMs, and reservation schedules through conversation. Use the provided admin context to answer questions, find likely relevant patients/messages/Instagram DM threads, summarize the day, prioritize follow-ups, and draft staff-reviewed replies. You can read recentInstagramDms in the context; identify Instagram conversations by channel, instagramSenderId, or @instagram.lofi.internal email when useful. You cannot directly modify, delete, send, or reschedule records; if asked to do so, provide a clear suggested action and exact draft/details for staff to apply in Calendar or Patients. Never diagnose, prescribe, or promise treatment outcomes. For clinical suitability, side effects, photos, or medical judgment, say clinical review or in-person consultation is needed. Return only JSON with keys: answer, scheduleNotes, messageNotes, suggestedActions, needsHumanReview. suggestedActions items should have label, type, target, details. Match the user's language when possible.",
         },
         { role: "user", content: JSON.stringify({ adminContext: context, conversation }) },
       ],
