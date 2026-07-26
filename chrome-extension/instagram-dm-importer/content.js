@@ -202,12 +202,38 @@ function getConversationPane() {
 }
 
 function getConversationScrollTarget() {
+  return getConversationScrollTargets()[0] || document.scrollingElement || document.documentElement || getConversationPane();
+}
+
+function getConversationScrollTargets() {
   const conversationPane = getConversationPane();
-  const documentScroller = document.scrollingElement || document.documentElement;
+  const paneRect = conversationPane.getBoundingClientRect();
   const scrollTargets = [conversationPane, ...Array.from(conversationPane.querySelectorAll("section, div"))]
-    .filter((element) => element.scrollHeight > element.clientHeight + 120)
-    .sort((a, b) => (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight));
-  return scrollTargets[0] || documentScroller || conversationPane;
+    .filter((element) => isVisibleElement(element))
+    .filter((element) => element.scrollHeight > element.clientHeight + 80)
+    .filter((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.left >= paneRect.left - 12 && rect.right <= paneRect.right + 12 && rect.top >= paneRect.top - 12 && rect.bottom <= paneRect.bottom + 12;
+    })
+    .sort((a, b) => {
+      const aScrollable = a.scrollHeight - a.clientHeight;
+      const bScrollable = b.scrollHeight - b.clientHeight;
+      return bScrollable - aScrollable;
+    });
+
+  return scrollTargets.length ? scrollTargets : [conversationPane];
+}
+
+function getConversationScrollSignature(targets = getConversationScrollTargets()) {
+  return targets.map((element) => `${Math.round(element.scrollTop)}:${element.scrollHeight}:${element.clientHeight}`).join("|");
+}
+
+function conversationTargetsAtTop(targets = getConversationScrollTargets()) {
+  return targets.every((element) => element.scrollTop <= 1);
+}
+
+function conversationTargetsAtBottom(targets = getConversationScrollTargets()) {
+  return targets.every((element) => element.scrollTop + element.clientHeight >= element.scrollHeight - 8);
 }
 
 async function scrollElementLikeUser(element, deltaY) {
@@ -227,6 +253,29 @@ async function scrollElementLikeUser(element, deltaY) {
   element.scrollTop += deltaY;
   await sleep(LOFI_SCAN_DELAY_MS);
   return element.scrollTop !== beforeTop;
+}
+
+async function scrollConversationLikeUser(deltaY) {
+  const targets = getConversationScrollTargets();
+  const beforeSignature = getConversationScrollSignature(targets);
+
+  for (const target of targets) {
+    const rect = target.getBoundingClientRect();
+    const event = new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      deltaY,
+      deltaMode: 0,
+      clientX: rect.left + Math.max(20, rect.width / 2),
+      clientY: rect.top + Math.max(20, rect.height / 2),
+    });
+    target.dispatchEvent(event);
+    target.scrollTop += deltaY;
+  }
+
+  await sleep(LOFI_SCAN_DELAY_MS);
+  return getConversationScrollSignature(targets) !== beforeSignature;
 }
 
 function getThreadRows() {
@@ -375,7 +424,6 @@ async function scrollConversationToTop(maxMessageScrolls) {
 }
 
 async function extractConversationMessagesByScrolling(maxMessageScrolls, onProgress) {
-  const scrollTarget = getConversationScrollTarget();
   const seen = new Set();
   const messages = [];
 
@@ -389,21 +437,26 @@ async function extractConversationMessagesByScrolling(maxMessageScrolls, onProgr
   };
 
   onProgress?.("Scrolling message pane to the first visible messages...");
-  scrollTarget.scrollTop = 0;
+  for (const target of getConversationScrollTargets()) {
+    target.scrollTop = 0;
+  }
   await sleep(LOFI_SCAN_DELAY_MS);
   for (let index = 0; index < maxMessageScrolls; index += 1) {
-    const moved = await scrollElementLikeUser(scrollTarget, -Math.max(420, scrollTarget.clientHeight * 0.8));
-    if (!moved || scrollTarget.scrollTop <= 0) break;
+    const targets = getConversationScrollTargets();
+    const step = Math.max(420, (targets[0]?.clientHeight || window.innerHeight) * 0.8);
+    const moved = await scrollConversationLikeUser(-step);
+    if (!moved || conversationTargetsAtTop(targets)) break;
   }
 
   onProgress?.("Reading messages from top to bottom...");
   for (let index = 0; index < maxMessageScrolls; index += 1) {
     addVisibleMessages();
-    const beforeTop = scrollTarget.scrollTop;
-    const reachedBottom = beforeTop + scrollTarget.clientHeight >= scrollTarget.scrollHeight - 8;
-    if (reachedBottom) break;
-    await scrollElementLikeUser(scrollTarget, Math.max(420, scrollTarget.clientHeight * 0.8));
-    if (scrollTarget.scrollTop === beforeTop) break;
+    const targets = getConversationScrollTargets();
+    if (conversationTargetsAtBottom(targets)) break;
+    const beforeSignature = getConversationScrollSignature(targets);
+    const step = Math.max(420, (targets[0]?.clientHeight || window.innerHeight) * 0.8);
+    await scrollConversationLikeUser(step);
+    if (getConversationScrollSignature(targets) === beforeSignature) break;
   }
 
   addVisibleMessages();
