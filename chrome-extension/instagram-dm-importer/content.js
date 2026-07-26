@@ -204,10 +204,10 @@ function getConversationPane() {
 function getConversationScrollTarget() {
   const conversationPane = getConversationPane();
   const documentScroller = document.scrollingElement || document.documentElement;
-  const scrollTargets = [conversationPane, ...Array.from(conversationPane.querySelectorAll("section, div")), documentScroller]
+  const scrollTargets = [conversationPane, ...Array.from(conversationPane.querySelectorAll("section, div"))]
     .filter((element) => element.scrollHeight > element.clientHeight + 120)
     .sort((a, b) => (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight));
-  return scrollTargets[0] || conversationPane;
+  return scrollTargets[0] || documentScroller || conversationPane;
 }
 
 async function scrollElementLikeUser(element, deltaY) {
@@ -374,7 +374,7 @@ async function scrollConversationToTop(maxMessageScrolls) {
   }
 }
 
-async function extractConversationMessagesByScrolling(maxMessageScrolls) {
+async function extractConversationMessagesByScrolling(maxMessageScrolls, onProgress) {
   const scrollTarget = getConversationScrollTarget();
   const seen = new Set();
   const messages = [];
@@ -388,12 +388,15 @@ async function extractConversationMessagesByScrolling(maxMessageScrolls) {
     }
   };
 
+  onProgress?.("Scrolling message pane to the first visible messages...");
+  scrollTarget.scrollTop = 0;
+  await sleep(LOFI_SCAN_DELAY_MS);
   for (let index = 0; index < maxMessageScrolls; index += 1) {
-    addVisibleMessages();
     const moved = await scrollElementLikeUser(scrollTarget, -Math.max(420, scrollTarget.clientHeight * 0.8));
     if (!moved || scrollTarget.scrollTop <= 0) break;
   }
 
+  onProgress?.("Reading messages from top to bottom...");
   for (let index = 0; index < maxMessageScrolls; index += 1) {
     addVisibleMessages();
     const beforeTop = scrollTarget.scrollTop;
@@ -558,7 +561,7 @@ async function autoSaveCurrentConversation() {
 
 async function saveCurrentConversationNow() {
   const currentConversation = collectCurrentConversation();
-  const messages = currentConversation ? await extractConversationMessagesByScrolling(30) : [];
+  const messages = currentConversation ? await extractConversationMessagesByScrolling(30, setImporterPanelStatus) : [];
   const text = messages.map((message) => message.text).join("\n");
   const title = extractConversationTitle();
   const fallbackThreadId = cleanText(title || text.slice(0, 80)).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || "instagram-dm";
@@ -669,7 +672,7 @@ async function scanInstagramDms(options = {}, onProgress) {
       const threadId = getThreadIdFromUrl(currentUrl);
 
       try {
-        messages = await extractConversationMessagesByScrolling(maxMessageScrolls);
+        messages = await extractConversationMessagesByScrolling(maxMessageScrolls, onProgress);
         title = extractConversationTitle() || row.title;
         text = messages.map((message) => message.text).join("\n");
       } catch (error) {
