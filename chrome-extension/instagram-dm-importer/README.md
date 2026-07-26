@@ -18,10 +18,11 @@ This Chrome Extension scans Instagram Direct in the browser and sends the extrac
 5. Enable `Auto-scan DM list after login` if you want the logged-in Instagram Direct tab to automatically read visible DM threads and save them every few minutes.
 6. Click `Open Instagram DM`.
 7. Log in to Instagram in that tab if needed.
-8. Keep the Instagram Direct tab open. Auto-scan will run after login and then repeat while the tab is visible.
-9. Click `Test server save` to verify the server URL and import token.
-10. Open one DM thread and click `Save open DM now` to verify Instagram page reading.
-11. Click `Read each DM & save` any time to scan the DM list manually.
+8. Confirm the small `Lofi Importer` panel appears inside the Instagram Direct tab.
+9. Keep the Instagram Direct tab open. Auto-scan will run after login and then repeat while the tab is visible.
+10. Click `Test server save` to verify the server URL and import token.
+11. Open one DM thread and click `Save open DM now` in the popup or `Save open DM` in the Instagram tab panel to verify Instagram page reading.
+12. Click `Read each DM & save` in the popup or `Read DMs` in the Instagram tab panel any time to scan the DM list manually.
 
 The server saves imported conversations into Patients through the existing Instagram DM storage path.
 

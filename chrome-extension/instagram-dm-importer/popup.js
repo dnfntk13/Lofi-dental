@@ -13,6 +13,10 @@ function setStatus(message) {
   statusEl.textContent = message;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function getInstagramTab() {
   const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (activeTab?.url?.startsWith("https://www.instagram.com/direct/")) return activeTab;
@@ -39,6 +43,26 @@ async function sendScanMessage(tabId) {
       options: { maxThreads: 80, maxListScrolls: 30, maxMessageScrolls: 30 },
     });
   }
+}
+
+async function ensureImporterOnTab(tabId) {
+  for (let index = 0; index < 18; index += 1) {
+    try {
+      const result = await chrome.tabs.sendMessage(tabId, { type: "LOFI_IMPORTER_PING" });
+      if (result?.ok) return result;
+    } catch {
+      try {
+        await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
+      } catch {
+        await sleep(500);
+        continue;
+      }
+    }
+
+    await sleep(500);
+  }
+
+  throw new Error("Could not apply Lofi Importer to the Instagram tab yet. Reload the Instagram tab and try again.");
 }
 
 async function sendCurrentDmSaveMessage(tabId) {
@@ -74,8 +98,13 @@ async function saveSettings() {
 
 openInstagramButton.addEventListener("click", async () => {
   setStatus("Opening Instagram Direct...");
-  await getInstagramTab();
-  setStatus("Log in if needed, then click Read each DM & save.");
+  const tab = await getInstagramTab();
+  try {
+    await ensureImporterOnTab(tab.id);
+    setStatus("Importer applied in the Instagram tab. Use the Lofi Importer panel there.");
+  } catch (error) {
+    setStatus(error.message || "Instagram opened. Reload the tab if the importer panel does not appear.");
+  }
 });
 
 scanButton.addEventListener("click", async () => {

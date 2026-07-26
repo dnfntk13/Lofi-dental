@@ -5,6 +5,7 @@ let autoSaveTimer = null;
 let lastAutoSaveSignature = "";
 let autoScanTimer = null;
 let autoScanInProgress = false;
+let importerPanelStatus = null;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -17,6 +18,106 @@ function cleanText(value) {
 function isVisibleElement(element) {
   const rect = element.getBoundingClientRect();
   return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0;
+}
+
+function setImporterPanelStatus(message) {
+  importerPanelStatus = message;
+  const status = document.getElementById("lofi-importer-status");
+  if (status) status.textContent = message;
+}
+
+function renderImporterPanel() {
+  if (!location.hostname.endsWith("instagram.com") || !location.pathname.startsWith("/direct")) return;
+  if (document.getElementById("lofi-importer-panel")) return;
+
+  const panel = document.createElement("div");
+  panel.id = "lofi-importer-panel";
+  panel.innerHTML = `
+    <div class="lofi-importer-title">Lofi Importer</div>
+    <div id="lofi-importer-status" class="lofi-importer-status">Applied to this Instagram DM tab.</div>
+    <div class="lofi-importer-actions">
+      <button type="button" data-lofi-action="save-current">Save open DM</button>
+      <button type="button" data-lofi-action="scan-all">Read DMs</button>
+    </div>
+  `;
+
+  const style = document.createElement("style");
+  style.id = "lofi-importer-style";
+  style.textContent = `
+    #lofi-importer-panel {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 2147483647;
+      width: 236px;
+      box-sizing: border-box;
+      border: 1px solid rgba(90, 111, 218, 0.28);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+      color: #1f2d66;
+      box-shadow: 0 12px 36px rgba(31, 45, 102, 0.18);
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 13px;
+    }
+    #lofi-importer-panel .lofi-importer-title {
+      margin-bottom: 5px;
+      font-weight: 800;
+      font-size: 14px;
+    }
+    #lofi-importer-panel .lofi-importer-status {
+      min-height: 34px;
+      color: #5a6fda;
+      line-height: 1.35;
+    }
+    #lofi-importer-panel .lofi-importer-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+      margin-top: 9px;
+    }
+    #lofi-importer-panel button {
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 7px;
+      background: #5b3d8f;
+      color: #fff;
+      cursor: pointer;
+      font: 700 12px "Segoe UI", Arial, sans-serif;
+    }
+    #lofi-importer-panel button:disabled {
+      opacity: 0.58;
+      cursor: wait;
+    }
+  `;
+
+  document.documentElement.append(style, panel);
+  setImporterPanelStatus(importerPanelStatus || "Applied to this Instagram DM tab.");
+
+  panel.addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-lofi-action]");
+    if (!button) return;
+
+    button.disabled = true;
+    try {
+      if (button.dataset.lofiAction === "save-current") {
+        setImporterPanelStatus("Saving open DM...");
+        const result = await saveCurrentConversationNow();
+        setImporterPanelStatus(`Saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}. ${result.messageCount || 0} lines.`);
+      } else {
+        setImporterPanelStatus("Reading DM list...");
+        const result = await scanInstagramDms(
+          { maxThreads: 80, maxListScrolls: 30, maxMessageScrolls: 30 },
+          setImporterPanelStatus,
+        );
+        setImporterPanelStatus(`Saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`);
+      }
+    } catch (error) {
+      setImporterPanelStatus(error.message || "Importer failed.");
+    } finally {
+      button.disabled = false;
+    }
+  });
 }
 
 function getThreadIdFromUrl(url) {
@@ -295,6 +396,7 @@ async function autoSaveCurrentConversation() {
       type: "LOFI_SCAN_STATUS",
       status: `Auto-saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`,
     }).catch(() => {});
+    setImporterPanelStatus(`Auto-saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`);
   }
 }
 
@@ -323,6 +425,7 @@ async function autoScanInstagramDms() {
 
   autoScanInProgress = true;
   try {
+    setImporterPanelStatus("Auto-scanning Instagram DMs...");
     chrome.runtime.sendMessage({ type: "LOFI_SCAN_STATUS", status: "Auto-scanning Instagram DMs..." }).catch(() => {});
     const result = await scanInstagramDms(
       { maxThreads: 80, maxListScrolls: 30, maxMessageScrolls: 30 },
@@ -332,11 +435,13 @@ async function autoScanInstagramDms() {
       type: "LOFI_SCAN_STATUS",
       status: `Auto-scan saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`,
     }).catch(() => {});
+    setImporterPanelStatus(`Auto-scan saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`);
   } catch (error) {
     chrome.runtime.sendMessage({
       type: "LOFI_SCAN_STATUS",
       status: error.message || "Auto-scan failed.",
     }).catch(() => {});
+    setImporterPanelStatus(error.message || "Auto-scan failed.");
   } finally {
     autoScanInProgress = false;
   }
@@ -417,6 +522,12 @@ async function scanInstagramDms(options = {}, onProgress) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "LOFI_IMPORTER_PING") {
+    renderImporterPanel();
+    sendResponse({ ok: true, applied: true });
+    return true;
+  }
+
   if (message?.type === "LOFI_SAVE_CURRENT_INSTAGRAM_DM") {
     saveCurrentConversationNow()
       .then((result) => sendResponse({ ok: true, ...result }))
@@ -442,5 +553,6 @@ new MutationObserver(scheduleAutoSave).observe(document.documentElement, {
   characterData: true,
 });
 window.addEventListener("popstate", scheduleAutoSave);
+renderImporterPanel();
 scheduleAutoSave();
 startAutoScanLoop();
