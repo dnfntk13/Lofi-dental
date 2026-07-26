@@ -4,6 +4,7 @@ const scanButton = document.getElementById("scanDms");
 const serverUrlInput = document.getElementById("serverUrl");
 const importTokenInput = document.getElementById("importToken");
 const autoSaveInput = document.getElementById("autoSave");
+const autoScanDmsInput = document.getElementById("autoScanDms");
 const saveSettingsButton = document.getElementById("saveSettings");
 
 function setStatus(message) {
@@ -44,6 +45,7 @@ async function loadSettings() {
   serverUrlInput.value = result.settings.serverUrl || "https://lofiesthetic.com";
   importTokenInput.value = result.settings.importToken || "extension-v1";
   autoSaveInput.checked = Boolean(result.settings.autoSave);
+  autoScanDmsInput.checked = Boolean(result.settings.autoScanDms);
 }
 
 async function saveSettings() {
@@ -53,6 +55,7 @@ async function saveSettings() {
       serverUrl: serverUrlInput.value,
       importToken: importTokenInput.value,
       autoSave: autoSaveInput.checked,
+      autoScanDms: autoScanDmsInput.checked,
     },
   });
   if (!result?.ok) throw new Error(result?.message || "Failed to save settings");

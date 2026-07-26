@@ -1,7 +1,10 @@
 const LOFI_SCAN_DELAY_MS = 650;
 const LOFI_AUTO_SAVE_DEBOUNCE_MS = 2400;
+const LOFI_AUTO_SCAN_INTERVAL_MS = 5 * 60 * 1000;
 let autoSaveTimer = null;
 let lastAutoSaveSignature = "";
+let autoScanTimer = null;
+let autoScanInProgress = false;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -194,8 +197,6 @@ async function autoSaveCurrentConversation() {
   const conversation = collectCurrentConversation();
   if (!conversation) return;
 
-  if (!conversation.reservationInfo?.isReservationRelated) return;
-
   const signature = `${conversation.threadId}:${conversation.text.slice(-1600)}`;
   if (signature === lastAutoSaveSignature) return;
   lastAutoSaveSignature = signature;
@@ -210,6 +211,40 @@ async function autoSaveCurrentConversation() {
       status: `Auto-saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`,
     }).catch(() => {});
   }
+}
+
+async function autoScanInstagramDms() {
+  const settings = await getImporterSettings();
+  if (!settings.autoScanDms || autoScanInProgress || document.hidden) return;
+  if (!location.hostname.endsWith("instagram.com") || !location.pathname.startsWith("/direct")) return;
+
+  autoScanInProgress = true;
+  try {
+    chrome.runtime.sendMessage({ type: "LOFI_SCAN_STATUS", status: "Auto-scanning Instagram DMs..." }).catch(() => {});
+    const result = await scanInstagramDms(
+      { maxThreads: 80, maxListScrolls: 30, maxMessageScrolls: 30 },
+      (status) => chrome.runtime.sendMessage({ type: "LOFI_SCAN_STATUS", status }).catch(() => {}),
+    );
+    chrome.runtime.sendMessage({
+      type: "LOFI_SCAN_STATUS",
+      status: `Auto-scan saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`,
+    }).catch(() => {});
+  } catch (error) {
+    chrome.runtime.sendMessage({
+      type: "LOFI_SCAN_STATUS",
+      status: error.message || "Auto-scan failed.",
+    }).catch(() => {});
+  } finally {
+    autoScanInProgress = false;
+  }
+}
+
+function startAutoScanLoop() {
+  window.clearInterval(autoScanTimer);
+  autoScanTimer = window.setInterval(() => {
+    autoScanInstagramDms().catch(() => {});
+  }, LOFI_AUTO_SCAN_INTERVAL_MS);
+  window.setTimeout(() => autoScanInstagramDms().catch(() => {}), 3500);
 }
 
 function scheduleAutoSave() {
@@ -298,3 +333,4 @@ new MutationObserver(scheduleAutoSave).observe(document.documentElement, {
 });
 window.addEventListener("popstate", scheduleAutoSave);
 scheduleAutoSave();
+startAutoScanLoop();

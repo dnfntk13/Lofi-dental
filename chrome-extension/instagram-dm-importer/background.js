@@ -2,6 +2,7 @@ const DEFAULT_SETTINGS = {
   serverUrl: "https://lofiesthetic.com",
   importToken: "extension-v1",
   autoSave: false,
+  autoScanDms: false,
 };
 
 function normalizeServerUrl(value) {
@@ -14,6 +15,7 @@ async function getSettings() {
     serverUrl: normalizeServerUrl(settings.serverUrl),
     importToken: String(settings.importToken || DEFAULT_SETTINGS.importToken).trim(),
     autoSave: Boolean(settings.autoSave),
+    autoScanDms: Boolean(settings.autoScanDms),
   };
 }
 
@@ -54,6 +56,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       serverUrl: normalizeServerUrl(message.settings?.serverUrl),
       importToken: String(message.settings?.importToken || DEFAULT_SETTINGS.importToken).trim(),
       autoSave: Boolean(message.settings?.autoSave),
+      autoScanDms: Boolean(message.settings?.autoScanDms),
     };
     chrome.storage.sync.set(settings)
       .then(() => sendResponse({ ok: true, settings }))
