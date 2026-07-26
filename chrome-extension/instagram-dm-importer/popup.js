@@ -34,13 +34,13 @@ async function sendScanMessage(tabId) {
   try {
     return await chrome.tabs.sendMessage(tabId, {
       type: "LOFI_SCAN_INSTAGRAM_DMS",
-      options: { maxThreads: 80, maxListScrolls: 30, maxMessageScrolls: 30 },
+      options: { maxThreads: 10, maxListScrolls: 20, maxMessageScrolls: 30 },
     });
   } catch {
     await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
     return chrome.tabs.sendMessage(tabId, {
       type: "LOFI_SCAN_INSTAGRAM_DMS",
-      options: { maxThreads: 80, maxListScrolls: 30, maxMessageScrolls: 30 },
+      options: { maxThreads: 10, maxListScrolls: 20, maxMessageScrolls: 30 },
     });
   }
 }

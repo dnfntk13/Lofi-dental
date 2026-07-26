@@ -115,7 +115,7 @@ function renderImporterPanel() {
       } else {
         setImporterPanelStatus("Reading DM list...");
         const result = await scanInstagramDms(
-          { maxThreads: 80, maxListScrolls: 30, maxMessageScrolls: 30 },
+          { maxThreads: 10, maxListScrolls: 20, maxMessageScrolls: 30 },
           setImporterPanelStatus,
         );
         setImporterPanelStatus(`Saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`);
@@ -203,10 +203,30 @@ function getConversationPane() {
 
 function getConversationScrollTarget() {
   const conversationPane = getConversationPane();
-  const scrollTargets = [conversationPane, ...Array.from(conversationPane.querySelectorAll("section, div"))]
+  const documentScroller = document.scrollingElement || document.documentElement;
+  const scrollTargets = [conversationPane, ...Array.from(conversationPane.querySelectorAll("section, div")), documentScroller]
     .filter((element) => element.scrollHeight > element.clientHeight + 120)
     .sort((a, b) => (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight));
   return scrollTargets[0] || conversationPane;
+}
+
+async function scrollElementLikeUser(element, deltaY) {
+  const rect = element.getBoundingClientRect?.() || { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+  const event = new WheelEvent("wheel", {
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    deltaY,
+    deltaMode: 0,
+    clientX: rect.left + Math.max(20, rect.width / 2),
+    clientY: rect.top + Math.max(20, rect.height / 2),
+  });
+
+  const beforeTop = element.scrollTop;
+  element.dispatchEvent(event);
+  element.scrollTop += deltaY;
+  await sleep(LOFI_SCAN_DELAY_MS);
+  return element.scrollTop !== beforeTop;
 }
 
 function getThreadRows() {
@@ -368,16 +388,18 @@ async function extractConversationMessagesByScrolling(maxMessageScrolls) {
     }
   };
 
-  scrollTarget.scrollTop = 0;
-  await sleep(LOFI_SCAN_DELAY_MS);
+  for (let index = 0; index < maxMessageScrolls; index += 1) {
+    addVisibleMessages();
+    const moved = await scrollElementLikeUser(scrollTarget, -Math.max(420, scrollTarget.clientHeight * 0.8));
+    if (!moved || scrollTarget.scrollTop <= 0) break;
+  }
 
   for (let index = 0; index < maxMessageScrolls; index += 1) {
     addVisibleMessages();
     const beforeTop = scrollTarget.scrollTop;
     const reachedBottom = beforeTop + scrollTarget.clientHeight >= scrollTarget.scrollHeight - 8;
     if (reachedBottom) break;
-    scrollTarget.scrollTop += Math.max(420, scrollTarget.clientHeight * 0.8);
-    await sleep(LOFI_SCAN_DELAY_MS);
+    await scrollElementLikeUser(scrollTarget, Math.max(420, scrollTarget.clientHeight * 0.8));
     if (scrollTarget.scrollTop === beforeTop) break;
   }
 
@@ -575,7 +597,7 @@ async function autoScanInstagramDms() {
     setImporterPanelStatus("Auto-scanning Instagram DMs...");
     chrome.runtime.sendMessage({ type: "LOFI_SCAN_STATUS", status: "Auto-scanning Instagram DMs..." }).catch(() => {});
     const result = await scanInstagramDms(
-      { maxThreads: 80, maxListScrolls: 30, maxMessageScrolls: 30 },
+      { maxThreads: 10, maxListScrolls: 20, maxMessageScrolls: 30 },
       (status) => chrome.runtime.sendMessage({ type: "LOFI_SCAN_STATUS", status }).catch(() => {}),
     );
     chrome.runtime.sendMessage({
@@ -609,7 +631,7 @@ function scheduleAutoSave() {
 }
 
 async function scanInstagramDms(options = {}, onProgress) {
-  const maxThreads = Math.min(Math.max(Number(options.maxThreads || 80), 1), 120);
+  const maxThreads = Math.min(Math.max(Number(options.maxThreads || 10), 1), 10);
   const maxListScrolls = Math.min(Math.max(Number(options.maxListScrolls || 30), 1), 80);
   const maxMessageScrolls = Math.min(Math.max(Number(options.maxMessageScrolls || 30), 1), 80);
 
@@ -617,7 +639,7 @@ async function scanInstagramDms(options = {}, onProgress) {
     throw new Error("Open Instagram Direct first: https://www.instagram.com/direct/inbox/");
   }
 
-  onProgress?.("Scanning DM list...");
+  onProgress?.("Scanning latest 10 DM conversations...");
   const conversations = [];
   const seenRows = new Set();
   const scrollTarget = getThreadListScrollTarget();

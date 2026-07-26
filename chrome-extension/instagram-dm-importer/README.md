@@ -22,7 +22,7 @@ This Chrome Extension scans Instagram Direct in the browser and sends the extrac
 9. Keep the Instagram Direct tab open. Auto-scan repeats while the tab is visible, but it does not start immediately so you can open threads manually.
 10. Click `Test server save` to verify the server URL and import token.
 11. Open one DM thread and click `Save open DM now` in the popup or `Save open DM` in the Instagram tab panel to verify Instagram page reading.
-12. Click `Read each DM & save` in the popup or `Read DMs` in the Instagram tab panel any time to scan the DM list manually.
+12. Click `Read each DM & save` in the popup or `Read DMs` in the Instagram tab panel any time to scan the latest 10 DM conversations manually.
 
 The server saves imported conversations into Patients through the existing Instagram DM storage path.
 
@@ -31,7 +31,7 @@ The server saves imported conversations into Patients through the existing Insta
 - Production import uses `/api/instagram-extension/import`.
 - Local testing uses `/api/local/instagram-extension/import`.
 - The extension reads the Instagram page that is already open in Chrome; it does not ask for or store Instagram passwords.
-- Manual scan and auto-scan use the left DM list pane, click visible DM rows one by one, scroll the right conversation pane to read messages, and save readable conversations.
+- Manual scan and auto-scan use the left DM list pane, click the latest 10 visible DM rows one by one, scroll the right conversation pane to read messages, and save readable conversations.
 - Auto-save is near-live only while an Instagram Direct thread is open in Chrome.
 - Auto-scan runs only while the Instagram Direct tab is open and visible because it needs the page content rendered in the browser.
 - Instagram changes its page markup often, so the scanner may need adjustment if the UI changes.
