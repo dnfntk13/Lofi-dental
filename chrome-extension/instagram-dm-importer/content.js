@@ -1,4 +1,5 @@
 const LOFI_SCAN_DELAY_MS = 650;
+const LOFI_MESSAGE_SCROLL_DELAY_MS = 950;
 const LOFI_AUTO_SAVE_DEBOUNCE_MS = 2400;
 const LOFI_AUTO_SCAN_INTERVAL_MS = 5 * 60 * 1000;
 let autoSaveTimer = null;
@@ -274,7 +275,7 @@ async function scrollConversationLikeUser(deltaY) {
     target.scrollTop += deltaY;
   }
 
-  await sleep(LOFI_SCAN_DELAY_MS);
+  await sleep(LOFI_MESSAGE_SCROLL_DELAY_MS);
   return getConversationScrollSignature(targets) !== beforeSignature;
 }
 
@@ -310,6 +311,61 @@ function getThreadRows() {
   }
 
   return uniqueRows;
+}
+
+async function collectLatestThreadRows(maxThreads, maxListScrolls, onProgress) {
+  const scrollTarget = getThreadListScrollTarget();
+  const collected = [];
+  const seen = new Set();
+  scrollTarget.scrollTop = 0;
+  await sleep(LOFI_SCAN_DELAY_MS);
+
+  for (let index = 0; index < maxListScrolls && collected.length < maxThreads; index += 1) {
+    const rows = getThreadRows();
+    onProgress?.(`Collecting DM rows: ${collected.length}/${maxThreads}; ${rows.length} visible.`);
+
+    for (const row of rows) {
+      if (collected.length >= maxThreads) break;
+      const signature = `${row.title}:${row.text.slice(0, 180)}`;
+      if (seen.has(signature)) continue;
+      seen.add(signature);
+      collected.push({ signature, title: row.title, text: row.text, url: row.url });
+    }
+
+    if (collected.length >= maxThreads) break;
+    const beforeTop = scrollTarget.scrollTop;
+    const reachedBottom = beforeTop + scrollTarget.clientHeight >= scrollTarget.scrollHeight - 8;
+    if (reachedBottom) break;
+    scrollTarget.scrollTop += Math.max(220, scrollTarget.clientHeight * 0.45);
+    await sleep(LOFI_SCAN_DELAY_MS);
+    if (scrollTarget.scrollTop === beforeTop) break;
+  }
+
+  return collected.slice(0, maxThreads);
+}
+
+async function openThreadRowSnapshot(snapshot, maxListScrolls = 20) {
+  const scrollTarget = getThreadListScrollTarget();
+  scrollTarget.scrollTop = 0;
+  await sleep(LOFI_SCAN_DELAY_MS);
+
+  for (let index = 0; index < maxListScrolls; index += 1) {
+    const row = getThreadRows().find((item) => `${item.title}:${item.text.slice(0, 180)}` === snapshot.signature);
+    if (row) {
+      row.element.scrollIntoView({ block: "center" });
+      await sleep(220);
+      clickLikeUser(row.clickTarget || row.element);
+      await sleep(1500);
+      return true;
+    }
+
+    const beforeTop = scrollTarget.scrollTop;
+    scrollTarget.scrollTop += Math.max(220, scrollTarget.clientHeight * 0.45);
+    await sleep(LOFI_SCAN_DELAY_MS);
+    if (scrollTarget.scrollTop === beforeTop) break;
+  }
+
+  return false;
 }
 
 function getThreadLinks() {
@@ -440,21 +496,21 @@ async function extractConversationMessagesByScrolling(maxMessageScrolls, onProgr
   for (const target of getConversationScrollTargets()) {
     target.scrollTop = 0;
   }
-  await sleep(LOFI_SCAN_DELAY_MS);
+  await sleep(LOFI_MESSAGE_SCROLL_DELAY_MS);
   for (let index = 0; index < maxMessageScrolls; index += 1) {
     const targets = getConversationScrollTargets();
-    const step = Math.max(420, (targets[0]?.clientHeight || window.innerHeight) * 0.8);
+    const step = Math.max(120, Math.min(260, (targets[0]?.clientHeight || window.innerHeight) * 0.35));
     const moved = await scrollConversationLikeUser(-step);
     if (!moved || conversationTargetsAtTop(targets)) break;
   }
 
-  onProgress?.("Reading messages from top to bottom...");
+  onProgress?.("Reading messages slowly from top to bottom...");
   for (let index = 0; index < maxMessageScrolls; index += 1) {
     addVisibleMessages();
     const targets = getConversationScrollTargets();
     if (conversationTargetsAtBottom(targets)) break;
     const beforeSignature = getConversationScrollSignature(targets);
-    const step = Math.max(420, (targets[0]?.clientHeight || window.innerHeight) * 0.8);
+    const step = Math.max(120, Math.min(260, (targets[0]?.clientHeight || window.innerHeight) * 0.35));
     await scrollConversationLikeUser(step);
     if (getConversationScrollSignature(targets) === beforeSignature) break;
   }
@@ -696,27 +752,20 @@ async function scanInstagramDms(options = {}, onProgress) {
   }
 
   onProgress?.("Scanning latest 10 DM conversations...");
+  const threadRows = await collectLatestThreadRows(maxThreads, maxListScrolls, onProgress);
+  if (!threadRows.length) {
+    throw new Error("No DM rows found. Make sure you are logged in and the left DM list is visible.");
+  }
+
   const conversations = [];
-  const seenRows = new Set();
-  const scrollTarget = getThreadListScrollTarget();
-  scrollTarget.scrollTop = 0;
-    await sleep(LOFI_SCAN_DELAY_MS);
-
-  for (let scrollIndex = 0; scrollIndex < maxListScrolls && conversations.length < maxThreads; scrollIndex += 1) {
-    const rows = getThreadRows();
-    onProgress?.(`Found ${rows.length} visible DM row${rows.length === 1 ? "" : "s"}; saved ${conversations.length}.`);
-
-    for (const row of rows) {
-      if (conversations.length >= maxThreads) break;
-      const rowSignature = `${row.title}:${row.text.slice(0, 180)}`;
-      if (seenRows.has(rowSignature)) continue;
-      seenRows.add(rowSignature);
-
-      onProgress?.(`Opening ${conversations.length + 1}: ${row.title}`);
-      row.element.scrollIntoView({ block: "center" });
-      await sleep(180);
-      clickLikeUser(row.clickTarget || row.element);
-      await sleep(1400);
+  for (let index = 0; index < threadRows.length; index += 1) {
+      const row = threadRows[index];
+      onProgress?.(`Opening ${index + 1}/${threadRows.length}: ${row.title}`);
+      const opened = await openThreadRowSnapshot(row, maxListScrolls);
+      if (!opened) {
+        onProgress?.(`Skipped ${row.title}: row was not visible again.`);
+        continue;
+      }
 
       let messages = [];
       let title = row.title;
@@ -749,19 +798,6 @@ async function scanInstagramDms(options = {}, onProgress) {
         text,
         reservationInfo: extractReservationInfo(text, title),
       });
-    }
-
-    if (conversations.length >= maxThreads) break;
-    const beforeTop = scrollTarget.scrollTop;
-    const reachedBottom = beforeTop + scrollTarget.clientHeight >= scrollTarget.scrollHeight - 8;
-    if (reachedBottom) break;
-    scrollTarget.scrollTop += Math.max(360, scrollTarget.clientHeight * 0.8);
-    await sleep(LOFI_SCAN_DELAY_MS);
-    if (scrollTarget.scrollTop === beforeTop) break;
-  }
-
-  if (!seenRows.size) {
-    throw new Error("No DM rows found. Make sure you are logged in and the left DM list is visible.");
   }
 
   const validConversations = conversations.filter((conversation) => cleanText(conversation.text).length >= 20);

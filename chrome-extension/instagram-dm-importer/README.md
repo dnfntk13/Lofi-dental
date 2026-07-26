@@ -31,7 +31,7 @@ The server saves imported conversations into Patients through the existing Insta
 - Production import uses `/api/instagram-extension/import`.
 - Local testing uses `/api/local/instagram-extension/import`.
 - The extension reads the Instagram page that is already open in Chrome; it does not ask for or store Instagram passwords.
-- Manual scan and auto-scan use the left DM list pane, click the latest 10 visible DM rows one by one, move the right-side conversation scroll candidates to the first visible messages, read downward, and save readable conversations.
+- Manual scan and auto-scan first collect a stable snapshot of the latest 10 visible DM rows, then open them one by one, slowly scroll the right-side conversation candidates from top to bottom, and save readable conversations.
 - Auto-save is near-live only while an Instagram Direct thread is open in Chrome.
 - Auto-scan runs only while the Instagram Direct tab is open and visible because it needs the page content rendered in the browser.
 - Instagram changes its page markup often, so the scanner may need adjustment if the UI changes.
