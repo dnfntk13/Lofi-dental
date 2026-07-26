@@ -2421,6 +2421,7 @@ function getSmtpErrorDetails(error) {
 }
 
 async function sendMailWithFallback(mailOptions) {
+  let resendError;
   if (hasResendConfig()) {
     try {
       const response = await fetch("https://api.resend.com/emails", {
@@ -2443,23 +2444,25 @@ async function sendMailWithFallback(mailOptions) {
         throw new Error(`Resend API failed with ${response.status}: ${body}`);
       }
 
-      return;
+      const data = await response.json().catch(() => ({}));
+      return { provider: "resend", id: data.id || null };
     } catch (error) {
+      resendError = error;
       console.error("Resend send failed", getSmtpErrorDetails(error));
-      throw error;
     }
   }
 
   const configs = getMailTransportConfigs();
   if (configs.length === 0) {
+    if (resendError) throw resendError;
     throw new Error("Email verification is not configured");
   }
 
   let lastError;
   for (const config of configs) {
     try {
-      await createMailTransporter(config).sendMail(mailOptions);
-      return;
+      const info = await createMailTransporter(config).sendMail(mailOptions);
+      return { provider: "smtp", host: config.host, port: config.port, messageId: info?.messageId || null };
     } catch (error) {
       lastError = error;
       console.error("SMTP send failed", {
@@ -2471,7 +2474,7 @@ async function sendMailWithFallback(mailOptions) {
     }
   }
 
-  throw lastError || new Error("Failed to send mail");
+  throw lastError || resendError || new Error("Failed to send mail");
 }
 
 function buildReservationAutoReply(record) {
@@ -2790,7 +2793,7 @@ async function migrateInboxToEmailThreads() {
       // 예약 요청 메시지 추가
       await saveOrUpdateEmailThread(reservation.email, reservation.id, {
         type: "reservation",
-        sentAt: reservation.createdAt,
+        receivedAt: reservation.createdAt,
         date: reservation.date,
         time: reservation.time,
         concerns: reservation.concerns,
@@ -3110,7 +3113,7 @@ createServer(async (request, response) => {
       try {
         await saveOrUpdateEmailThread(email, record.id, {
           type: "reservation",
-          sentAt: record.createdAt,
+          receivedAt: record.createdAt,
           date: record.date,
           time: record.time,
           concerns: record.concerns,
@@ -3797,8 +3800,27 @@ createServer(async (request, response) => {
         console.error("Failed to save patient info (admin create)", error);
       }
 
+      let autoReplySent = false;
+      if (record.email) {
+        try {
+          autoReplySent = await sendReservationAutoReply(record);
+          if (autoReplySent) {
+            const autoReplyMsg = buildReservationAutoReply(record);
+            await saveOrUpdateEmailThread(threadEmail, record.id, {
+              type: "auto-reply",
+              sentAt: new Date().toISOString(),
+              content: autoReplyMsg.text,
+              source: "email",
+              channel: "email",
+            });
+          }
+        } catch (error) {
+          console.error("Failed to send admin-created reservation auto-reply", error);
+        }
+      }
+
       response.writeHead(201, { "Content-Type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify({ ok: true, record }));
+      response.end(JSON.stringify({ ok: true, record, autoReplySent }));
     } catch (error) {
       console.error("Failed to create reservation", error);
       const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
