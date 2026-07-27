@@ -142,6 +142,20 @@
         cursor: default;
       }
 
+      .btn-sync {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+
+      .btn-sync:hover { background: #4c327b; }
+
+      .btn-sync:disabled {
+        opacity: 0.62;
+        cursor: wait;
+        transform: none;
+      }
+
       .cal-wrap {
         border: 1px solid var(--line);
         border-radius: 24px;
@@ -843,6 +857,7 @@
           <button class="cal-nav-btn" id="nextBtn" aria-label="Next month">&#8250;</button>
           <button class="btn-today" id="todayBtn">Today</button>
           <button class="btn-today btn-undo" id="undoBtn" disabled>Undo</button>
+          <button class="btn-today btn-sync" id="dentwebSyncBtn" type="button">Sync with Dentweb</button>
         </div>
       </div>
 
@@ -1062,6 +1077,7 @@
       const calWrap = document.getElementById("calWrap");
       const selectionBox = document.getElementById("selectionBox");
       const undoBtn = document.getElementById("undoBtn");
+      const dentwebSyncBtn = document.getElementById("dentwebSyncBtn");
       const instagramStatus = document.getElementById("instagramStatus");
       const instagramOpen = document.getElementById("instagramOpen");
 
@@ -1112,6 +1128,36 @@
 
         popup.focus();
         instagramStatus.textContent = "Instagram opened. Log in there with any Instagram account.";
+      }
+
+      async function syncWithDentweb() {
+        const originalText = dentwebSyncBtn.textContent;
+        dentwebSyncBtn.disabled = true;
+        dentwebSyncBtn.textContent = "Syncing...";
+        statusMsg.style.display = "block";
+        statusMsg.textContent = "Running Dentweb print sync on this computer...";
+
+        try {
+          const response = await fetch("http://127.0.0.1:5175/sync", {
+            method: "POST",
+            mode: "cors",
+            cache: "no-store",
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data.ok) {
+            throw new Error(data.message || "Dentweb sync agent failed.");
+          }
+
+          await loadReservations();
+          flashStatus(`Dentweb synced: ${data.imported || 0} imported, ${data.skipped || 0} skipped.`, 4200);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Dentweb sync failed.";
+          statusMsg.style.display = "block";
+          statusMsg.textContent = `${message} Start the local agent first: npm run dentweb:sync -- --daemon`;
+        } finally {
+          dentwebSyncBtn.disabled = false;
+          dentwebSyncBtn.textContent = originalText;
+        }
       }
 
       function pushUndo(action) {
@@ -2129,6 +2175,7 @@
         renderCalendar();
       });
 
+      dentwebSyncBtn.addEventListener("click", syncWithDentweb);
       instagramOpen.addEventListener("click", openInstagramWindow);
 
       loadReservations();

@@ -77,7 +77,15 @@ First install dependencies:
 npm install
 ```
 
-Run the sync agent from the clinic computer:
+Run the local agent from the clinic computer before using the Calendar button:
+
+```bash
+npm run dentweb:agent -- --url="https://www.dentweb.co.kr" --selector="YOUR_PRINT_BUTTON_SELECTOR"
+```
+
+The agent listens on `http://127.0.0.1:5175`. Open the Admin Calendar on the same computer and click `Sync with Dentweb` to run the print/PDF/upload sync.
+
+For a one-time terminal sync without the Calendar button:
 
 ```bash
 npm run dentweb:sync -- --url="https://www.dentweb.co.kr" --selector="YOUR_PRINT_BUTTON_SELECTOR"
@@ -95,6 +103,7 @@ ADMIN_USER=lofidental
 ADMIN_PASS=Lofidental1!
 DENTWEB_CHROME_PROFILE=C:\Users\USER\.lofi-dentweb-chrome
 DENTWEB_DOWNLOAD_DIR=C:\Users\USER\Downloads\lofi-dentweb-sync
+DENTWEB_AGENT_PORT=5175
 ```
 
 If the selector is not set, the agent tries buttons or links containing `예약표 출력`, `출력`, `인쇄`, `프린트`, or `PDF`. Imported Dentweb reservations are added to the reservation inbox and Patients. Existing same date/time slots are skipped.

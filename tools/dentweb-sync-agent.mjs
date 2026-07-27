@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
+import { createServer } from "node:http";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -21,6 +22,9 @@ const profileDir = args.get("profile") || process.env.DENTWEB_CHROME_PROFILE || 
 const downloadDir = args.get("download-dir") || process.env.DENTWEB_DOWNLOAD_DIR || path.join(os.homedir(), "Downloads", "lofi-dentweb-sync");
 const dryRun = args.has("dry-run") || process.env.DENTWEB_DRY_RUN === "1";
 const skipPrompt = args.has("no-prompt") || process.env.DENTWEB_SKIP_PROMPT === "1";
+const daemonMode = args.has("daemon") || process.env.DENTWEB_DAEMON === "1";
+const agentPort = Number(args.get("agent-port") || process.env.DENTWEB_AGENT_PORT || 5175);
+let syncInProgress = false;
 
 function findChromePath() {
   const candidates = [
@@ -218,7 +222,7 @@ async function uploadPdf(filePath) {
   return data;
 }
 
-async function main() {
+async function runDentwebSync({ prompt = true } = {}) {
   await mkdir(downloadDir, { recursive: true });
   await launchChrome();
   await waitForChrome();
@@ -230,7 +234,7 @@ async function main() {
   await session.send("Runtime.enable");
   await session.send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: downloadDir, eventsEnabled: true });
 
-  if (!skipPrompt) {
+  if (prompt && !skipPrompt) {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
     await rl.question("Dentweb login and reservation table ready? Press Enter to click print and sync. ");
     rl.close();
@@ -255,13 +259,77 @@ async function main() {
 
   console.log(`Saved PDF: ${pdfPath}`);
   const result = await uploadPdf(pdfPath);
-  console.log(JSON.stringify({
+  const summary = {
     dryRun: result.dryRun,
     parsed: result.parsed,
     imported: result.imported,
     skipped: result.skipped,
-  }, null, 2));
+  };
+  console.log(JSON.stringify(summary, null, 2));
   session.close();
+  return { ...summary, pdfPath };
+}
+
+function sendJson(response, statusCode, payload) {
+  response.writeHead(statusCode, {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Content-Type": "application/json; charset=utf-8",
+  });
+  response.end(JSON.stringify(payload));
+}
+
+async function startDaemon() {
+  await mkdir(downloadDir, { recursive: true });
+  await launchChrome();
+  await waitForChrome();
+
+  const server = createServer(async (request, response) => {
+    if (request.method === "OPTIONS") {
+      sendJson(response, 204, {});
+      return;
+    }
+
+    const url = new URL(request.url || "/", `http://127.0.0.1:${agentPort}`);
+    if (url.pathname === "/health") {
+      sendJson(response, 200, { ok: true, syncInProgress, dentwebUrl, serverUrl, dryRun });
+      return;
+    }
+
+    if (url.pathname === "/sync" && request.method === "POST") {
+      if (syncInProgress) {
+        sendJson(response, 409, { ok: false, message: "Dentweb sync is already running" });
+        return;
+      }
+
+      syncInProgress = true;
+      try {
+        const result = await runDentwebSync({ prompt: false });
+        sendJson(response, 200, { ok: true, ...result });
+      } catch (error) {
+        sendJson(response, 500, { ok: false, message: error.message || "Dentweb sync failed" });
+      } finally {
+        syncInProgress = false;
+      }
+      return;
+    }
+
+    sendJson(response, 404, { ok: false, message: "Not found" });
+  });
+
+  server.listen(agentPort, "127.0.0.1", () => {
+    console.log(`Dentweb sync agent running at http://127.0.0.1:${agentPort}`);
+    console.log("Open Dentweb in the launched Chrome profile and keep it logged in on the reservation table.");
+  });
+}
+
+async function main() {
+  if (daemonMode) {
+    await startDaemon();
+    return;
+  }
+  await runDentwebSync({ prompt: true });
 }
 
 main().catch((error) => {
