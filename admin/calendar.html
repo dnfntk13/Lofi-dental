@@ -1153,7 +1153,7 @@
         } catch (error) {
           const message = error instanceof Error ? error.message : "Dentweb sync failed.";
           statusMsg.style.display = "block";
-          statusMsg.textContent = `${message} Start the local agent first: npm run dentweb:sync -- --daemon`;
+          statusMsg.textContent = `${message} Start the local agent first: npm run dentweb:agent`;
         } finally {
           dentwebSyncBtn.disabled = false;
           dentwebSyncBtn.textContent = originalText;
