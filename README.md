@@ -69,7 +69,7 @@ To check which email provider Render is using, open `/api/admin/email-status` wi
 
 ### Dentweb Print Sync
 
-Dentweb does not provide an official API here, so the local sync agent assumes Dentweb is already logged in on the clinic computer. It opens Chrome with a dedicated profile, waits for staff to finish any manual login, clicks the reservation print button, saves the reservation table as a PDF, and uploads it to the admin import API.
+Dentweb does not provide an official API here, so the local sync agent assumes the Windows Dentweb program is already running and logged in on the clinic computer. It brings the Dentweb calendar window to the front, clicks the `예약표출력` button, waits for a PDF to be saved, and uploads that PDF to the admin import API.
 
 First install dependencies:
 
@@ -80,7 +80,7 @@ npm install
 Run the local agent from the clinic computer before using the Calendar button:
 
 ```bash
-npm run dentweb:agent -- --url="https://www.dentweb.co.kr" --selector="YOUR_PRINT_BUTTON_SELECTOR"
+npm run dentweb:agent
 ```
 
 The agent listens on `http://127.0.0.1:5175`. Open the Admin Calendar on the same computer and click `Sync with Dentweb` to run the print/PDF/upload sync.
@@ -88,25 +88,24 @@ The agent listens on `http://127.0.0.1:5175`. Open the Admin Calendar on the sam
 For a one-time terminal sync without the Calendar button:
 
 ```bash
-npm run dentweb:sync -- --url="https://www.dentweb.co.kr" --selector="YOUR_PRINT_BUTTON_SELECTOR"
+npm run dentweb:sync
 ```
 
-The first run opens Chrome. Log in to Dentweb manually, go to the reservation table, then press Enter in the terminal. The same Chrome profile is reused on later runs.
+Before syncing, open the Dentweb desktop program manually, log in, and keep the calendar visible. The default print button click is window-relative coordinates `136,539`, which matches the bottom-left `예약표출력` button in the current clinic layout. If the Dentweb window size or layout changes, adjust `DENTWEB_PRINT_CLICK`.
 
 Useful options and environment variables:
 
 ```bash
-DENTWEB_URL=https://www.dentweb.co.kr
-DENTWEB_PRINT_SELECTOR="button.print"
 LOFI_ADMIN_URL=https://lofiesthetic.com
 ADMIN_USER=lofidental
 ADMIN_PASS=Lofidental1!
-DENTWEB_CHROME_PROFILE=C:\Users\USER\.lofi-dentweb-chrome
-DENTWEB_DOWNLOAD_DIR=C:\Users\USER\Downloads\lofi-dentweb-sync
+DENTWEB_WINDOW_PATTERN=덴트웹|Dentweb|Dent Web
+DENTWEB_PRINT_CLICK=136,539
+DENTWEB_PDF_DIR=C:\Users\USER\Downloads\lofi-dentweb-sync
 DENTWEB_AGENT_PORT=5175
 ```
 
-If the selector is not set, the agent tries buttons or links containing `예약표 출력`, `출력`, `인쇄`, `프린트`, or `PDF`. Imported Dentweb reservations are added to the reservation inbox and Patients. Existing same date/time slots are skipped.
+If a Windows save dialog opens, the agent tries to save the PDF into `DENTWEB_PDF_DIR` automatically. Imported Dentweb reservations are added to the reservation inbox and Patients. Existing same date/time slots are skipped.
 
 ### AI Assist
 
