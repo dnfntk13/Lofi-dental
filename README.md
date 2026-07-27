@@ -91,7 +91,7 @@ For a one-time terminal sync without the Calendar button:
 npm run dentweb:sync
 ```
 
-Before syncing, open the Dentweb desktop program manually, log in, and keep the calendar visible. The default print button click is window-relative coordinates `136,539`, which matches the bottom-left `예약표출력` button in the current clinic layout. If the Dentweb window size or layout changes, adjust `DENTWEB_PRINT_CLICK`.
+Before syncing, open the Dentweb desktop program manually, log in, and keep the calendar visible. The agent first tries to find a Windows button named `예약표출력`, `예약표 출력`, or `예약 출력` and click it. If Dentweb does not expose that button through Windows UI Automation, it falls back to window-relative coordinates `136,539`, which matches the bottom-left `예약표출력` button in the current clinic layout.
 
 Useful options and environment variables:
 
@@ -100,6 +100,7 @@ LOFI_ADMIN_URL=https://lofiesthetic.com
 ADMIN_USER=lofidental
 ADMIN_PASS=Lofidental1!
 DENTWEB_WINDOW_PATTERN=덴트웹|Dentweb|Dent Web
+DENTWEB_PRINT_BUTTON_PATTERN=예약표출력|예약표 출력|예약 출력
 DENTWEB_PRINT_CLICK=136,539
 DENTWEB_PDF_DIR=C:\Users\USER\Downloads\lofi-dentweb-sync
 DENTWEB_AGENT_PORT=5175
