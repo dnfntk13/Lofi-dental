@@ -67,6 +67,38 @@ EMAIL_DNS_SERVERS=8.8.8.8,1.1.1.1
 
 To check which email provider Render is using, open `/api/admin/email-status` with admin credentials. The response shows only whether each value is set; secret values are not returned.
 
+### Dentweb Print Sync
+
+Dentweb does not provide an official API here, so the local sync agent assumes Dentweb is already logged in on the clinic computer. It opens Chrome with a dedicated profile, waits for staff to finish any manual login, clicks the reservation print button, saves the reservation table as a PDF, and uploads it to the admin import API.
+
+First install dependencies:
+
+```bash
+npm install
+```
+
+Run the sync agent from the clinic computer:
+
+```bash
+npm run dentweb:sync -- --url="https://www.dentweb.co.kr" --selector="YOUR_PRINT_BUTTON_SELECTOR"
+```
+
+The first run opens Chrome. Log in to Dentweb manually, go to the reservation table, then press Enter in the terminal. The same Chrome profile is reused on later runs.
+
+Useful options and environment variables:
+
+```bash
+DENTWEB_URL=https://www.dentweb.co.kr
+DENTWEB_PRINT_SELECTOR="button.print"
+LOFI_ADMIN_URL=https://lofiesthetic.com
+ADMIN_USER=lofidental
+ADMIN_PASS=Lofidental1!
+DENTWEB_CHROME_PROFILE=C:\Users\USER\.lofi-dentweb-chrome
+DENTWEB_DOWNLOAD_DIR=C:\Users\USER\Downloads\lofi-dentweb-sync
+```
+
+If the selector is not set, the agent tries buttons or links containing `예약표 출력`, `출력`, `인쇄`, `프린트`, or `PDF`. Imported Dentweb reservations are added to the reservation inbox and Patients. Existing same date/time slots are skipped.
+
 ### AI Assist
 
 The public chat widget and admin tools can generate AI-assisted information, summaries, and drafts:

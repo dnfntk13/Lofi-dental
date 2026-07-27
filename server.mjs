@@ -3,6 +3,7 @@ import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto
 import { Resolver } from "node:dns/promises";
 import { readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { MongoClient } from "mongodb";
@@ -13,6 +14,7 @@ import { simpleParser } from "mailparser";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = __dirname;
+const require = createRequire(import.meta.url);
 
 function loadLocalEnvFile() {
   try {
@@ -364,6 +366,169 @@ function getReservedTimesForDate(records, date) {
     if (time) times.add(time);
   });
   return [...times].sort();
+}
+
+async function extractPdfText(buffer) {
+  const pdfParse = require("pdf-parse");
+  const result = await pdfParse(buffer);
+  return String(result?.text || "");
+}
+
+function normalizeDentwebDate(value, fallbackYear = new Date().getFullYear()) {
+  const input = String(value || "").trim();
+  let match = input.match(/(\d{4})[.\-/년\s]+(\d{1,2})[.\-/월\s]+(\d{1,2})/);
+  if (match) {
+    return normalizeReservationDate(`${match[1]}-${String(Number(match[2])).padStart(2, "0")}-${String(Number(match[3])).padStart(2, "0")}`);
+  }
+  match = input.match(/(?:^|\D)(\d{1,2})[.\-/월\s]+(\d{1,2})(?:일)?(?:\D|$)/);
+  if (match) {
+    return normalizeReservationDate(`${fallbackYear}-${String(Number(match[1])).padStart(2, "0")}-${String(Number(match[2])).padStart(2, "0")}`);
+  }
+  return "";
+}
+
+function normalizeDentwebTime(value) {
+  const input = String(value || "").trim();
+  const koreanMatch = input.match(/(오전|오후)?\s*(\d{1,2})\s*(?:시|:)\s*(\d{2})?/);
+  if (!koreanMatch) return normalizeReservationTime(input);
+  let hour = Number(koreanMatch[2]);
+  const minute = Number(koreanMatch[3] || 0);
+  if (koreanMatch[1] === "오후" && hour < 12) hour += 12;
+  if (koreanMatch[1] === "오전" && hour === 12) hour = 0;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return "";
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function extractDentwebPhone(text) {
+  const match = String(text || "").match(/(?:\+?82[-\s.]?)?0?1[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/);
+  return match ? match[0].replace(/[^\d+]/g, "").replace(/^821/, "01").slice(0, 30) : "";
+}
+
+function cleanDentwebName(value) {
+  return String(value || "")
+    .replace(/(?:환자명|성명|고객명|이름|차트번호|연락처|전화|예약|진료|메모|담당|의사|원장|시간|날짜)\s*[:：]?/g, " ")
+    .replace(/(?:오전|오후)?\s*\d{1,2}\s*(?:시|:)\s*\d{0,2}/g, " ")
+    .replace(/(?:\+?82[-\s.]?)?0?1[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/g, " ")
+    .replace(/\d{4}[.\-/년\s]+\d{1,2}[.\-/월\s]+\d{1,2}(?:일)?/g, " ")
+    .replace(/[|()[\]{}<>]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+}
+
+function extractDentwebName(text) {
+  const input = String(text || "");
+  const labeled = input.match(/(?:환자명|성명|고객명|이름)\s*[:：]?\s*([가-힣A-Za-z][가-힣A-Za-z\s]{1,30})/);
+  if (labeled) {
+    const labeledName = cleanDentwebName(labeled[1]);
+    if (labeledName && !["오전", "오후"].includes(labeledName)) return labeledName;
+  }
+  const koreanNames = input.match(/[가-힣]{2,5}/g) || [];
+  const ignored = new Set(["오전", "오후", "예약", "진료", "환자", "환자명", "전화", "연락", "연락처", "담당", "메모", "날짜", "시간", "원장", "차트", "출력", "스케일링"]);
+  const name = koreanNames.find((token) => !ignored.has(token));
+  if (name) return name;
+  const english = cleanDentwebName(input).match(/[A-Za-z][A-Za-z\s.'-]{1,40}/);
+  return english ? cleanDentwebName(english[0]) : "";
+}
+
+function parseDentwebReservationsFromText(text, fallbackYear = new Date().getFullYear()) {
+  const lines = String(text || "")
+    .replace(/\u00a0/g, " ")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const rows = [];
+  const seen = new Set();
+  let currentDate = "";
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (/file:\/\//i.test(line)) continue;
+    if (/^\d{1,4}[.\-/]\s*\d{1,2}[.\-/]\s*\d{1,2}.*(?:오전|오후)?\s*\d{1,2}\s*(?:시|:)/.test(line) && !extractDentwebPhone(line)) continue;
+    const dateInLine = normalizeDentwebDate(line, fallbackYear);
+    if (dateInLine) currentDate = dateInLine;
+
+    const windowText = lines.slice(Math.max(0, index - 2), Math.min(lines.length, index + 3)).join(" ");
+    const date = normalizeDentwebDate(windowText, fallbackYear) || currentDate;
+    const timeMatches = [...line.matchAll(/(?:오전|오후)?\s*\d{1,2}\s*(?:시|:)\s*\d{0,2}/g)];
+    if (!date || !timeMatches.length) continue;
+
+    for (const timeMatch of timeMatches) {
+      const time = normalizeDentwebTime(timeMatch[0]);
+      if (!time) continue;
+      const phone = extractDentwebPhone(windowText);
+      const name = extractDentwebName(line) || extractDentwebName(windowText) || (phone ? `Dentweb ${phone.slice(-4)}` : "");
+      if (!name) continue;
+      const memo = cleanDentwebName(line.replace(name, "")).slice(0, 160) || "Imported from Dentweb reservation print";
+      const key = `${date}|${time}|${normalizePatientPhone(phone)}|${name}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push({ date, time, name, phone, concerns: memo || "Imported from Dentweb reservation print" });
+    }
+  }
+
+  return rows;
+}
+
+async function importDentwebReservations(rows, { fileName = "dentweb.pdf", dryRun = false } = {}) {
+  const existingRecords = await readInbox();
+  const existingSlots = new Set(existingRecords.map((record) => `${normalizeReservationDate(record?.date)}|${normalizeReservationTime(record?.time)}`));
+  const imported = [];
+  const skipped = [];
+
+  for (const row of rows) {
+    const date = normalizeReservationDate(row.date);
+    const time = normalizeReservationTime(row.time);
+    const name = String(row.name || "Dentweb Patient").trim().slice(0, 80);
+    const phone = String(row.phone || "").trim().slice(0, 30);
+    const concerns = String(row.concerns || "Imported from Dentweb reservation print").trim().slice(0, 500);
+
+    if (!date || !time || !name) {
+      skipped.push({ row, reason: "missing required fields" });
+      continue;
+    }
+
+    const slotKey = `${date}|${time}`;
+    if (existingSlots.has(slotKey)) {
+      skipped.push({ row: { date, time, name, phone }, reason: "slot already exists" });
+      continue;
+    }
+
+    const record = {
+      id: `dentweb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      date,
+      time,
+      name,
+      concerns,
+      source: "dentweb",
+      dentwebFileName: fileName,
+      createdAt: new Date().toISOString(),
+    };
+    if (phone) record.phone = phone;
+
+    if (!dryRun) {
+      await addInboxRecord(record);
+      await saveOrUpdatePatient(record, { name, phone: phone || null });
+      try {
+        await saveOrUpdateEmailThread(getPatientThreadEmail(record), record.id, {
+          type: "reservation",
+          sentAt: record.createdAt,
+          date,
+          time,
+          concerns,
+          id: record.id,
+          source: "dentweb",
+          channel: "dentweb",
+        });
+      } catch (error) {
+        console.error("Failed to save Dentweb import thread", error);
+      }
+      existingSlots.add(slotKey);
+    }
+    imported.push(record);
+  }
+
+  return { imported, skipped };
 }
 
 async function getTrafficCollection() {
@@ -2146,13 +2311,13 @@ async function syncInstagramSettingsToRender({ serviceId, apiKey, settings, trig
   return { results, deploy };
 }
 
-function getJsonBody(request) {
+function getJsonBody(request, maxBytes = 1024 * 1024) {
   return new Promise((resolve, reject) => {
     let body = "";
 
     request.on("data", (chunk) => {
       body += chunk;
-      if (body.length > 1024 * 1024) {
+      if (body.length > maxBytes) {
         reject(new Error("Payload too large"));
       }
     });
@@ -3832,6 +3997,60 @@ createServer(async (request, response) => {
       const isConfigError = error instanceof Error && error.message === "Instagram messaging is not configured";
       response.writeHead(isPayloadError ? 400 : isConfigError ? 503 : error.statusCode || 500, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : isConfigError ? "Instagram messaging is not configured" : error.message || "Failed to send Instagram reply" }));
+    }
+    return;
+  }
+
+  if (pathname === "/api/admin/dentweb/import" && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+
+    try {
+      const payload = await getJsonBody(request, 18 * 1024 * 1024);
+      const fileName = String(payload.fileName || "dentweb-reservations.pdf").trim().slice(0, 160);
+      const pdfBase64 = String(payload.pdfBase64 || "").replace(/^data:application\/pdf;base64,/, "").trim();
+      const dryRun = Boolean(payload.dryRun);
+      const fallbackYear = Number(payload.year || new Date().getFullYear());
+
+      if (!pdfBase64) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "pdfBase64 is required" }));
+        return;
+      }
+
+      const pdfBuffer = Buffer.from(pdfBase64, "base64");
+      if (!pdfBuffer.length || pdfBuffer.length > 12 * 1024 * 1024) {
+        response.writeHead(413, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "PDF is too large" }));
+        return;
+      }
+
+      const text = await extractPdfText(pdfBuffer);
+      const rows = parseDentwebReservationsFromText(text, Number.isFinite(fallbackYear) ? fallbackYear : new Date().getFullYear());
+      if (!rows.length) {
+        response.writeHead(422, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({
+          message: "Could not find reservations in the Dentweb PDF",
+          textPreview: text.replace(/\s+/g, " ").trim().slice(0, 2000),
+        }));
+        return;
+      }
+
+      const result = await importDentwebReservations(rows, { fileName, dryRun });
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({
+        ok: true,
+        dryRun,
+        parsed: rows.length,
+        imported: result.imported.length,
+        skipped: result.skipped.length,
+        records: result.imported,
+        skippedRecords: result.skipped,
+      }));
+    } catch (error) {
+      console.error("Failed to import Dentweb PDF", error);
+      const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+      response.writeHead(isPayloadError ? 400 : 500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : "Failed to import Dentweb PDF" }));
     }
     return;
   }
