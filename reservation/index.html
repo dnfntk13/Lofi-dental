@@ -1991,6 +1991,7 @@
       const timePanel = document.getElementById("timePanel");
       const timeTitle = document.getElementById("timeTitle");
       const timeGrid = document.getElementById("timeGrid");
+      const reservedTimesByDate = new Map();
 
       const koreanHolidays = new Set([
         "2026-01-01",
@@ -2048,6 +2049,31 @@
         return `${displayHour}:${String(mins).padStart(2, "0")} ${period}`;
       }
 
+      function formatTimeKey(minutes) {
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+      }
+
+      async function loadReservedTimes(dateValue) {
+        if (reservedTimesByDate.has(dateValue)) return reservedTimesByDate.get(dateValue);
+        try {
+          const response = await fetch(`/api/reservation-availability?date=${encodeURIComponent(dateValue)}`, {
+            headers: { Accept: "application/json" },
+            cache: "no-store",
+          });
+          if (!response.ok) throw new Error("Availability request failed");
+          const data = await response.json();
+          const reservedTimes = new Set(Array.isArray(data.reservedTimes) ? data.reservedTimes : []);
+          reservedTimesByDate.set(dateValue, reservedTimes);
+          return reservedTimes;
+        } catch {
+          const reservedTimes = new Set();
+          reservedTimesByDate.set(dateValue, reservedTimes);
+          return reservedTimes;
+        }
+      }
+
       function isSunday(dateValue) {
         const day = parseLocalDate(dateValue).getDay();
         return day === 0;
@@ -2090,10 +2116,11 @@
         return minDate;
       }
 
-      function buildTimeSlots() {
+      async function buildTimeSlots() {
+        const dateForSlots = selectedDateISO;
         timeGrid.innerHTML = "";
 
-        if (isSunday(selectedDateISO) || isKoreanHoliday(selectedDateISO)) {
+        if (isSunday(dateForSlots) || isKoreanHoliday(dateForSlots)) {
           timeTitle.textContent = text.closed;
           const closedBanner = document.createElement("div");
           closedBanner.className = "closed-banner";
@@ -2106,9 +2133,11 @@
 
         const now = new Date();
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
-        const isToday = selectedDateISO === formatISODate(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+        const isToday = dateForSlots === formatISODate(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+        const reservedTimes = await loadReservedTimes(dateForSlots);
+        if (dateForSlots !== selectedDateISO) return;
 
-        const ranges = isSaturday(selectedDateISO)
+        const ranges = isSaturday(dateForSlots)
           ? [[10 * 60, 14 * 60]]
           : [
               [10 * 60, 13 * 60],
@@ -2121,19 +2150,25 @@
             button.type = "button";
             button.className = "time-slot";
             const startTime = formatTime(minutes);
+            const timeKey = formatTimeKey(minutes);
             button.textContent = startTime;
 
             const isPastTime = isToday && minutes < nowMinutes;
-            if (isPastTime) {
+            const isReservedTime = reservedTimes.has(timeKey);
+            if (isPastTime || isReservedTime) {
               button.classList.add("is-disabled");
               button.disabled = true;
+              if (isReservedTime) {
+                button.title = isKorean ? "이미 예약된 시간입니다" : "Already reserved";
+                button.setAttribute("aria-label", `${startTime} reserved`);
+              }
               timeGrid.appendChild(button);
               continue;
             }
 
             button.addEventListener("click", () => {
               const params = new URLSearchParams({
-                date: selectedDateISO,
+                date: dateForSlots,
                 time: startTime,
               });
               if (isKorean) {

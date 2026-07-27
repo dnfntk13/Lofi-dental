@@ -306,6 +306,66 @@ async function addInboxRecord(record) {
   await writeFile(inboxPath, JSON.stringify(messages, null, 2), "utf-8");
 }
 
+function normalizeReservationDate(value) {
+  const input = String(value || "").trim();
+  const match = input.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return "";
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (Number.isNaN(date.getTime())) return "";
+  const isSameDate = date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day;
+  return isSameDate ? input : "";
+}
+
+function normalizeReservationTime(value) {
+  const input = String(value || "").trim();
+  const koreanMatch = input.match(/^(오전|오후)\s*(\d{1,2}):(\d{2})$/);
+  if (koreanMatch) {
+    let hour = Number(koreanMatch[2]);
+    const minute = Number(koreanMatch[3]);
+    if (koreanMatch[1] === "오후" && hour < 12) hour += 12;
+    if (koreanMatch[1] === "오전" && hour === 12) hour = 0;
+    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  }
+
+  const ampmMatch = input.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (ampmMatch) {
+    let hour = Number(ampmMatch[1]);
+    const minute = Number(ampmMatch[2]);
+    const period = ampmMatch[3].toUpperCase();
+    if (period === "PM" && hour < 12) hour += 12;
+    if (period === "AM" && hour === 12) hour = 0;
+    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  }
+
+  const twentyFourHourMatch = input.match(/^(\d{1,2}):(\d{2})$/);
+  if (twentyFourHourMatch) {
+    const hour = Number(twentyFourHourMatch[1]);
+    const minute = Number(twentyFourHourMatch[2]);
+    if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+      return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    }
+  }
+
+  return input.toLowerCase().replace(/\s+/g, " ");
+}
+
+function getReservedTimesForDate(records, date) {
+  const normalizedDate = normalizeReservationDate(date);
+  if (!normalizedDate) return [];
+  const times = new Set();
+  (Array.isArray(records) ? records : []).forEach((record) => {
+    if (normalizeReservationDate(record?.date) !== normalizedDate) return;
+    const time = normalizeReservationTime(record?.time);
+    if (time) times.add(time);
+  });
+  return [...times].sort();
+}
+
 async function getTrafficCollection() {
   if (!mongoUri) {
     return null;
@@ -3051,6 +3111,35 @@ createServer(async (request, response) => {
     }
   }
 
+  if (pathname === "/api/reservation-availability" && request.method === "GET") {
+    try {
+      const date = normalizeReservationDate(requestUrl.searchParams.get("date") || "");
+      if (!date) {
+        response.writeHead(400, {
+          "Content-Type": "application/json; charset=utf-8",
+          ...reservationCorsHeaders,
+        });
+        response.end(JSON.stringify({ message: "A valid date is required" }));
+        return;
+      }
+      const reservedTimes = getReservedTimesForDate(await readInbox(), date);
+      response.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+        ...reservationCorsHeaders,
+      });
+      response.end(JSON.stringify({ date, reservedTimes }));
+    } catch (error) {
+      console.error("Failed to load reservation availability", error);
+      response.writeHead(500, {
+        "Content-Type": "application/json; charset=utf-8",
+        ...reservationCorsHeaders,
+      });
+      response.end(JSON.stringify({ message: "Failed to load reservation availability" }));
+    }
+    return;
+  }
+
   if (pathname === "/api/reservations" && request.method === "POST") {
     try {
       const payload = await getJsonBody(request);
@@ -3093,6 +3182,16 @@ createServer(async (request, response) => {
           ...reservationCorsHeaders,
         });
         response.end(JSON.stringify({ message: "Please verify the code sent to your email" }));
+        return;
+      }
+
+      const existingReservedTimes = getReservedTimesForDate(await readInbox(), date);
+      if (existingReservedTimes.includes(normalizeReservationTime(time))) {
+        response.writeHead(409, {
+          "Content-Type": "application/json; charset=utf-8",
+          ...reservationCorsHeaders,
+        });
+        response.end(JSON.stringify({ message: "This time is already reserved. Please choose another time." }));
         return;
       }
 
