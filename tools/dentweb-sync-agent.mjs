@@ -19,6 +19,8 @@ const daemonMode = args.has("daemon") || process.env.DENTWEB_DAEMON === "1";
 const agentPort = Number(args.get("agent-port") || process.env.DENTWEB_AGENT_PORT || 5175);
 const windowPattern = args.get("window") || process.env.DENTWEB_WINDOW_PATTERN || "덴트웹|Dentweb|Dent Web";
 const printButtonPattern = args.get("print-button") || process.env.DENTWEB_PRINT_BUTTON_PATTERN || "예약표출력|예약표 출력|예약 출력";
+const printDialogPattern = args.get("print-dialog") || process.env.DENTWEB_PRINT_DIALOG_PATTERN || "예약표 출력|예약표출력";
+const printConfirmPattern = args.get("print-confirm") || process.env.DENTWEB_PRINT_CONFIRM_PATTERN || "^출력$|인쇄|확인";
 const printClick = args.get("print-click") || process.env.DENTWEB_PRINT_CLICK || "136,539";
 const pdfDir = args.get("pdf-dir") || process.env.DENTWEB_PDF_DIR || path.join(os.homedir(), "Downloads", "lofi-dentweb-sync");
 const saveWaitMs = Number(args.get("save-wait-ms") || process.env.DENTWEB_SAVE_WAIT_MS || 45000);
@@ -85,27 +87,20 @@ Start-Sleep -Milliseconds 450
 $root = [System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
 $allDescendants = [System.Windows.Automation.TreeScope]::Descendants
 $allElements = $root.FindAll($allDescendants, [System.Windows.Automation.Condition]::TrueCondition)
-$matches = New-Object System.Collections.ArrayList
 for ($i = 0; $i -lt $allElements.Count; $i++) {
   $element = $allElements.Item($i)
   $name = [string]$element.Current.Name
   $automationId = [string]$element.Current.AutomationId
   $className = [string]$element.Current.ClassName
   $label = "$name $automationId $className".Trim()
-  if ($label -match $buttonPattern) { [void]$matches.Add($element) }
-}
-for ($i = 0; $i -lt $matches.Count; $i++) {
-  $button = $matches.Item($i)
-  $name = [string]$button.Current.Name
-  $automationId = [string]$button.Current.AutomationId
-  $className = [string]$button.Current.ClassName
+  if ($label -match $buttonPattern) {
     try {
-      $invoke = $button.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+      $invoke = $element.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
       $invoke.Invoke()
       [pscustomobject]@{ title = $target.MainWindowTitle; method = "uia"; button = $name; automationId = $automationId; className = $className } | ConvertTo-Json -Compress
       exit 0
     } catch {
-      $rectButton = $button.Current.BoundingRectangle
+      $rectButton = $element.Current.BoundingRectangle
       if (-not $rectButton.IsEmpty -and $rectButton.Width -gt 1 -and $rectButton.Height -gt 1) {
         $centerX = [int]($rectButton.Left + ($rectButton.Width / 2))
         $centerY = [int]($rectButton.Top + ($rectButton.Height / 2))
@@ -118,6 +113,7 @@ for ($i = 0; $i -lt $matches.Count; $i++) {
         exit 0
       }
     }
+  }
 }
 $rect = New-Object RECT
 [NativeMethods]::GetWindowRect($hwnd, [ref]$rect) | Out-Null
@@ -132,6 +128,71 @@ Start-Sleep -Milliseconds 80
 `;
   const output = await runPowerShell(script);
   return output ? JSON.parse(output) : {};
+}
+
+async function clickDentwebPrintDialogButton() {
+  if (process.platform !== "win32") return { handled: false };
+
+  const script = `
+$ErrorActionPreference = 'Stop'
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class NativeMethods {
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+  [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);
+  [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo);
+}
+"@
+Add-Type -AssemblyName UIAutomationClient
+$dialogPattern = ${JSON.stringify(printDialogPattern)}
+$buttonPattern = ${JSON.stringify(printConfirmPattern)}
+$deadline = (Get-Date).AddSeconds(8)
+while ((Get-Date) -lt $deadline) {
+  $dialog = Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -match $dialogPattern } | Select-Object -First 1
+  if ($dialog) {
+    [NativeMethods]::ShowWindow($dialog.MainWindowHandle, 9) | Out-Null
+    Start-Sleep -Milliseconds 200
+    [NativeMethods]::SetForegroundWindow($dialog.MainWindowHandle) | Out-Null
+    Start-Sleep -Milliseconds 250
+    $root = [System.Windows.Automation.AutomationElement]::FromHandle($dialog.MainWindowHandle)
+    $elements = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+    for ($i = 0; $i -lt $elements.Count; $i++) {
+      $element = $elements.Item($i)
+      $name = [string]$element.Current.Name
+      $automationId = [string]$element.Current.AutomationId
+      $className = [string]$element.Current.ClassName
+      $label = "$name $automationId $className".Trim()
+      if ($label -match $buttonPattern) {
+        try {
+          $invoke = $element.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+          $invoke.Invoke()
+          [pscustomobject]@{ handled = $true; method = "uia"; dialog = $dialog.MainWindowTitle; button = $name; automationId = $automationId; className = $className } | ConvertTo-Json -Compress
+          exit 0
+        } catch {
+          $rect = $element.Current.BoundingRectangle
+          if (-not $rect.IsEmpty -and $rect.Width -gt 1 -and $rect.Height -gt 1) {
+            $centerX = [int]($rect.Left + ($rect.Width / 2))
+            $centerY = [int]($rect.Top + ($rect.Height / 2))
+            [NativeMethods]::SetCursorPos($centerX, $centerY) | Out-Null
+            Start-Sleep -Milliseconds 120
+            [NativeMethods]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
+            Start-Sleep -Milliseconds 80
+            [NativeMethods]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
+            [pscustomobject]@{ handled = $true; method = "uia-bounds"; dialog = $dialog.MainWindowTitle; button = $name; automationId = $automationId; className = $className; x = $centerX; y = $centerY } | ConvertTo-Json -Compress
+            exit 0
+          }
+        }
+      }
+    }
+  }
+  Start-Sleep -Milliseconds 350
+}
+[pscustomobject]@{ handled = $false; message = "Dentweb print dialog not found" } | ConvertTo-Json -Compress
+`;
+  const output = await runPowerShell(script);
+  return output ? JSON.parse(output) : { handled: false };
 }
 
 async function trySavePdfDialog(filePath) {
@@ -236,6 +297,16 @@ async function runDentwebSync({ prompt = true } = {}) {
     : `coordinates ${clickResult.x},${clickResult.y}`;
   console.log(`Clicked Dentweb print by ${clickDescription}${clickResult.title ? ` in ${clickResult.title}` : ""}`);
 
+  const dialogResult = await clickDentwebPrintDialogButton();
+  if (dialogResult.handled) {
+    const dialogDescription = dialogResult.method === "uia"
+      ? `button "${dialogResult.button}"`
+      : `button "${dialogResult.button}" at ${dialogResult.x},${dialogResult.y}`;
+    console.log(`Clicked Dentweb print dialog by ${dialogDescription}${dialogResult.dialog ? ` in ${dialogResult.dialog}` : ""}`);
+  } else {
+    console.log(dialogResult.message || "Dentweb print dialog was not found; waiting for PDF anyway.");
+  }
+
   const pdfPath = await waitForNewPdf(startTime, targetFilePath);
   console.log(`Found PDF: ${pdfPath}`);
   const result = await uploadPdf(pdfPath);
@@ -271,7 +342,7 @@ async function startDaemon() {
 
     const url = new URL(request.url || "/", `http://127.0.0.1:${agentPort}`);
     if (url.pathname === "/health") {
-      sendJson(response, 200, { ok: true, syncInProgress, windowPattern, printButtonPattern, printClick, pdfDir, serverUrl, dryRun });
+      sendJson(response, 200, { ok: true, syncInProgress, windowPattern, printButtonPattern, printDialogPattern, printConfirmPattern, printClick, pdfDir, serverUrl, dryRun });
       return;
     }
 
@@ -301,6 +372,8 @@ async function startDaemon() {
     console.log("Keep Dentweb open, logged in, and showing the reservation calendar on this Windows computer.");
     console.log(`Using window pattern: ${windowPattern}`);
     console.log(`Using reservation print button pattern: ${printButtonPattern}`);
+    console.log(`Using print dialog pattern: ${printDialogPattern}`);
+    console.log(`Using print confirm button pattern: ${printConfirmPattern}`);
     console.log(`Fallback reservation print click: ${printClick}`);
   });
 }

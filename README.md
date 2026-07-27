@@ -69,7 +69,7 @@ To check which email provider Render is using, open `/api/admin/email-status` wi
 
 ### Dentweb Print Sync
 
-Dentweb does not provide an official API here, so the local sync agent assumes the Windows Dentweb program is already running and logged in on the clinic computer. It brings the Dentweb calendar window to the front, clicks the `예약표출력` button, waits for a PDF to be saved, and uploads that PDF to the admin import API.
+Dentweb does not provide an official API here, so the local sync agent assumes the Windows Dentweb program is already running and logged in on the clinic computer. It brings the Dentweb calendar window to the front, clicks the `예약표출력` button, clicks `출력` in the reservation output dialog, waits for a PDF to be saved, and uploads that PDF to the admin import API.
 
 First install dependencies:
 
@@ -91,7 +91,7 @@ For a one-time terminal sync without the Calendar button:
 npm run dentweb:sync
 ```
 
-Before syncing, open the Dentweb desktop program manually, log in, and keep the calendar visible. The agent first tries to find a Windows button named `예약표출력`, `예약표 출력`, or `예약 출력` and click it. If Dentweb does not expose that button through Windows UI Automation, it falls back to window-relative coordinates `136,539`, which matches the bottom-left `예약표출력` button in the current clinic layout.
+Before syncing, open the Dentweb desktop program manually, log in, and keep the calendar visible. The agent first tries to find a Windows button named `예약표출력`, `예약표 출력`, or `예약 출력` and click it. It then looks for the `예약표 출력` dialog and clicks `출력`. If Dentweb does not expose the first button through Windows UI Automation, it falls back to window-relative coordinates `136,539`, which matches the bottom-left `예약표출력` button in the current clinic layout.
 
 Useful options and environment variables:
 
@@ -101,6 +101,8 @@ ADMIN_USER=lofidental
 ADMIN_PASS=Lofidental1!
 DENTWEB_WINDOW_PATTERN=덴트웹|Dentweb|Dent Web
 DENTWEB_PRINT_BUTTON_PATTERN=예약표출력|예약표 출력|예약 출력
+DENTWEB_PRINT_DIALOG_PATTERN=예약표 출력|예약표출력
+DENTWEB_PRINT_CONFIRM_PATTERN=^출력$|인쇄|확인
 DENTWEB_PRINT_CLICK=136,539
 DENTWEB_PDF_DIR=C:\Users\USER\Downloads\lofi-dentweb-sync
 DENTWEB_AGENT_PORT=5175
