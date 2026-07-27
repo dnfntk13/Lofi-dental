@@ -69,7 +69,7 @@ To check which email provider Render is using, open `/api/admin/email-status` wi
 
 ### Dentweb Print Sync
 
-Dentweb does not provide an official API here, so the local sync agent assumes the Windows Dentweb program is already running and logged in on the clinic computer. It brings the Dentweb calendar window to the front, clicks the `예약표출력` button, clicks `출력` in the reservation output dialog, waits for a PDF to be saved, and uploads that PDF to the admin import API.
+Dentweb does not provide an official API here, so the local sync agent assumes the Windows Dentweb program is already running and logged in on the clinic computer. It brings the Dentweb calendar window to the front, clicks the `예약표출력` button, clicks `출력` in the reservation output dialog, saves a full-screen PNG screenshot of the printed reservation table, and uploads a PDF too if Dentweb creates one.
 
 First install dependencies:
 
@@ -105,10 +105,12 @@ DENTWEB_PRINT_DIALOG_PATTERN=예약표 출력|예약표출력
 DENTWEB_PRINT_CONFIRM_PATTERN=^출력$|인쇄|확인
 DENTWEB_PRINT_CLICK=136,539
 DENTWEB_PDF_DIR=C:\Users\USER\Downloads\lofi-dentweb-sync
+DENTWEB_SCREENSHOT_DIR=C:\Users\USER\Downloads\lofi-dentweb-sync
+DENTWEB_SCREENSHOT_DELAY_MS=1500
 DENTWEB_AGENT_PORT=5175
 ```
 
-If a Windows save dialog opens, the agent tries to save the PDF into `DENTWEB_PDF_DIR` automatically. Imported Dentweb reservations are added to the reservation inbox and Patients. Existing same date/time slots are skipped.
+After the output dialog opens the reservation table, the agent captures the whole Windows virtual screen and saves it into `DENTWEB_SCREENSHOT_DIR`. If a Windows save dialog opens, the agent also tries to save a PDF into `DENTWEB_PDF_DIR` automatically. Imported PDF reservations are added to the reservation inbox and Patients. Existing same date/time slots are skipped.
 
 ### AI Assist
 

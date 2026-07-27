@@ -1149,7 +1149,8 @@
           }
 
           await loadReservations();
-          flashStatus(`Dentweb synced: ${data.imported || 0} imported, ${data.skipped || 0} skipped.`, 4200);
+          const savedMessage = data.screenshotPath ? ` Screenshot saved: ${data.screenshotPath}` : "";
+          flashStatus(`Dentweb synced: ${data.imported || 0} imported, ${data.skipped || 0} skipped.${savedMessage}`, 6200);
         } catch (error) {
           const message = error instanceof Error ? error.message : "Dentweb sync failed.";
           statusMsg.style.display = "block";

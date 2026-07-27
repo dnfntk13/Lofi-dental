@@ -23,6 +23,8 @@ const printDialogPattern = args.get("print-dialog") || process.env.DENTWEB_PRINT
 const printConfirmPattern = args.get("print-confirm") || process.env.DENTWEB_PRINT_CONFIRM_PATTERN || "^출력$|인쇄|확인";
 const printClick = args.get("print-click") || process.env.DENTWEB_PRINT_CLICK || "136,539";
 const pdfDir = args.get("pdf-dir") || process.env.DENTWEB_PDF_DIR || path.join(os.homedir(), "Downloads", "lofi-dentweb-sync");
+const screenshotDir = args.get("screenshot-dir") || process.env.DENTWEB_SCREENSHOT_DIR || pdfDir;
+const screenshotDelayMs = Number(args.get("screenshot-delay-ms") || process.env.DENTWEB_SCREENSHOT_DELAY_MS || 1500);
 const saveWaitMs = Number(args.get("save-wait-ms") || process.env.DENTWEB_SAVE_WAIT_MS || 45000);
 const saveDialogPattern = args.get("save-dialog") || process.env.DENTWEB_SAVE_DIALOG_PATTERN || "Save Print Output As|다른 이름으로 저장|인쇄 출력|저장|PDF";
 let syncInProgress = false;
@@ -195,6 +197,30 @@ while ((Get-Date) -lt $deadline) {
   return output ? JSON.parse(output) : { handled: false };
 }
 
+async function captureFullScreenScreenshot() {
+  if (process.platform !== "win32") {
+    throw new Error("Full-screen screenshot capture is only supported on Windows");
+  }
+
+  await mkdir(screenshotDir, { recursive: true });
+  const screenshotPath = path.join(screenshotDir, `dentweb-screen-${new Date().toISOString().replace(/[:.]/g, "-")}.png`);
+  const script = `
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$bounds = [System.Windows.Forms.SystemInformation]::VirtualScreen
+$bitmap = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+$graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+$graphics.CopyFromScreen($bounds.Left, $bounds.Top, 0, 0, $bounds.Size)
+$bitmap.Save(${JSON.stringify(screenshotPath)}, [System.Drawing.Imaging.ImageFormat]::Png)
+$graphics.Dispose()
+$bitmap.Dispose()
+[pscustomobject]@{ path = ${JSON.stringify(screenshotPath)}; width = $bounds.Width; height = $bounds.Height } | ConvertTo-Json -Compress
+`;
+  const output = await runPowerShell(script);
+  return output ? JSON.parse(output) : { path: screenshotPath };
+}
+
 async function trySavePdfDialog(filePath) {
   const script = `
 $ErrorActionPreference = 'Stop'
@@ -307,17 +333,29 @@ async function runDentwebSync({ prompt = true } = {}) {
     console.log(dialogResult.message || "Dentweb print dialog was not found; waiting for PDF anyway.");
   }
 
-  const pdfPath = await waitForNewPdf(startTime, targetFilePath);
-  console.log(`Found PDF: ${pdfPath}`);
-  const result = await uploadPdf(pdfPath);
+  await sleep(screenshotDelayMs);
+  const screenshot = await captureFullScreenScreenshot();
+  console.log(`Saved Dentweb screen screenshot: ${screenshot.path}`);
+
+  let result = { dryRun, parsed: 0, imported: 0, skipped: 0 };
+  let pdfPath = "";
+  try {
+    pdfPath = await waitForNewPdf(startTime, targetFilePath);
+    console.log(`Found PDF: ${pdfPath}`);
+    result = await uploadPdf(pdfPath);
+  } catch (error) {
+    console.log(`PDF upload skipped: ${error.message || error}`);
+  }
   const summary = {
     dryRun: result.dryRun,
     parsed: result.parsed,
     imported: result.imported,
     skipped: result.skipped,
+    screenshotPath: screenshot.path,
+    pdfPath,
   };
   console.log(JSON.stringify(summary, null, 2));
-  return { ...summary, pdfPath };
+  return summary;
 }
 
 function sendJson(response, statusCode, payload) {
@@ -342,7 +380,7 @@ async function startDaemon() {
 
     const url = new URL(request.url || "/", `http://127.0.0.1:${agentPort}`);
     if (url.pathname === "/health") {
-      sendJson(response, 200, { ok: true, syncInProgress, windowPattern, printButtonPattern, printDialogPattern, printConfirmPattern, printClick, pdfDir, serverUrl, dryRun });
+      sendJson(response, 200, { ok: true, syncInProgress, windowPattern, printButtonPattern, printDialogPattern, printConfirmPattern, printClick, pdfDir, screenshotDir, serverUrl, dryRun });
       return;
     }
 
@@ -375,6 +413,7 @@ async function startDaemon() {
     console.log(`Using print dialog pattern: ${printDialogPattern}`);
     console.log(`Using print confirm button pattern: ${printConfirmPattern}`);
     console.log(`Fallback reservation print click: ${printClick}`);
+    console.log(`Saving screenshots to: ${screenshotDir}`);
   });
 }
 
