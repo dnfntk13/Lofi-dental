@@ -279,6 +279,23 @@ function extractJsonObject(content) {
   }
 }
 
+function normalizeAiMessages(value) {
+  return (Array.isArray(value) ? value : [])
+    .map((message) => ({
+      role: message?.role === "assistant" ? "assistant" : "user",
+      content: String(message?.content || "").trim(),
+    }))
+    .filter((message) => message.content)
+    .slice(-12);
+}
+
+function normalizeDesktopAction(action) {
+  const next = action && typeof action === "object" ? { ...action } : { action: "wait" };
+  next.action = String(next.action || "wait").toLowerCase();
+  if (!["click", "type", "key", "wait", "done"].includes(next.action)) next.action = "wait";
+  return next;
+}
+
 async function askDentwebAi(task, screenshot) {
   if (!openaiApiKey) {
     throw new Error("OPENAI_API_KEY is required for Dentweb AI control");
@@ -324,9 +341,73 @@ async function askDentwebAi(task, screenshot) {
     throw new Error(data?.error?.message || `OpenAI request failed with ${response.status}`);
   }
   const content = data?.choices?.[0]?.message?.content || "";
-  const action = extractJsonObject(content);
-  action.action = String(action.action || "wait").toLowerCase();
-  return action;
+  return normalizeDesktopAction(extractJsonObject(content));
+}
+
+async function askPcAiChat(messages, screenshot) {
+  if (!openaiApiKey) {
+    throw new Error("OPENAI_API_KEY is required for PC AI control");
+  }
+
+  const conversation = normalizeAiMessages(messages);
+  if (!conversation.length) throw new Error("PC AI message is required");
+
+  const imageBase64 = (await readFile(screenshot.path)).toString("base64");
+  const lastMessage = conversation[conversation.length - 1];
+  const priorMessages = conversation.slice(0, -1).map((message) => ({
+    role: message.role,
+    content: message.content,
+  }));
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${openaiApiKey}`,
+    },
+    body: JSON.stringify({
+      model: dentwebAiModel,
+      temperature: 0.2,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are PC AI for lofi dental staff on the clinic Windows PC.",
+            "You can talk normally with staff and inspect the current screen screenshot.",
+            "The PC may have the logged-in Dentweb desktop program open; help staff operate Dentweb only when the user asks or when it is the clear next step.",
+            "Return only JSON with keys: reply, action.",
+            "reply is a concise natural-language chat answer in the user's language.",
+            "action is an object with keys: action, x, y, text, key, reason.",
+            "Allowed action values: click, type, key, wait, done.",
+            "Use absolute screen coordinates for click actions.",
+            "For type actions, provide the exact text to paste into the currently focused field.",
+            "Do not type passwords, delete records, cancel appointments, submit irreversible changes, or send messages without explicit staff confirmation.",
+            "If no PC operation is needed, use action wait or done.",
+            "If the next operation is unclear or risky, use action wait and explain the concern in reply.",
+          ].join(" "),
+        },
+        ...priorMessages,
+        {
+          role: "user",
+          content: [
+            { type: "text", text: `${lastMessage.content}\nScreenshot size: ${screenshot.width || "unknown"}x${screenshot.height || "unknown"}` },
+            { type: "image_url", image_url: { url: `data:image/png;base64,${imageBase64}` } },
+          ],
+        },
+      ],
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error?.message || `OpenAI request failed with ${response.status}`);
+  }
+  const content = data?.choices?.[0]?.message?.content || "";
+  const result = extractJsonObject(content);
+  return {
+    reply: String(result.reply || "").trim() || "I checked the PC screen.",
+    action: normalizeDesktopAction(result.action),
+  };
 }
 
 async function executeDesktopAction(action) {
@@ -393,6 +474,14 @@ async function runDentwebAiStep(task, { apply = false } = {}) {
   const action = await askDentwebAi(task, screenshot);
   const execution = apply ? await executeDesktopAction(action) : { executed: false, preview: true };
   return { ok: true, task, screenshotPath: screenshot.path, action, execution };
+}
+
+async function runPcAiChat(messages, { apply = false } = {}) {
+  await mkdir(screenshotDir, { recursive: true });
+  const screenshot = await captureFullScreenScreenshot();
+  const result = await askPcAiChat(messages, screenshot);
+  const execution = apply ? await executeDesktopAction(result.action) : { executed: false, preview: true };
+  return { ok: true, screenshotPath: screenshot.path, reply: result.reply, action: result.action, execution };
 }
 
 async function trySavePdfDialog(filePath) {
@@ -594,6 +683,23 @@ async function startDaemon() {
       return;
     }
 
+    if (url.pathname === "/pc-ai-chat" && request.method === "POST") {
+      if (syncInProgress) {
+        sendJson(response, 409, { ok: false, message: "Dentweb sync is already running" });
+        return;
+      }
+
+      try {
+        const payload = await getJsonBody(request);
+        const apply = Boolean(payload.apply);
+        const result = await runPcAiChat(payload.messages, { apply });
+        sendJson(response, 200, result);
+      } catch (error) {
+        sendJson(response, 500, { ok: false, message: error.message || "PC AI chat failed" });
+      }
+      return;
+    }
+
     sendJson(response, 404, { ok: false, message: "Not found" });
   });
 
@@ -606,7 +712,8 @@ async function startDaemon() {
     console.log(`Using print confirm button pattern: ${printConfirmPattern}`);
     console.log(`Fallback reservation print click: ${printClick}`);
     console.log(`Saving screenshots to: ${screenshotDir}`);
-    console.log("Dentweb AI endpoint: POST /ai-step with { task, apply }");
+    console.log("PC AI endpoint: POST /pc-ai-chat with { messages, apply }");
+    console.log("Legacy Dentweb AI endpoint: POST /ai-step with { task, apply }");
   });
 }
 
