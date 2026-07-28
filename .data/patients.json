@@ -1,13 +1,182 @@
 [
   {
+    "id": "patient-1784514824953-4qqgt8",
+    "email": "park.clinic@hotmail.com",
+    "realEmail": "park.clinic@hotmail.com",
+    "name": "Park Jung-ho, Phone: 010-9876-5432",
+    "phone": "010-9876-5432",
+    "firstSeen": "2026-07-20T02:33:44.953Z",
+    "updatedAt": "2026-07-22T12:26:14.123Z",
+    "latestReservation": {
+      "id": "res-4",
+      "date": "2026-07-19",
+      "time": "4:00 PM",
+      "email": "park.clinic@hotmail.com",
+      "concerns": "Implant consultation. Name: Park Jung-ho, Phone: 010-9876-5432",
+      "source": "reservation",
+      "createdAt": "2026-07-14T09:00:00Z",
+      "updatedAt": "2026-07-20T02:33:44.953Z"
+    },
+    "reservationIds": [
+      "res-4"
+    ],
+    "reservations": [
+      {
+        "id": "res-4",
+        "date": "2026-07-19",
+        "time": "4:00 PM",
+        "email": "park.clinic@hotmail.com",
+        "concerns": "Implant consultation. Name: Park Jung-ho, Phone: 010-9876-5432",
+        "source": "reservation",
+        "createdAt": "2026-07-14T09:00:00Z"
+      }
+    ],
+    "threadEmails": [
+      "park.clinic@hotmail.com"
+    ]
+  },
+  {
+    "id": "patient-1784514824952-3mx73w",
+    "email": "lee.sarah@naver.com",
+    "realEmail": "lee.sarah@naver.com",
+    "name": "Lee Sarah, Phone: 010-2345-6789",
+    "phone": "010-2345-6789",
+    "firstSeen": "2026-07-20T02:33:44.951Z",
+    "updatedAt": "2026-07-22T12:26:14.122Z",
+    "latestReservation": {
+      "id": "res-3",
+      "date": "2026-07-20",
+      "time": "11:00 AM",
+      "email": "lee.sarah@naver.com",
+      "concerns": "Cavity treatment needed. Name: Lee Sarah, Phone: 010-2345-6789",
+      "source": "reservation",
+      "createdAt": "2026-07-15T14:30:00Z",
+      "updatedAt": "2026-07-20T02:33:44.951Z"
+    },
+    "reservationIds": [
+      "res-3"
+    ],
+    "reservations": [
+      {
+        "id": "res-3",
+        "date": "2026-07-20",
+        "time": "11:00 AM",
+        "email": "lee.sarah@naver.com",
+        "concerns": "Cavity treatment needed. Name: Lee Sarah, Phone: 010-2345-6789",
+        "source": "reservation",
+        "createdAt": "2026-07-15T14:30:00Z"
+      }
+    ],
+    "threadEmails": [
+      "lee.sarah@naver.com"
+    ]
+  },
+  {
+    "id": "patient-1784514824950-023wla",
+    "email": "kim.patient@gmail.com",
+    "realEmail": "kim.patient@gmail.com",
+    "name": "Kim Min-jun, Phone: 010-5678-1234",
+    "phone": "010-5678-1234",
+    "firstSeen": "2026-07-20T02:33:44.948Z",
+    "updatedAt": "2026-07-22T12:26:14.122Z",
+    "latestReservation": {
+      "id": "res-2",
+      "date": "2026-07-18",
+      "time": "2:00 PM",
+      "email": "kim.patient@gmail.com",
+      "concerns": "I'm interested in whitening and scaling. Name: Kim Min-jun, Phone: 010-5678-1234",
+      "source": "reservation",
+      "createdAt": "2026-07-16T10:15:00Z",
+      "updatedAt": "2026-07-20T02:33:44.948Z"
+    },
+    "reservationIds": [
+      "res-2"
+    ],
+    "reservations": [
+      {
+        "id": "res-2",
+        "date": "2026-07-18",
+        "time": "2:00 PM",
+        "email": "kim.patient@gmail.com",
+        "concerns": "I'm interested in whitening and scaling. Name: Kim Min-jun, Phone: 010-5678-1234",
+        "source": "reservation",
+        "createdAt": "2026-07-16T10:15:00Z"
+      }
+    ],
+    "threadEmails": [
+      "kim.patient@gmail.com"
+    ]
+  },
+  {
     "id": "patient-1784290527014-6lyyyv",
     "email": "test@example.com",
-    "name": "Alice Johnson",
-    "phone": "+1-415-555-0001",
+    "name": "John Smith, Phone: 010-1234-5678",
+    "phone": "010-1234-5678",
     "firstSeen": "2026-07-17T12:15:27.013Z",
-    "updatedAt": "2026-07-17T12:15:27.013Z",
+    "updatedAt": "2026-07-22T12:26:14.121Z",
     "reservationIds": [
       "res-1"
+    ],
+    "realEmail": "test@example.com",
+    "latestReservation": {
+      "id": "res-1",
+      "date": "2026-07-17",
+      "time": "3:30 PM",
+      "email": "test@example.com",
+      "concerns": "Test reservation. Name: John Smith, Phone: 010-1234-5678",
+      "source": "reservation",
+      "createdAt": "2026-07-17T06:20:00Z",
+      "updatedAt": "2026-07-17T12:15:27.011Z"
+    },
+    "reservations": [
+      {
+        "id": "res-1",
+        "date": "2026-07-17",
+        "time": "3:30 PM",
+        "email": "test@example.com",
+        "concerns": "Test reservation. Name: John Smith, Phone: 010-1234-5678",
+        "source": "reservation",
+        "createdAt": "2026-07-17T06:20:00Z"
+      }
+    ],
+    "threadEmails": [
+      "test@example.com"
+    ]
+  },
+  {
+    "id": "patient-1784514806921-pcso05",
+    "email": "chat-1784514599931-uqepgf@chat.lofi.internal",
+    "realEmail": null,
+    "name": "Read QA, Phone: 010-5555-6666",
+    "phone": "010-5555-6666",
+    "firstSeen": "2026-07-20T02:33:26.921Z",
+    "updatedAt": "2026-07-22T12:26:14.120Z",
+    "latestReservation": {
+      "id": "chat-1784514599931-uqepgf",
+      "date": "Chat",
+      "time": "Live",
+      "email": "chat-1784514599931-uqepgf@chat.lofi.internal",
+      "concerns": "Read receipt test 1784517905361. Name: Read QA, Phone: 010-5555-6666",
+      "source": "consult-chat",
+      "createdAt": "2026-07-20T02:33:26.919Z",
+      "updatedAt": "2026-07-20T03:25:05.637Z"
+    },
+    "reservationIds": [
+      "chat-1784514599931-uqepgf"
+    ],
+    "reservations": [
+      {
+        "id": "chat-1784514599931-uqepgf",
+        "date": "Chat",
+        "time": "Live",
+        "email": "chat-1784514599931-uqepgf@chat.lofi.internal",
+        "concerns": "Read receipt test 1784517905361. Name: Read QA, Phone: 010-5555-6666",
+        "source": "consult-chat",
+        "createdAt": "2026-07-20T02:33:26.919Z"
+      }
+    ],
+    "threadEmails": [
+      "chat-1784514599931-uqepgf@chat.lofi.internal"
     ]
   }
 ]

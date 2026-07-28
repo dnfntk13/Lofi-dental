@@ -1,5 +1,58 @@
 [
   {
+    "id": "thread-1784514806921-7x3e73",
+    "email": "chat-1784514599931-uqepgf@chat.lofi.internal",
+    "reservationId": "chat-1784514599931-uqepgf",
+    "messages": [
+      {
+        "type": "customer-reply",
+        "receivedAt": "2026-07-20T02:33:26.919Z",
+        "content": "ㅁㄴㅇㄹㄴㅁㅇ",
+        "attachments": [],
+        "source": "consult-chat",
+        "channel": "web",
+        "displayName": "Reply Test, Phone: 010-1111-2222",
+        "adminReadAt": "2026-07-20T03:25:59.759Z"
+      },
+      {
+        "type": "customer-reply",
+        "receivedAt": "2026-07-20T02:34:46.374Z",
+        "content": "Front/back chat test 1784514886100. Name: Chat QA, Phone: 010-3333-4444",
+        "attachments": [],
+        "source": "consult-chat",
+        "channel": "web",
+        "displayName": "Chat QA, Phone: 010-3333-4444",
+        "adminReadAt": "2026-07-20T03:25:59.759Z"
+      },
+      {
+        "type": "admin-reply",
+        "sentAt": "2026-07-20T02:35:00.793Z",
+        "content": "Back office reply test 1784514900754: front/back chat is connected.",
+        "source": "consult-chat",
+        "channel": "web"
+      },
+      {
+        "type": "admin-reply",
+        "sentAt": "2026-07-20T02:48:44.939Z",
+        "content": "ㅗ됴",
+        "source": "consult-chat",
+        "channel": "web"
+      },
+      {
+        "type": "customer-reply",
+        "receivedAt": "2026-07-20T03:25:05.637Z",
+        "content": "Read receipt test 1784517905361. Name: Read QA, Phone: 010-5555-6666",
+        "attachments": [],
+        "source": "consult-chat",
+        "channel": "web",
+        "displayName": "Read QA, Phone: 010-5555-6666",
+        "adminReadAt": "2026-07-20T03:25:59.759Z"
+      }
+    ],
+    "createdAt": "2026-07-20T02:33:26.921Z",
+    "updatedAt": "2026-07-20T03:25:05.640Z"
+  },
+  {
     "id": "thread-1784270564980-zcg55n",
     "email": "park.clinic@hotmail.com",
     "reservationId": "res-4",

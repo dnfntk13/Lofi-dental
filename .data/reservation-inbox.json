@@ -1,5 +1,20 @@
 [
   {
+    "id": "chat-1784514599931-uqepgf",
+    "date": "Chat",
+    "time": "Live",
+    "email": "chat-1784514599931-uqepgf@chat.lofi.internal",
+    "name": "Read QA, Phone: 010-5555-6666",
+    "concerns": "Read receipt test 1784517905361. Name: Read QA, Phone: 010-5555-6666",
+    "source": "consult-chat",
+    "chatSessionId": "chat-1784514599931-uqepgf",
+    "chatDeviceId": "device-4d7b5d98-cc54-4936-8b55-db3673ec1de4",
+    "clientIp": "::1",
+    "createdAt": "2026-07-20T02:33:26.919Z",
+    "updatedAt": "2026-07-20T03:25:05.637Z",
+    "phone": "010-5555-6666"
+  },
+  {
     "id": "res-1",
     "date": "2026-07-17",
     "time": "3:30 PM",
