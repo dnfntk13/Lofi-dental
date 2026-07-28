@@ -112,6 +112,33 @@ DENTWEB_AGENT_PORT=5175
 
 After the output dialog opens the reservation table, the agent captures the whole Windows virtual screen and saves it into `DENTWEB_SCREENSHOT_DIR`. If a Windows save dialog opens, the agent also tries to save a PDF into `DENTWEB_PDF_DIR` automatically. Imported PDF reservations are added to the reservation inbox and Patients. Existing same date/time slots are skipped.
 
+### Dentweb Local AI Control
+
+The same local agent can let an AI model look at the current Windows screen and suggest or perform one bounded Dentweb action at a time. This only runs on the clinic PC and requires `OPENAI_API_KEY` locally.
+
+Preview the next action without touching the screen:
+
+```bash
+npm run dentweb:ai -- --task="Find the patient name field"
+```
+
+Allow the suggested action to run:
+
+```bash
+npm run dentweb:ai -- --task="Click the patient name field" --apply
+```
+
+When `npm run dentweb:agent` is running, the Admin app or other local tools can call:
+
+```bash
+POST http://127.0.0.1:5175/ai-step
+{ "task": "Click the patient name field", "apply": true }
+```
+
+The Admin Calendar also has a `Dentweb AI` button. It prompts for a task, sends it to the local agent, and applies one bounded action on the current PC.
+
+Allowed actions are limited to `click`, `type`, `key`, `wait`, and `done`. The agent captures a full-screen screenshot, asks the configured model what one next step should be, and only executes that one step when `apply` is true. It refuses password-like typing and does not allow arbitrary shell commands.
+
 ### AI Assist
 
 The public chat widget and admin tools can generate AI-assisted information, summaries, and drafts:

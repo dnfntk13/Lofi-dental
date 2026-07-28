@@ -10,6 +10,7 @@
     "dev": "node server.mjs",
     "dentweb:sync": "node tools/dentweb-sync-agent.mjs",
     "dentweb:agent": "node tools/dentweb-sync-agent.mjs --daemon",
+    "dentweb:ai": "node tools/dentweb-sync-agent.mjs --ai",
     "preview": "PORT=4173 node server.mjs"
   },
   "dependencies": {

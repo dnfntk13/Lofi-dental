@@ -858,6 +858,7 @@
           <button class="btn-today" id="todayBtn">Today</button>
           <button class="btn-today btn-undo" id="undoBtn" disabled>Undo</button>
           <button class="btn-today btn-sync" id="dentwebSyncBtn" type="button">Sync with Dentweb</button>
+          <button class="btn-today" id="dentwebAiBtn" type="button">Dentweb AI</button>
         </div>
       </div>
 
@@ -1078,6 +1079,7 @@
       const selectionBox = document.getElementById("selectionBox");
       const undoBtn = document.getElementById("undoBtn");
       const dentwebSyncBtn = document.getElementById("dentwebSyncBtn");
+      const dentwebAiBtn = document.getElementById("dentwebAiBtn");
       const instagramStatus = document.getElementById("instagramStatus");
       const instagramOpen = document.getElementById("instagramOpen");
 
@@ -1158,6 +1160,41 @@
         } finally {
           dentwebSyncBtn.disabled = false;
           dentwebSyncBtn.textContent = originalText;
+        }
+      }
+
+      async function runDentwebAiAction() {
+        const task = prompt("What should Dentweb AI do on this PC?");
+        if (!task || !task.trim()) return;
+
+        const originalText = dentwebAiBtn.textContent;
+        dentwebAiBtn.disabled = true;
+        dentwebAiBtn.textContent = "AI...";
+        statusMsg.style.display = "block";
+        statusMsg.textContent = "Dentweb AI is looking at this screen...";
+
+        try {
+          const response = await fetch("http://127.0.0.1:5175/ai-step", {
+            method: "POST",
+            mode: "cors",
+            cache: "no-store",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ task: task.trim(), apply: true }),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data.ok) {
+            throw new Error(data.message || "Dentweb AI failed.");
+          }
+          const action = data.action?.action || "wait";
+          const reason = data.action?.reason ? ` ${data.action.reason}` : "";
+          flashStatus(`Dentweb AI action: ${action}.${reason}`, 6200);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Dentweb AI failed.";
+          statusMsg.style.display = "block";
+          statusMsg.textContent = `${message} Check npm run dentweb:agent and local OPENAI_API_KEY.`;
+        } finally {
+          dentwebAiBtn.disabled = false;
+          dentwebAiBtn.textContent = originalText;
         }
       }
 
@@ -2177,6 +2214,7 @@
       });
 
       dentwebSyncBtn.addEventListener("click", syncWithDentweb);
+      dentwebAiBtn.addEventListener("click", runDentwebAiAction);
       instagramOpen.addEventListener("click", openInstagramWindow);
 
       loadReservations();

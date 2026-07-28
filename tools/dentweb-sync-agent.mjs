@@ -1,9 +1,33 @@
 import { execFile } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { mkdir, readFile, readdir, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline/promises";
+
+function loadLocalEnvFile() {
+  try {
+    const envPath = path.resolve(process.cwd(), ".env");
+    const content = readFileSync(envPath, "utf-8");
+    for (const line of content.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+      const index = trimmed.indexOf("=");
+      const key = trimmed.slice(0, index).trim();
+      let value = trimmed.slice(index + 1).trim();
+      if (!key || process.env[key] !== undefined) continue;
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      process.env[key] = value;
+    }
+  } catch {
+    // Local .env is optional.
+  }
+}
+
+loadLocalEnvFile();
 
 const args = new Map(process.argv.slice(2).map((arg) => {
   const [key, ...rest] = arg.replace(/^--/, "").split("=");
@@ -13,6 +37,11 @@ const args = new Map(process.argv.slice(2).map((arg) => {
 const serverUrl = (args.get("server") || process.env.LOFI_ADMIN_URL || "https://lofiesthetic.com").replace(/\/$/, "");
 const adminUser = args.get("user") || process.env.ADMIN_USER || "lofidental";
 const adminPass = args.get("pass") || process.env.ADMIN_PASS || "Lofidental1!";
+const openaiApiKey = args.get("openai-key") || process.env.OPENAI_API_KEY || "";
+const dentwebAiModel = args.get("ai-model") || process.env.DENTWEB_AI_MODEL || process.env.OPENAI_MODEL || "gpt-4o-mini";
+const aiTask = args.get("task") || process.env.DENTWEB_AI_TASK || "";
+const aiMode = args.has("ai") || Boolean(aiTask);
+const aiApply = args.has("apply") || process.env.DENTWEB_AI_APPLY === "1";
 const dryRun = args.has("dry-run") || process.env.DENTWEB_DRY_RUN === "1";
 const skipPrompt = args.has("no-prompt") || process.env.DENTWEB_SKIP_PROMPT === "1";
 const daemonMode = args.has("daemon") || process.env.DENTWEB_DAEMON === "1";
@@ -53,6 +82,24 @@ function runPowerShell(script) {
       }
       resolve(String(stdout || "").trim());
     });
+  });
+}
+
+function getJsonBody(request, maxBytes = 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    request.on("data", (chunk) => {
+      body += chunk;
+      if (body.length > maxBytes) reject(new Error("Payload too large"));
+    });
+    request.on("end", () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch {
+        reject(new Error("Invalid JSON"));
+      }
+    });
+    request.on("error", () => reject(new Error("Request failed")));
   });
 }
 
@@ -219,6 +266,133 @@ $bitmap.Dispose()
 `;
   const output = await runPowerShell(script);
   return output ? JSON.parse(output) : { path: screenshotPath };
+}
+
+function extractJsonObject(content) {
+  const text = String(content || "").trim();
+  try {
+    return JSON.parse(text);
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("AI did not return JSON");
+    return JSON.parse(match[0]);
+  }
+}
+
+async function askDentwebAi(task, screenshot) {
+  if (!openaiApiKey) {
+    throw new Error("OPENAI_API_KEY is required for Dentweb AI control");
+  }
+
+  const imageBase64 = (await readFile(screenshot.path)).toString("base64");
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${openaiApiKey}`,
+    },
+    body: JSON.stringify({
+      model: dentwebAiModel,
+      temperature: 0.1,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are controlling the Dentweb desktop program on the user's clinic PC.",
+            "Read the screenshot and choose exactly one next action toward the user's task.",
+            "Return only JSON with keys: action, x, y, text, key, reason.",
+            "Allowed actions: click, type, key, wait, done.",
+            "Use absolute screen coordinates for click actions.",
+            "For type actions, provide the exact text to paste into the currently focused field.",
+            "Do not type passwords, delete records, cancel appointments, or submit irreversible changes.",
+            "If the next step is unclear or risky, return action wait with a short reason.",
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: `Task: ${task}\nScreenshot size: ${screenshot.width || "unknown"}x${screenshot.height || "unknown"}` },
+            { type: "image_url", image_url: { url: `data:image/png;base64,${imageBase64}` } },
+          ],
+        },
+      ],
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error?.message || `OpenAI request failed with ${response.status}`);
+  }
+  const content = data?.choices?.[0]?.message?.content || "";
+  const action = extractJsonObject(content);
+  action.action = String(action.action || "wait").toLowerCase();
+  return action;
+}
+
+async function executeDesktopAction(action) {
+  const type = String(action?.action || "").toLowerCase();
+  if (!["click", "type", "key", "wait", "done"].includes(type)) {
+    throw new Error(`Unsupported AI action: ${type}`);
+  }
+  if (type === "wait" || type === "done") return { executed: false, action: type };
+
+  if (type === "click") {
+    const x = Number(action.x);
+    const y = Number(action.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error("AI click action requires x and y");
+    const script = `
+$ErrorActionPreference = 'Stop'
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class NativeMethods {
+  [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);
+  [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo);
+}
+"@
+[NativeMethods]::SetCursorPos(${Math.round(x)}, ${Math.round(y)}) | Out-Null
+Start-Sleep -Milliseconds 100
+[NativeMethods]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
+Start-Sleep -Milliseconds 70
+[NativeMethods]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
+`;
+    await runPowerShell(script);
+    return { executed: true, action: type, x, y };
+  }
+
+  if (type === "type") {
+    const text = String(action.text || "");
+    if (!text) throw new Error("AI type action requires text");
+    if (/password|비밀번호|암호/i.test(text)) throw new Error("Refusing to type password-like text");
+    const script = `
+$ErrorActionPreference = 'Stop'
+Set-Clipboard -Value ${JSON.stringify(text)}
+$shell = New-Object -ComObject WScript.Shell
+$shell.SendKeys('^v')
+`;
+    await runPowerShell(script);
+    return { executed: true, action: type, textLength: text.length };
+  }
+
+  const key = String(action.key || "").trim();
+  const allowedKeys = new Set(["{TAB}", "{ENTER}", "{ESC}", "{UP}", "{DOWN}", "{LEFT}", "{RIGHT}", "^a", "^c", "^v"]);
+  if (!allowedKeys.has(key)) throw new Error(`Unsupported key action: ${key}`);
+  const script = `
+$ErrorActionPreference = 'Stop'
+$shell = New-Object -ComObject WScript.Shell
+$shell.SendKeys(${JSON.stringify(key)})
+`;
+  await runPowerShell(script);
+  return { executed: true, action: type, key };
+}
+
+async function runDentwebAiStep(task, { apply = false } = {}) {
+  if (!task) throw new Error("Dentweb AI task is required");
+  await mkdir(screenshotDir, { recursive: true });
+  const screenshot = await captureFullScreenScreenshot();
+  const action = await askDentwebAi(task, screenshot);
+  const execution = apply ? await executeDesktopAction(action) : { executed: false, preview: true };
+  return { ok: true, task, screenshotPath: screenshot.path, action, execution };
 }
 
 async function trySavePdfDialog(filePath) {
@@ -402,6 +576,24 @@ async function startDaemon() {
       return;
     }
 
+    if (url.pathname === "/ai-step" && request.method === "POST") {
+      if (syncInProgress) {
+        sendJson(response, 409, { ok: false, message: "Dentweb sync is already running" });
+        return;
+      }
+
+      try {
+        const payload = await getJsonBody(request);
+        const task = String(payload.task || "").trim();
+        const apply = Boolean(payload.apply);
+        const result = await runDentwebAiStep(task, { apply });
+        sendJson(response, 200, result);
+      } catch (error) {
+        sendJson(response, 500, { ok: false, message: error.message || "Dentweb AI step failed" });
+      }
+      return;
+    }
+
     sendJson(response, 404, { ok: false, message: "Not found" });
   });
 
@@ -414,12 +606,18 @@ async function startDaemon() {
     console.log(`Using print confirm button pattern: ${printConfirmPattern}`);
     console.log(`Fallback reservation print click: ${printClick}`);
     console.log(`Saving screenshots to: ${screenshotDir}`);
+    console.log("Dentweb AI endpoint: POST /ai-step with { task, apply }");
   });
 }
 
 async function main() {
   if (daemonMode) {
     await startDaemon();
+    return;
+  }
+  if (aiMode) {
+    const result = await runDentwebAiStep(aiTask, { apply: aiApply });
+    console.log(JSON.stringify(result, null, 2));
     return;
   }
   await runDentwebSync({ prompt: true });
