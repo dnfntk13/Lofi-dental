@@ -344,6 +344,7 @@ async function askDentwebAi(task, screenshot) {
     body: JSON.stringify({
       model: dentwebAiModel,
       temperature: 0.1,
+      response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
@@ -401,6 +402,7 @@ async function askPcAiChat(messages, screenshot) {
     body: JSON.stringify({
       model: dentwebAiModel,
       temperature: 0.2,
+      response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
