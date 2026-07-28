@@ -103,6 +103,39 @@ function getJsonBody(request, maxBytes = 1024 * 1024) {
   });
 }
 
+async function focusDentwebWindow() {
+  if (process.platform !== "win32") {
+    throw new Error("PC AI can only control Dentweb on the Windows computer where Dentweb is open");
+  }
+
+  const script = `
+$ErrorActionPreference = 'Stop'
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class NativeMethods {
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+}
+public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+"@
+$pattern = ${JSON.stringify(windowPattern)}
+$target = Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -match $pattern } | Sort-Object ProcessName | Select-Object -First 1
+if (-not $target) { throw "Dentweb window not found. Open Dentweb, log in, and keep the reservation calendar visible." }
+$hwnd = $target.MainWindowHandle
+[NativeMethods]::ShowWindow($hwnd, 9) | Out-Null
+Start-Sleep -Milliseconds 250
+[NativeMethods]::SetForegroundWindow($hwnd) | Out-Null
+Start-Sleep -Milliseconds 500
+$rect = New-Object RECT
+[NativeMethods]::GetWindowRect($hwnd, [ref]$rect) | Out-Null
+[pscustomobject]@{ title = $target.MainWindowTitle; left = $rect.Left; top = $rect.Top; right = $rect.Right; bottom = $rect.Bottom } | ConvertTo-Json -Compress
+`;
+  const output = await runPowerShell(script);
+  return output ? JSON.parse(output) : {};
+}
+
 async function clickDentwebPrintButton() {
   if (process.platform !== "win32") {
     throw new Error("Dentweb desktop sync can only run on the Windows computer where Dentweb is open");
@@ -373,8 +406,10 @@ async function askPcAiChat(messages, screenshot) {
           role: "system",
           content: [
             "You are PC AI for lofi dental staff on the clinic Windows PC.",
-            "You can talk normally with staff and inspect the current screen screenshot.",
-            "The PC may have the logged-in Dentweb desktop program open; help staff operate Dentweb only when the user asks or when it is the clear next step.",
+            "You can talk normally with staff and inspect the current Dentweb desktop program screenshot.",
+            "Your only controllable target is the Dentweb Windows desktop program, not the lofi website, admin calendar, Chrome, or any browser page.",
+            "If the screenshot does not show Dentweb, return action wait and tell the user to open or log in to Dentweb.",
+            "Help staff operate Dentweb only when the user asks or when it is the clear next step.",
             "Return only JSON with keys: reply, action.",
             "reply is a concise natural-language chat answer in the user's language.",
             "action is an object with keys: action, x, y, text, key, reason.",
@@ -417,6 +452,8 @@ async function executeDesktopAction(action) {
   }
   if (type === "wait" || type === "done") return { executed: false, action: type };
 
+  const focusedWindow = await focusDentwebWindow();
+
   if (type === "click") {
     const x = Number(action.x);
     const y = Number(action.y);
@@ -438,7 +475,7 @@ Start-Sleep -Milliseconds 70
 [NativeMethods]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
 `;
     await runPowerShell(script);
-    return { executed: true, action: type, x, y };
+    return { executed: true, action: type, x, y, focusedWindow };
   }
 
   if (type === "type") {
@@ -452,7 +489,7 @@ $shell = New-Object -ComObject WScript.Shell
 $shell.SendKeys('^v')
 `;
     await runPowerShell(script);
-    return { executed: true, action: type, textLength: text.length };
+    return { executed: true, action: type, textLength: text.length, focusedWindow };
   }
 
   const key = String(action.key || "").trim();
@@ -464,24 +501,26 @@ $shell = New-Object -ComObject WScript.Shell
 $shell.SendKeys(${JSON.stringify(key)})
 `;
   await runPowerShell(script);
-  return { executed: true, action: type, key };
+  return { executed: true, action: type, key, focusedWindow };
 }
 
 async function runDentwebAiStep(task, { apply = false } = {}) {
   if (!task) throw new Error("Dentweb AI task is required");
   await mkdir(screenshotDir, { recursive: true });
+  const focusedWindow = await focusDentwebWindow();
   const screenshot = await captureFullScreenScreenshot();
   const action = await askDentwebAi(task, screenshot);
   const execution = apply ? await executeDesktopAction(action) : { executed: false, preview: true };
-  return { ok: true, task, screenshotPath: screenshot.path, action, execution };
+  return { ok: true, task, screenshotPath: screenshot.path, focusedWindow, action, execution };
 }
 
 async function runPcAiChat(messages, { apply = false } = {}) {
   await mkdir(screenshotDir, { recursive: true });
+  const focusedWindow = await focusDentwebWindow();
   const screenshot = await captureFullScreenScreenshot();
   const result = await askPcAiChat(messages, screenshot);
   const execution = apply ? await executeDesktopAction(result.action) : { executed: false, preview: true };
-  return { ok: true, screenshotPath: screenshot.path, reply: result.reply, action: result.action, execution };
+  return { ok: true, screenshotPath: screenshot.path, focusedWindow, reply: result.reply, action: result.action, execution };
 }
 
 async function trySavePdfDialog(filePath) {
