@@ -32,12 +32,14 @@
 
     .consult-chat-launch {
       position: fixed;
-      right: 28px;
+      left: 50%;
+      right: auto;
       bottom: 88px;
       z-index: 21;
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      width: min(360px, calc(100vw - 36px));
       min-height: 46px;
       padding: 0 20px;
       border: 1px solid rgba(31, 45, 102, 0.16);
@@ -50,12 +52,26 @@
       white-space: nowrap;
       box-shadow: 0 12px 24px rgba(31, 45, 102, 0.14);
       cursor: pointer;
+      transform: translateX(-50%);
       transition: transform 180ms ease, box-shadow 180ms ease;
     }
 
     .consult-chat-launch:hover {
-      transform: translateY(-1px);
+      transform: translateX(-50%) translateY(-1px);
       box-shadow: 0 16px 30px rgba(31, 45, 102, 0.18);
+    }
+
+    body.lofi-floating-ctas .sticky-appointment {
+      position: fixed !important;
+      left: 50% !important;
+      right: auto !important;
+      bottom: 28px !important;
+      z-index: 21;
+      display: flex;
+      justify-content: center;
+      width: min(360px, calc(100vw - 36px));
+      margin: 0;
+      transform: translateX(-50%);
     }
 
     .consult-chat-panel {
@@ -243,23 +259,22 @@
       }
 
       .consult-chat-launch {
-        position: fixed;
-        right: 18px;
+        left: 50%;
+        right: auto;
         bottom: 84px;
-        left: 18px;
         display: flex;
-        width: auto;
+        width: min(360px, calc(100vw - 36px));
         margin: 0;
         justify-content: center;
       }
 
       .sticky-appointment {
         position: fixed !important;
-        right: 18px !important;
+        left: 50% !important;
+        right: auto !important;
         bottom: 18px !important;
-        left: 18px !important;
         display: flex;
-        width: auto;
+        width: min(360px, calc(100vw - 36px));
         margin: 0;
         justify-content: center;
       }

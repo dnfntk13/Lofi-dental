@@ -156,14 +156,18 @@
         margin-top: 12px;
         display: grid;
         gap: 9px;
+        width: min(100%, 360px);
+        margin-left: auto;
+        margin-right: auto;
       }
 
       .btn {
         min-height: 54px;
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: center;
         gap: 12px;
+        position: relative;
         padding: 0 15px;
         border: 1px solid var(--line);
         border-radius: 8px;
@@ -186,15 +190,13 @@
       .btn svg {
         width: 20px;
         height: 20px;
+        position: absolute;
+        right: 15px;
         flex: 0 0 auto;
       }
 
       .sticky-appointment {
-        position: fixed;
-        right: 18px;
-        bottom: 18px;
-        left: 18px;
-        z-index: 20;
+        position: static;
       }
 
       .section {
