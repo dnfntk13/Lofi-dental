@@ -4385,31 +4385,58 @@ createServer(async (request, response) => {
         return;
       }
 
-      if (!isWebReply && !hasAnyMailConfig()) {
-        response.writeHead(503, { "Content-Type": "application/json; charset=utf-8" });
-        response.end(JSON.stringify({ message: "Email provider is not configured" }));
-        return;
-      }
-
-      if (!isWebReply) {
-        await sendMailWithFallback({
-          from: smtpFrom,
-          to: email,
-          subject,
-          text: content,
-        });
-      }
-
       const inbox = await readInbox();
       const record = inbox.find((r) => String(r.email || "").toLowerCase() === email);
       const reservationId = String(payload.reservationId || "").trim() || record?.id || `manual-${Date.now()}`;
+
+      let deliveryResult = null;
+      if (!isWebReply) {
+        try {
+          deliveryResult = await sendMailWithFallback({
+            from: smtpFrom,
+            to: email,
+            subject,
+            text: content,
+          });
+        } catch (error) {
+          const failedAt = new Date().toISOString();
+          const threadMessage = {
+            type: "admin-reply",
+            sentAt: failedAt,
+            content,
+            subject,
+            source: "email",
+            channel: "email",
+            deliveryStatus: "failed",
+            deliveryError: error instanceof Error ? error.message : "Failed to send email",
+          };
+
+          try {
+            await saveOrUpdateEmailThread(email, reservationId, threadMessage);
+          } catch (saveError) {
+            console.error("Failed to save failed email reply", saveError);
+          }
+
+          response.writeHead(502, { "Content-Type": "application/json; charset=utf-8" });
+          response.end(JSON.stringify({
+            ok: false,
+            message: `Failed to send email: ${threadMessage.deliveryError}`,
+            threadMessage,
+            reservationId,
+          }));
+          return;
+        }
+      }
 
       const threadMessage = {
         type: "admin-reply",
         sentAt: new Date().toISOString(),
         content,
+        subject,
         source: isWebReply ? "consult-chat" : "email",
         channel: isWebReply ? "web" : "email",
+        deliveryStatus: "sent",
+        deliveryProvider: deliveryResult?.provider || (isWebReply ? "web" : null),
       };
 
       try {

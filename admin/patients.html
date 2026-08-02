@@ -307,6 +307,24 @@
       .reply-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 
       .reply-status { color: var(--soft); font-size: 0.88rem; }
+      .reply-status.sent { color: #1f8f5f; }
+      .reply-status.failed { color: #c0392b; }
+
+      .delivery-state {
+        display: inline-flex; align-items: center; gap: 8px; margin-left: 8px;
+        color: var(--soft); font-size: 0.78rem; font-weight: 700;
+      }
+
+      .delivery-state.sent { color: #1f8f5f; }
+      .delivery-state.failed { color: #c0392b; }
+
+      .resend-reply-btn {
+        border: 1px solid rgba(192, 57, 43, 0.24); border-radius: 999px;
+        background: #fff; color: #c0392b; padding: 4px 9px;
+        font: inherit; font-size: 0.74rem; font-weight: 700; cursor: pointer;
+      }
+
+      .resend-reply-btn:disabled { opacity: 0.55; cursor: wait; }
 
       .no-name { color: #aaa; font-style: italic; }
 
@@ -432,6 +450,8 @@
           sentAt: message.sentAt || "",
           createdAt: message.createdAt || "",
           adminReadAt: message.adminReadAt || "",
+          deliveryStatus: message.deliveryStatus || "",
+          deliveryError: message.deliveryError || "",
           attachments: Array.isArray(message.attachments)
             ? message.attachments.map((attachment) => `${attachment.type || ""}:${attachment.name || ""}:${attachment.dataUrl || ""}`)
             : [],
@@ -549,11 +569,18 @@
           const text = message.content || message.concerns || "";
           const attachments = renderThreadAttachments(message);
           const messageIndex = currentThread.indexOf(message);
-          return `<article class="thread-message ${isAdmin ? "admin" : ""}"><div class="thread-message-head"><span class="thread-meta">${esc(threadLabel(message))} · ${esc(fmtDate(threadTime(message)))}</span><button class="delete-message-btn" type="button" data-index="${messageIndex}">Delete</button></div>${esc(text)}${attachments}</article>`;
+          const deliveryStatus = String(message.deliveryStatus || "").toLowerCase();
+          const deliveryState = isAdmin && deliveryStatus
+            ? `<span class="delivery-state ${esc(deliveryStatus)}">${esc(deliveryStatus === "failed" ? "failed" : "sent")}${deliveryStatus === "failed" ? `<button class="resend-reply-btn" type="button" data-index="${messageIndex}">Resend</button>` : ""}</span>`
+            : "";
+          return `<article class="thread-message ${isAdmin ? "admin" : ""}"><div class="thread-message-head"><span class="thread-meta">${esc(threadLabel(message))} · ${esc(fmtDate(threadTime(message)))}${deliveryState}</span><button class="delete-message-btn" type="button" data-index="${messageIndex}">Delete</button></div>${esc(text)}${attachments}</article>`;
         }).join("");
 
         content.querySelectorAll(".delete-message-btn").forEach((button) => {
           button.addEventListener("click", () => deleteThreadMessage(Number(button.dataset.index)));
+        });
+        content.querySelectorAll(".resend-reply-btn").forEach((button) => {
+          button.addEventListener("click", () => resendThreadReply(Number(button.dataset.index), button));
         });
       }
 
@@ -685,15 +712,16 @@
         lastRenderedThreadSignature = "";
       }
 
-      async function sendThreadReply(event) {
-        event.preventDefault();
+      async function sendThreadReply(event, retryContent = "") {
+        if (event) event.preventDefault();
         const input = document.getElementById("threadReplyInput");
         const button = document.getElementById("threadReplyBtn");
         const status = document.getElementById("threadReplyStatus");
-        const content = input.value.trim();
+        const content = String(retryContent || input.value).trim();
         if (!content || !currentThreadEmail || !["web", "email"].includes(currentChannel)) return;
 
         button.disabled = true;
+        status.className = "reply-status";
         status.textContent = "Sending...";
         try {
           const res = await fetch(`/api/admin/email-thread/${encodeURIComponent(currentThreadEmail)}/reply`, {
@@ -703,20 +731,38 @@
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
+            status.className = "reply-status failed";
             status.textContent = data.message || "Failed to send reply.";
+            if (data.threadMessage) currentThread.push(data.threadMessage);
+            lastRenderedThreadSignature = getThreadSignature(currentThread);
+            renderThreadChannel();
             return;
           }
-          input.value = "";
-          status.textContent = data.delivered === "email" ? "Sent by email." : "Sent to web chat.";
+          if (!retryContent) input.value = "";
+          status.className = "reply-status sent";
+          status.textContent = data.delivered === "email" ? "Sent." : "Sent to web chat.";
           currentReservationId = data.reservationId || currentReservationId;
           if (data.message) currentThread.push(data.message);
           lastRenderedThreadSignature = getThreadSignature(currentThread);
           renderThreadChannel();
         } catch {
+          status.className = "reply-status failed";
           status.textContent = "Failed to send reply.";
         } finally {
           button.disabled = false;
           input.focus();
+        }
+      }
+
+      async function resendThreadReply(messageIndex, resendButton) {
+        const message = currentThread[messageIndex];
+        const content = String(message?.content || "").trim();
+        if (!content) return;
+        if (resendButton) resendButton.disabled = true;
+        try {
+          await sendThreadReply(null, content);
+        } finally {
+          if (resendButton) resendButton.disabled = false;
         }
       }
 
