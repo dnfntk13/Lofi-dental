@@ -127,6 +127,13 @@
         align-items: start;
       }
 
+      .showcase-details {
+        min-width: 0;
+        display: grid;
+        gap: 18px;
+        align-content: start;
+      }
+
       .reel-stage {
         width: 100%;
         border: 1px solid var(--line);
@@ -153,7 +160,7 @@
       }
 
       .veneer-pricing {
-        margin-top: 28px;
+        margin-top: 0;
         padding: 22px;
         border: 1px solid var(--line);
         border-radius: 18px;
@@ -457,6 +464,59 @@
         white-space: nowrap;
       }
 
+      @media (min-width: 901px) {
+        .showcase-details .veneer-pricing {
+          padding: 16px;
+        }
+
+        .showcase-details .veneer-pricing-head {
+          margin-bottom: 12px;
+        }
+
+        .showcase-details .veneer-options {
+          grid-template-columns: 1fr;
+          gap: 8px;
+        }
+
+        .showcase-details .veneer-option {
+          grid-template-columns: minmax(130px, 0.72fr) minmax(160px, 1fr) minmax(180px, 0.9fr);
+          gap: 4px 12px;
+          padding: 11px 12px;
+          align-items: start;
+        }
+
+        .showcase-details .veneer-option h3,
+        .showcase-details .veneer-material {
+          grid-column: 1;
+        }
+
+        .showcase-details .veneer-description {
+          grid-column: 2;
+          grid-row: 1 / span 2;
+          font-size: 0.82rem;
+          line-height: 1.45;
+          display: -webkit-box;
+          overflow: hidden;
+          -webkit-box-orient: vertical;
+          -webkit-line-clamp: 2;
+        }
+
+        .showcase-details .veneer-price {
+          grid-column: 3;
+          grid-row: 1 / span 2;
+          margin-top: 0;
+          font-size: 0.84rem;
+        }
+
+        .showcase-details .veneer-foreign-price {
+          font-size: 0.72rem;
+        }
+
+        .showcase-details .veneer-price span {
+          white-space: nowrap;
+        }
+      }
+
       @media (max-width: 900px) {
         .veneer-showcase {
           grid-template-columns: 1fr;
@@ -525,54 +585,56 @@
               <source src="assets/lofi veneer videos/lofi-lab-veneers.mp4" type="video/mp4" />
             </video>
           </div>
-          <figure class="case-preview">
-            <div
-              class="before-after-compare"
-              tabindex="0"
-              data-start="50"
-              aria-label="Before and after veneer case 4 front, left side, and right side view comparison"
-            >
-              <img
-                class="compare-image compare-base-image"
-                src="assets/before-after/case-04-after.jpg"
-                alt="Veneer after front, left side, and right side view image"
-              />
-              <img
-                class="compare-image compare-overlay-image"
-                src="assets/before-after/case-04-before.jpg"
-                alt="Veneer before front, left side, and right side view image"
-              />
-              <div class="compare-divider" aria-hidden="true">
-                <span class="compare-handle">↔</span>
+          <div class="showcase-details">
+            <figure class="case-preview">
+              <div
+                class="before-after-compare"
+                tabindex="0"
+                data-start="50"
+                aria-label="Before and after veneer case 4 front, left side, and right side view comparison"
+              >
+                <img
+                  class="compare-image compare-base-image"
+                  src="assets/before-after/case-04-after.jpg"
+                  alt="Veneer after front, left side, and right side view image"
+                />
+                <img
+                  class="compare-image compare-overlay-image"
+                  src="assets/before-after/case-04-before.jpg"
+                  alt="Veneer before front, left side, and right side view image"
+                />
+                <div class="compare-divider" aria-hidden="true">
+                  <span class="compare-handle">↔</span>
+                </div>
               </div>
-            </div>
-            <div class="compare-label-row"><span>BEFORE</span><button class="compare-zoom" type="button" aria-label="Zoom comparison 200%"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></button><span>AFTER</span></div>
-          </figure>
-        </section>
-        <section class="veneer-pricing" aria-label="lofi veneers materials and prices">
-          <div class="veneer-pricing-head">
-            <h2>Veneer options</h2>
-            <p class="veneer-rate-note" id="veneerRateNote">Loading Google Finance exchange rates...</p>
-          </div>
-          <div class="veneer-options">
-            <article class="veneer-option">
-              <h3>Economic Composite Resin Veneer</h3>
-              <p class="veneer-material">Material: Composite resin</p>
-              <p class="veneer-description">A practical option for small shape and color refinements with a conservative resin approach.</p>
-              <p class="veneer-price" data-krw="99000" data-suffix="per tooth">₩99,000 per tooth</p>
-            </article>
-            <article class="veneer-option">
-              <h3>Standard Porcelain Veneer</h3>
-              <p class="veneer-material">Material: Porcelain - Rosetta</p>
-              <p class="veneer-description">A balanced porcelain option for natural translucency, durability, and refined everyday esthetics.</p>
-              <p class="veneer-price" data-krw="259000" data-suffix="per tooth">₩259,000 per tooth</p>
-            </article>
-            <article class="veneer-option">
-              <h3>Premium Porcelain Veneer</h3>
-              <p class="veneer-material">Material: Porcelain - IPS e.max</p>
-              <p class="veneer-description">A premium ceramic option for strength, layered translucency, and a highly customized smile design.</p>
-              <p class="veneer-price" data-krw="399000" data-suffix="per tooth">₩399,000 per tooth</p>
-            </article>
+              <div class="compare-label-row"><span>BEFORE</span><button class="compare-zoom" type="button" aria-label="Zoom comparison 200%"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></button><span>AFTER</span></div>
+            </figure>
+            <section class="veneer-pricing" aria-label="lofi veneers materials and prices">
+              <div class="veneer-pricing-head">
+                <h2>Veneer options</h2>
+                <p class="veneer-rate-note" id="veneerRateNote">Loading Google Finance exchange rates...</p>
+              </div>
+              <div class="veneer-options">
+                <article class="veneer-option">
+                  <h3>Economic Composite Resin Veneer</h3>
+                  <p class="veneer-material">Material: Composite resin</p>
+                  <p class="veneer-description">A practical option for small shape and color refinements with a conservative resin approach.</p>
+                  <p class="veneer-price" data-krw="99000" data-suffix="per tooth">₩99,000 per tooth</p>
+                </article>
+                <article class="veneer-option">
+                  <h3>Standard Porcelain Veneer</h3>
+                  <p class="veneer-material">Material: Porcelain - Rosetta</p>
+                  <p class="veneer-description">A balanced porcelain option for natural translucency, durability, and refined everyday esthetics.</p>
+                  <p class="veneer-price" data-krw="259000" data-suffix="per tooth">₩259,000 per tooth</p>
+                </article>
+                <article class="veneer-option">
+                  <h3>Premium Porcelain Veneer</h3>
+                  <p class="veneer-material">Material: Porcelain - IPS e.max</p>
+                  <p class="veneer-description">A premium ceramic option for strength, layered translucency, and a highly customized smile design.</p>
+                  <p class="veneer-price" data-krw="399000" data-suffix="per tooth">₩399,000 per tooth</p>
+                </article>
+              </div>
+            </section>
           </div>
         </section>
         <div class="bottom-cta">
