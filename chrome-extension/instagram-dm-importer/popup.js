@@ -1,6 +1,7 @@
 const statusEl = document.getElementById("status");
 const openInstagramButton = document.getElementById("openInstagram");
-const scanButton = document.getElementById("scanDms");
+const sync3DaysButton = document.getElementById("sync3Days");
+const sync7DaysButton = document.getElementById("sync7Days");
 const testServerButton = document.getElementById("testServer");
 const saveCurrentDmButton = document.getElementById("saveCurrentDm");
 const aiReadScreenButton = document.getElementById("aiReadScreen");
@@ -31,17 +32,27 @@ async function getInstagramTab() {
   return chrome.tabs.create({ url: "https://www.instagram.com/direct/inbox/" });
 }
 
-async function sendScanMessage(tabId) {
+function getSyncOptions(daysBack) {
+  return {
+    daysBack,
+    maxThreads: daysBack <= 3 ? 30 : 60,
+    maxListScrolls: daysBack <= 3 ? 40 : 80,
+    maxMessageScrolls: 30,
+  };
+}
+
+async function sendScanMessage(tabId, daysBack) {
+  const options = getSyncOptions(daysBack);
   try {
     return await chrome.tabs.sendMessage(tabId, {
       type: "LOFI_SCAN_INSTAGRAM_DMS",
-      options: { maxThreads: 10, maxListScrolls: 20, maxMessageScrolls: 30 },
+      options,
     });
   } catch {
     await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
     return chrome.tabs.sendMessage(tabId, {
       type: "LOFI_SCAN_INSTAGRAM_DMS",
-      options: { maxThreads: 10, maxListScrolls: 20, maxMessageScrolls: 30 },
+      options,
     });
   }
 }
@@ -120,20 +131,24 @@ openInstagramButton.addEventListener("click", async () => {
   }
 });
 
-scanButton.addEventListener("click", async () => {
-  scanButton.disabled = true;
-  setStatus("Starting scan...");
+async function runRangeSync(daysBack, button) {
+  button.disabled = true;
+  setStatus(`Starting ${daysBack === 3 ? "recent 3 days" : "recent 1 week"} sync...`);
   try {
+    await saveSettings();
     const tab = await getInstagramTab();
-    const result = await sendScanMessage(tab.id);
+    const result = await sendScanMessage(tab.id, daysBack);
     if (!result?.ok) throw new Error(result?.message || "Scan failed");
-    setStatus(`Admin AI can now read saved DMs. Saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`);
+    setStatus(`Admin AI can now read recent DMs. Saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`);
   } catch (error) {
-    setStatus(error.message || "Scan failed.");
+    setStatus(error.message || "Recent DM sync failed.");
   } finally {
-    scanButton.disabled = false;
+    button.disabled = false;
   }
-});
+}
+
+sync3DaysButton.addEventListener("click", () => runRangeSync(3, sync3DaysButton));
+sync7DaysButton.addEventListener("click", () => runRangeSync(7, sync7DaysButton));
 
 testServerButton.addEventListener("click", async () => {
   testServerButton.disabled = true;

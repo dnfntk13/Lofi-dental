@@ -3,6 +3,7 @@ const LOFI_MESSAGE_SCROLL_DELAY_MS = 950;
 const LOFI_AUTO_SAVE_DEBOUNCE_MS = 2400;
 const LOFI_AUTO_SCAN_INTERVAL_MS = 5 * 60 * 1000;
 const LOFI_AUTO_SCAN_START_DELAY_MS = 3500;
+const LOFI_DAY_MS = 24 * 60 * 60 * 1000;
 let autoSaveTimer = null;
 let lastAutoSaveSignature = "";
 let autoScanTimer = null;
@@ -24,6 +25,69 @@ function cleanLines(value) {
     .split(/\n+/)
     .map(cleanText)
     .filter(Boolean);
+}
+
+function getScanWindowLabel(daysBack) {
+  if (daysBack === 3) return "recent 3 days";
+  if (daysBack === 7) return "recent 1 week";
+  return "recent DMs";
+}
+
+function getDaysSinceDate(date, now = new Date()) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+  let adjustedDate = date;
+  if (adjustedDate.getTime() > now.getTime() + LOFI_DAY_MS) {
+    adjustedDate = new Date(adjustedDate);
+    adjustedDate.setFullYear(adjustedDate.getFullYear() - 1);
+  }
+  return Math.max(0, Math.floor((now.getTime() - adjustedDate.getTime()) / LOFI_DAY_MS));
+}
+
+function parseThreadRowAgeDays(text, now = new Date()) {
+  const source = cleanText(text).toLowerCase();
+  if (!source) return null;
+  if (/\b(now|just now|today|active now)\b|방금|오늘|지금/.test(source)) return 0;
+  if (/\b(yesterday)\b|어제/.test(source)) return 1;
+
+  let match = source.match(/(?:^|\s)(\d{1,3})\s*(?:m|min|mins|minute|minutes)\b/);
+  if (match) return 0;
+  match = source.match(/(?:^|\s)(\d{1,3})\s*(?:h|hr|hrs|hour|hours)\b/);
+  if (match) return 0;
+  match = source.match(/(\d{1,3})\s*분(?:\s|$)/);
+  if (match) return 0;
+  match = source.match(/(\d{1,3})\s*시간(?:\s|$)/);
+  if (match) return 0;
+
+  match = source.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+(\d{1,2})\b/);
+  if (match) {
+    const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+    const month = monthNames.findIndex((name) => match[1].startsWith(name));
+    return getDaysSinceDate(new Date(now.getFullYear(), month, Number(match[2])), now);
+  }
+
+  match = source.match(/(?:^|\s)(\d{1,2})[./-](\d{1,2})(?:\s|$)/);
+  if (match) return getDaysSinceDate(new Date(now.getFullYear(), Number(match[1]) - 1, Number(match[2])), now);
+
+  match = source.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+  if (match) return getDaysSinceDate(new Date(now.getFullYear(), Number(match[1]) - 1, Number(match[2])), now);
+
+  match = source.match(/(?:^|\s)(\d{1,3})\s*(?:d|day|days)\b/);
+  if (match) return Number(match[1]);
+  match = source.match(/(?:^|[^\d월])(\d{1,3})\s*일(?:\s|$)/);
+  if (match) return Number(match[1]);
+
+  match = source.match(/(?:^|\s)(\d{1,2})\s*(?:w|week|weeks)\b/);
+  if (match) return Number(match[1]) * 7;
+  match = source.match(/(?:^|\s)(\d{1,2})\s*주(?:\s|$)/);
+  if (match) return Number(match[1]) * 7;
+
+  return null;
+}
+
+function threadRowMatchesSyncWindow(row, daysBack) {
+  if (!daysBack) return true;
+  const ageDays = parseThreadRowAgeDays(row.text);
+  return ageDays === null || ageDays <= daysBack;
 }
 
 function isVisibleElement(element) {
@@ -48,7 +112,8 @@ function renderImporterPanel() {
     <div id="lofi-importer-status" class="lofi-importer-status">Applied to this Instagram DM tab.</div>
     <div class="lofi-importer-actions">
       <button type="button" data-lofi-action="save-current">Save open DM</button>
-      <button type="button" data-lofi-action="scan-all">Read DMs</button>
+      <button type="button" data-lofi-action="sync-3-days">Sync 3 days</button>
+      <button type="button" data-lofi-action="sync-7-days">Sync 1 week</button>
       <button type="button" data-lofi-action="ai-read">AI read screen</button>
     </div>
   `;
@@ -116,10 +181,11 @@ function renderImporterPanel() {
         setImporterPanelStatus("Saving open DM...");
         const result = await saveCurrentConversationNow();
         setImporterPanelStatus(`Saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}. ${result.messageCount || 0} lines.`);
-      } else if (button.dataset.lofiAction === "scan-all") {
-        setImporterPanelStatus("Reading DM list...");
+      } else if (button.dataset.lofiAction === "sync-3-days" || button.dataset.lofiAction === "sync-7-days") {
+        const daysBack = button.dataset.lofiAction === "sync-3-days" ? 3 : 7;
+        setImporterPanelStatus(`Syncing recent ${daysBack === 3 ? "3 days" : "1 week"}...`);
         const result = await scanInstagramDms(
-          { maxThreads: 10, maxListScrolls: 20, maxMessageScrolls: 30 },
+          { daysBack, maxThreads: daysBack === 3 ? 30 : 60, maxListScrolls: daysBack === 3 ? 40 : 80, maxMessageScrolls: 30 },
           setImporterPanelStatus,
         );
         setImporterPanelStatus(`Saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`);
@@ -320,23 +386,30 @@ function getThreadRows() {
   return uniqueRows;
 }
 
-async function collectLatestThreadRows(maxThreads, maxListScrolls, onProgress) {
+async function collectLatestThreadRows(maxThreads, maxListScrolls, onProgress, daysBack = 0) {
   const scrollTarget = getThreadListScrollTarget();
   const collected = [];
   const seen = new Set();
+  let skippedOlder = 0;
   scrollTarget.scrollTop = 0;
   await sleep(LOFI_SCAN_DELAY_MS);
 
   for (let index = 0; index < maxListScrolls && collected.length < maxThreads; index += 1) {
     const rows = getThreadRows();
-    onProgress?.(`Collecting DM rows: ${collected.length}/${maxThreads}; ${rows.length} visible.`);
+    const windowLabel = getScanWindowLabel(daysBack);
+    onProgress?.(`Collecting ${windowLabel}: ${collected.length}/${maxThreads}; ${rows.length} visible${skippedOlder ? `, ${skippedOlder} older skipped` : ""}.`);
 
     for (const row of rows) {
       if (collected.length >= maxThreads) break;
       const signature = `${row.title}:${row.text.slice(0, 180)}`;
       if (seen.has(signature)) continue;
       seen.add(signature);
-      collected.push({ signature, title: row.title, text: row.text, url: row.url });
+      const ageDays = parseThreadRowAgeDays(row.text);
+      if (!threadRowMatchesSyncWindow(row, daysBack)) {
+        skippedOlder += 1;
+        continue;
+      }
+      collected.push({ signature, title: row.title, text: row.text, url: row.url, ageDays });
     }
 
     if (collected.length >= maxThreads) break;
@@ -783,7 +856,7 @@ async function autoScanInstagramDms() {
     setImporterPanelStatus("Auto-scanning Instagram DMs...");
     chrome.runtime.sendMessage({ type: "LOFI_SCAN_STATUS", status: "Auto-scanning Instagram DMs..." }).catch(() => {});
     const result = await scanInstagramDms(
-      { maxThreads: 10, maxListScrolls: 20, maxMessageScrolls: 30 },
+      { daysBack: 3, maxThreads: 30, maxListScrolls: 40, maxMessageScrolls: 30 },
       (status) => chrome.runtime.sendMessage({ type: "LOFI_SCAN_STATUS", status }).catch(() => {}),
     );
     chrome.runtime.sendMessage({
@@ -821,7 +894,8 @@ function scheduleAutoSave() {
 }
 
 async function scanInstagramDms(options = {}, onProgress) {
-  const maxThreads = Math.min(Math.max(Number(options.maxThreads || 10), 1), 10);
+  const daysBack = [3, 7].includes(Number(options.daysBack)) ? Number(options.daysBack) : 0;
+  const maxThreads = Math.min(Math.max(Number(options.maxThreads || 10), 1), 60);
   const maxListScrolls = Math.min(Math.max(Number(options.maxListScrolls || 30), 1), 80);
   const maxMessageScrolls = Math.min(Math.max(Number(options.maxMessageScrolls || 30), 1), 80);
 
@@ -829,10 +903,11 @@ async function scanInstagramDms(options = {}, onProgress) {
     throw new Error("Open Instagram Direct first: https://www.instagram.com/direct/inbox/");
   }
 
-  onProgress?.("Scanning latest 10 DM conversations...");
-  const threadRows = await collectLatestThreadRows(maxThreads, maxListScrolls, onProgress);
+  const scanWindowLabel = getScanWindowLabel(daysBack);
+  onProgress?.(`Scanning ${scanWindowLabel}...`);
+  const threadRows = await collectLatestThreadRows(maxThreads, maxListScrolls, onProgress, daysBack);
   if (!threadRows.length) {
-    throw new Error("No DM rows found. Make sure you are logged in and the left DM list is visible.");
+    throw new Error(`No ${scanWindowLabel} rows found. Make sure you are logged in and the left DM list is visible.`);
   }
 
   const conversations = [];
@@ -889,7 +964,7 @@ async function scanInstagramDms(options = {}, onProgress) {
     conversations: validConversations,
   });
   if (!result?.ok) throw new Error(result?.message || "Failed to save conversations");
-  return result;
+  return { ...result, syncedDaysBack: daysBack || null };
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
