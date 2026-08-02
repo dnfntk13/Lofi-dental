@@ -43,6 +43,10 @@ function getAiPlanNavigationUrl(serverUrl) {
   return `${baseUrl}/api/instagram-extension/ai-plan-dm-navigation`;
 }
 
+function getLocalAiPlanNavigationUrl() {
+  return "http://localhost:5173/api/local/instagram-extension/ai-plan-dm-navigation";
+}
+
 async function importConversations(conversations) {
   const settings = await getSettings();
   const response = await fetch(getImportUrl(settings.serverUrl), {
@@ -77,7 +81,7 @@ async function aiReadInstagramScreen(snapshot) {
 
 async function aiPlanInstagramDmNavigation(snapshot) {
   const settings = await getSettings();
-  const response = await fetch(getAiPlanNavigationUrl(settings.serverUrl), {
+  const request = {
     method: "POST",
     headers: {
       "Accept": "application/json",
@@ -85,8 +89,20 @@ async function aiPlanInstagramDmNavigation(snapshot) {
       "X-Lofi-Instagram-Importer": settings.importToken,
     },
     body: JSON.stringify({ snapshot }),
-  });
-  const data = await response.json().catch(() => ({}));
+  };
+
+  let response = await fetch(getAiPlanNavigationUrl(settings.serverUrl), request);
+  let data = await response.json().catch(() => ({}));
+
+  const configuredUrl = normalizeServerUrl(settings.serverUrl);
+  const shouldTryLocalFallback = !response.ok
+    && configuredUrl !== "http://localhost:5173"
+    && configuredUrl !== "http://127.0.0.1:5173";
+  if (shouldTryLocalFallback) {
+    response = await fetch(getLocalAiPlanNavigationUrl(), request);
+    data = await response.json().catch(() => ({}));
+  }
+
   if (!response.ok) throw new Error(data.message || "Failed to AI-plan Instagram DM navigation");
   return data;
 }

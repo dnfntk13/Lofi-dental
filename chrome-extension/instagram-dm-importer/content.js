@@ -4,6 +4,7 @@ const LOFI_AUTO_SAVE_DEBOUNCE_MS = 2400;
 const LOFI_AUTO_SCAN_INTERVAL_MS = 5 * 60 * 1000;
 const LOFI_AUTO_SCAN_START_DELAY_MS = 3500;
 const LOFI_DAY_MS = 24 * 60 * 60 * 1000;
+const LOFI_THREAD_LIST_TOP_GUARD_PX = 120;
 let autoSaveTimer = null;
 let lastAutoSaveSignature = "";
 let autoScanTimer = null;
@@ -389,21 +390,27 @@ function getThreadRows() {
         : element.querySelector('a, button, [role="button"], [tabindex]') || element;
       const url = element.href || clickTarget.href || "";
       const lines = cleanLines(element.innerText || element.textContent || "");
-      const title = lines.find((line) => !isChromeText(line) && !/^\d+[분시간일주년]\b/.test(line)) || text.slice(0, 80) || "Instagram DM";
+      const title = lines.find((line) => !isChromeText(line) && !isThreadListMetaText(line) && !/^\d+[분시간일주년]\b/.test(line)) || text.slice(0, 80) || "Instagram DM";
       return { element, clickTarget, rect, text, url, title };
     })
     .filter((item) => isVisibleElement(item.element))
     .filter((item) => item.rect.width >= paneRect.width * 0.55)
     .filter((item) => item.rect.height >= 42 && item.rect.height <= 112)
     .filter((item) => item.rect.left >= paneRect.left - 8 && item.rect.right <= paneRect.right + 8)
-    .filter((item) => item.rect.top >= paneRect.top + 48 && item.rect.bottom <= paneRect.bottom + 8)
+    .filter((item) => item.rect.top >= paneRect.top + LOFI_THREAD_LIST_TOP_GUARD_PX && item.rect.bottom <= paneRect.bottom + 8)
     .filter((item) => item.text.length >= 2 && item.text.length <= 500)
+    .filter((item) => !isThreadListChromeRow(item.text, item.title))
     .filter((item) => !/^(검색|search|notes?|메시지|messages?)$/i.test(item.text))
     .sort((a, b) => a.rect.top - b.rect.top || b.rect.width - a.rect.width);
 
   const uniqueRows = [];
   for (const row of rows) {
-    const overlapsExisting = uniqueRows.some((existing) => Math.abs(existing.rect.top - row.rect.top) < 8 && Math.abs(existing.rect.height - row.rect.height) < 16);
+    const overlapsExisting = uniqueRows.some((existing) => {
+      const samePosition = Math.abs(existing.rect.top - row.rect.top) <= 12;
+      const sameContent = cleanText(existing.title) === cleanText(row.title) || cleanText(existing.text) === cleanText(row.text);
+      const sameShape = Math.abs(existing.rect.height - row.rect.height) < 16;
+      return samePosition && (sameContent || sameShape);
+    });
     if (!overlapsExisting) uniqueRows.push(row);
   }
 
@@ -667,8 +674,20 @@ function extractConversationTitle() {
   return "Instagram DM";
 }
 
+function isThreadListMetaText(line) {
+  return /^(활동 중|active now|online|회원님|you|\s*·\s*|primary|general|requests?|요청|새 소식|내 메모)$/i.test(cleanText(line));
+}
+
+function isThreadListChromeRow(text, title = "") {
+  const lines = cleanLines(text);
+  const normalizedTitle = cleanText(title).toLowerCase();
+  if (/^(primary|general|requests?|요청|새 소식|내 메모)$/.test(normalizedTitle)) return true;
+  if (lines.length && lines.every((line) => isChromeText(line) || isThreadListMetaText(line))) return true;
+  return /^(primary|general|requests?|요청|새 소식|내 메모)(\s|$)/i.test(cleanText(text));
+}
+
 function isChromeText(line) {
-  return /^(instagram|home|search|explore|reels|messages|notifications|create|profile|threads|meta|send message|message|new message|note|search input|your story)$/i.test(line);
+  return /^(instagram|home|search|explore|reels|messages|notifications|create|profile|threads|meta|send message|message|new message|note|notes?|search input|your story|primary|general|requests?|요청|새 소식|내 메모)$/i.test(line);
 }
 
 function extractConversationMessages() {
