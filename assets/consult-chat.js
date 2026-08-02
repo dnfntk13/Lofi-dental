@@ -179,6 +179,29 @@
       background: #f8faff;
     }
 
+    .consult-chat-actions {
+      display: grid;
+      gap: 7px;
+      margin-top: 8px;
+    }
+
+    .consult-chat-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      border: 0;
+      border-radius: 12px;
+      padding: 0 12px;
+      background: #1f2d66;
+      color: #fff;
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 800;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
     .consult-chat-form {
       display: grid;
       gap: 8px;
@@ -382,7 +405,31 @@
 
   saveSession();
 
-  function addMessage(text, type, attachments = []) {
+  function normalizeQuickActions(actions = []) {
+    return (Array.isArray(actions) ? actions : [])
+      .map((action) => String(action || "").trim().toLowerCase())
+      .filter(Boolean)
+      .slice(0, 4);
+  }
+
+  function addQuickActions(message, actions = []) {
+    const quickActions = normalizeQuickActions(actions);
+    if (!quickActions.length) return;
+    const actionsNode = document.createElement("div");
+    actionsNode.className = "consult-chat-actions";
+    quickActions.forEach((action) => {
+      if (action !== "book-appointment") return;
+      const link = document.createElement("a");
+      link.className = "consult-chat-action";
+      link.href = "/reservation/index.html";
+      link.textContent = "Book your appointment";
+      actionsNode.appendChild(link);
+    });
+    if (!actionsNode.children.length) return;
+    message.appendChild(actionsNode);
+  }
+
+  function addMessage(text, type, attachments = [], quickActions = []) {
     const message = document.createElement("div");
     message.className = `consult-chat-message ${type || "system"}`.trim();
     if (text) {
@@ -396,6 +443,7 @@
       image.alt = attachment.name || "Attached photo";
       message.appendChild(image);
     });
+    addQuickActions(message, quickActions);
     log.appendChild(message);
     log.scrollTop = log.scrollHeight;
     return message;
@@ -459,7 +507,7 @@
       }
 
       if (item.type === "admin-reply") {
-        addMessage(item.content || "", "system", item.attachments || []);
+        addMessage(item.content || "", "system", item.attachments || [], item.aiAssist?.quickActions || []);
       }
     });
   }
@@ -622,7 +670,7 @@
       saveSession();
       setMessageStatus(message, "Sent");
       if (data.aiReply?.content) {
-        addMessage(data.aiReply.content, "system");
+        addMessage(data.aiReply.content, "system", [], data.aiReply.aiAssist?.quickActions || []);
       } else if (data.aiConfigured === false) {
         addMessage("Your message was saved for the lofi dental team. AI replies are not configured yet, so staff will follow up after review.", "system");
       }

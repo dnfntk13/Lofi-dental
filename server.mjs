@@ -1605,6 +1605,20 @@ function normalizePublicConsultAiPayload(value) {
   };
 }
 
+function getDeterministicPublicConsultReply(content) {
+  const normalized = String(content || "").trim().toLowerCase();
+  if (normalized === "i just want a regular checkup and cleaning") {
+    return {
+      answer: "Would you like to book an appointment with us?",
+      quickActions: ["book-appointment"],
+      shouldCollectContact: false,
+      needsHumanReview: false,
+      safetyNote: "",
+    };
+  }
+  return null;
+}
+
 async function generatePublicConsultAiReply({ conversation, patientInfo, attachments }) {
   if (!openaiApiKey) {
     const error = new Error("OpenAI API key is not configured");
@@ -1651,7 +1665,7 @@ async function generatePublicConsultAiReply({ conversation, patientInfo, attachm
       messages: [
         {
           role: "system",
-          content: "You are lofi dental's public website AI assistant replacing the old Chat with Dr. Kim widget. Help patients using only the supplied site context and general safe dental-clinic guidance. Provide practical information about the clinic, Dr. Kim, reservation flow, contact options, treatments/pages described in the site context, directions, and what information staff may need. Never diagnose, prescribe, evaluate photos clinically, guarantee treatment suitability/results, or quote exact prices unless the site context explicitly says so. For symptoms, side effects, photos, suitability, or treatment decisions, explain that clinical review or an in-person consultation is needed. Encourage booking or leaving contact details when appropriate. Return only JSON with keys: answer, quickActions, shouldCollectContact, needsHumanReview, safetyNote. Match the visitor's language.",
+          content: "You are lofi dental's public website AI assistant. Be friendly, concise, and goal-directed. Usually answer in 1-3 short sentences, then guide the visitor to the next useful step. Use only the supplied site context and safe general dental-clinic guidance. Never diagnose, prescribe, evaluate photos clinically, guarantee treatment suitability/results, or quote exact prices unless the site context explicitly says so. For symptoms, side effects, photos, suitability, or treatment decisions, say a clinical review or in-person consultation is needed. When booking is the natural next step, include quickActions: [\"book-appointment\"]. Return only JSON with keys: answer, quickActions, shouldCollectContact, needsHumanReview, safetyNote. Match the visitor's language.",
         },
         { role: "user", content: JSON.stringify(prompt) },
       ],
@@ -3611,13 +3625,16 @@ createServer(async (request, response) => {
 
       let aiReply = null;
       try {
-        const existingThread = await getConsultThread({ email: chatEmail });
-        const conversation = existingThread.map((message) => ({
-          role: message.type === "admin-reply" || message.type === "auto-reply" ? "assistant" : "user",
-          at: getMessageTimeForAi(message),
-          content: getMessageTextForAi(message),
-        }));
-        const assist = await generatePublicConsultAiReply({ conversation, patientInfo, attachments });
+        const deterministicReply = getDeterministicPublicConsultReply(content);
+        const assist = deterministicReply || await (async () => {
+          const existingThread = await getConsultThread({ email: chatEmail });
+          const conversation = existingThread.map((message) => ({
+            role: message.type === "admin-reply" || message.type === "auto-reply" ? "assistant" : "user",
+            at: getMessageTimeForAi(message),
+            content: getMessageTextForAi(message),
+          }));
+          return generatePublicConsultAiReply({ conversation, patientInfo, attachments });
+        })();
         if (assist.answer) {
           aiReply = {
             type: "admin-reply",
