@@ -213,13 +213,17 @@
 
       .veneer-options {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: 1fr;
         gap: 12px;
       }
 
       .veneer-option {
         display: grid;
+        align-content: start;
+        grid-auto-rows: max-content;
         gap: 10px;
+        min-width: 0;
+        overflow: visible;
         padding: 16px;
         border: 1px solid rgba(90, 111, 218, 0.14);
         border-radius: 14px;
@@ -246,6 +250,9 @@
         color: var(--ink);
         font-size: 0.9rem;
         line-height: 1.6;
+        overflow: visible;
+        overflow-wrap: anywhere;
+        padding-bottom: 1px;
       }
 
       .veneer-price {
@@ -525,10 +532,9 @@
           grid-row: 1 / span 2;
           font-size: 0.82rem;
           line-height: 1.45;
-          display: -webkit-box;
-          overflow: hidden;
-          -webkit-box-orient: vertical;
-          -webkit-line-clamp: 2;
+          display: block;
+          overflow: visible;
+          -webkit-line-clamp: unset;
         }
 
         .showcase-details .veneer-price {
