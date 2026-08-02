@@ -469,6 +469,7 @@
         display: inline-flex;
         align-items: center;
         gap: 4px;
+        color: var(--ink);
         white-space: nowrap;
       }
 
@@ -600,7 +601,7 @@
         display: inline-grid;
         gap: 2px;
         justify-items: end;
-        color: #4d64d8;
+        color: var(--ink);
         font-weight: 700;
         line-height: 1.35;
       }
@@ -609,6 +610,17 @@
         color: var(--soft);
         font-size: 0.78rem;
         font-weight: 600;
+      }
+
+      .price-guide-subheading .price-amount,
+      .price-guide-row .price-amount,
+      .price-amount > span:first-child {
+        color: var(--ink);
+      }
+
+      .price-guide-subheading .price-amount .price-usd,
+      .price-guide-row .price-amount .price-usd {
+        color: var(--soft);
       }
 
       .price-guide-row:last-child {
