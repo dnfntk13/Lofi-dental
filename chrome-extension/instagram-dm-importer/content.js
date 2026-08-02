@@ -1,5 +1,5 @@
 const LOFI_SCAN_DELAY_MS = 650;
-const LOFI_MESSAGE_SCROLL_DELAY_MS = 950;
+const LOFI_MESSAGE_SCROLL_DELAY_MS = 260;
 const LOFI_AUTO_SAVE_DEBOUNCE_MS = 2400;
 const LOFI_AUTO_SCAN_INTERVAL_MS = 5 * 60 * 1000;
 const LOFI_AUTO_SCAN_START_DELAY_MS = 3500;
@@ -327,6 +327,11 @@ function getConversationScrollSignature(targets = getConversationScrollTargets()
   return targets.map((element) => `${Math.round(element.scrollTop)}:${element.scrollHeight}:${element.clientHeight}`).join("|");
 }
 
+function getConversationScrollStep(targets = getConversationScrollTargets()) {
+  const height = targets[0]?.clientHeight || window.innerHeight || 700;
+  return Math.max(360, Math.min(900, height * 0.85));
+}
+
 function conversationTargetsAtTop(targets = getConversationScrollTargets()) {
   return targets.every((element) => element.scrollTop <= 1);
 }
@@ -636,7 +641,7 @@ async function extractConversationMessagesByScrolling(maxMessageScrolls, onProgr
   await sleep(LOFI_MESSAGE_SCROLL_DELAY_MS);
   for (let index = 0; index < maxMessageScrolls; index += 1) {
     const targets = getConversationScrollTargets();
-    const step = Math.max(120, Math.min(260, (targets[0]?.clientHeight || window.innerHeight) * 0.35));
+    const step = getConversationScrollStep(targets);
     const moved = await scrollConversationLikeUser(-step);
     if (!moved || conversationTargetsAtTop(targets)) break;
   }
@@ -647,7 +652,7 @@ async function extractConversationMessagesByScrolling(maxMessageScrolls, onProgr
     const targets = getConversationScrollTargets();
     if (conversationTargetsAtBottom(targets)) break;
     const beforeSignature = getConversationScrollSignature(targets);
-    const step = Math.max(120, Math.min(260, (targets[0]?.clientHeight || window.innerHeight) * 0.35));
+    const step = getConversationScrollStep(targets);
     await scrollConversationLikeUser(step);
     if (getConversationScrollSignature(targets) === beforeSignature) break;
   }
