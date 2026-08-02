@@ -452,7 +452,30 @@
     message.appendChild(actionsNode);
   }
 
-  function addMessage(text, type, attachments = [], quickActions = []) {
+  function normalizeSuggestedQuestions(questions = []) {
+    return (Array.isArray(questions) ? questions : [])
+      .map((question) => String(question || "").trim())
+      .filter(Boolean)
+      .slice(0, 4);
+  }
+
+  function addSuggestedQuestions(message, questions = []) {
+    const suggestedQuestions = normalizeSuggestedQuestions(questions);
+    if (!suggestedQuestions.length) return;
+    const options = document.createElement("div");
+    options.className = "consult-chat-options";
+    suggestedQuestions.forEach((question) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "consult-chat-option";
+      button.textContent = question;
+      button.addEventListener("click", () => submitConsultMessage(question));
+      options.appendChild(button);
+    });
+    message.appendChild(options);
+  }
+
+  function addMessage(text, type, attachments = [], quickActions = [], suggestedQuestions = []) {
     const message = document.createElement("div");
     message.className = `consult-chat-message ${type || "system"}`.trim();
     if (text) {
@@ -466,6 +489,7 @@
       image.alt = attachment.name || "Attached photo";
       message.appendChild(image);
     });
+    addSuggestedQuestions(message, suggestedQuestions);
     addQuickActions(message, quickActions);
     log.appendChild(message);
     log.scrollTop = log.scrollHeight;
@@ -530,7 +554,7 @@
       }
 
       if (item.type === "admin-reply") {
-        addMessage(item.content || "", "system", item.attachments || [], item.aiAssist?.quickActions || []);
+        addMessage(item.content || "", "system", item.attachments || [], item.aiAssist?.quickActions || [], item.aiAssist?.suggestedQuestions || []);
       }
     });
   }
@@ -709,7 +733,7 @@
       saveSession();
       setMessageStatus(message, "Sent");
       if (data.aiReply?.content) {
-        addMessage(data.aiReply.content, "system", [], data.aiReply.aiAssist?.quickActions || []);
+        addMessage(data.aiReply.content, "system", [], data.aiReply.aiAssist?.quickActions || [], data.aiReply.aiAssist?.suggestedQuestions || []);
       } else if (data.aiConfigured === false) {
         addMessage("Your message was saved for the lofi esthetic dentistry team. AI replies are not configured yet, so staff will follow up after review.", "system");
       }

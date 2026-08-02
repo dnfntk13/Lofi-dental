@@ -1596,13 +1596,51 @@ function pickPublicSiteKnowledge(knowledge, conversation) {
 }
 
 function normalizePublicConsultAiPayload(value) {
+  const quickActions = Array.isArray(value?.quickActions) ? value.quickActions.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 5) : [];
   return {
     answer: String(value?.answer || "").trim().slice(0, 1800),
-    quickActions: Array.isArray(value?.quickActions) ? value.quickActions.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 5) : [],
+    quickActions: quickActions.includes("book-appointment") ? quickActions : [...quickActions, "book-appointment"].slice(0, 5),
+    suggestedQuestions: Array.isArray(value?.suggestedQuestions) ? value.suggestedQuestions.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 4) : [],
     shouldCollectContact: value?.shouldCollectContact !== false,
     needsHumanReview: value?.needsHumanReview !== false,
     safetyNote: String(value?.safetyNote || "").trim().slice(0, 300),
   };
+}
+
+function getPublicConsultSuggestedQuestions(conversation) {
+  const latest = [...(Array.isArray(conversation) ? conversation : [])].reverse().find((message) => message?.role !== "assistant")?.content || "";
+  const normalized = String(latest).toLowerCase();
+  const isKorean = /[가-힣]/.test(String(latest));
+
+  if (/suresmile|clear aligner|aligner|braces|교정|투명/.test(normalized)) {
+    return isKorean
+      ? ["비용은 얼마인가요?", "분납이 가능한가요?", "기간은 얼마나 걸리나요?"]
+      : ["How much is it?", "Can I pay in installments?", "How long will it take?"];
+  }
+
+  if (/veneer|lofi veneer|라미네이트|베니어/.test(normalized)) {
+    return isKorean
+      ? ["비용은 얼마인가요?", "어떤 베니어가 저에게 맞을까요?", "방문은 몇 번 필요한가요?"]
+      : ["How much are veneers?", "Which veneer option is right for me?", "How many visits will it take?"];
+  }
+
+  if (/checkup|cleaning|검진|스케일링|clean/.test(normalized)) {
+    return isKorean
+      ? ["검진 비용은 얼마인가요?", "이번 주 예약 가능한가요?", "스케일링 예약할 수 있나요?"]
+      : ["How much is a checkup?", "Do you have availability this week?", "Can I book a cleaning?"];
+  }
+
+  return isKorean
+    ? ["비용은 얼마인가요?", "기간은 얼마나 걸리나요?", "예약하려면 어떻게 하면 되나요?"]
+    : ["How much is it?", "How long will it take?", "How do I book an appointment?"];
+}
+
+function completePublicConsultAiPayload(assist, conversation) {
+  const normalized = normalizePublicConsultAiPayload(assist || {});
+  if (!normalized.suggestedQuestions.length) {
+    normalized.suggestedQuestions = getPublicConsultSuggestedQuestions(conversation);
+  }
+  return normalized;
 }
 
 function getDeterministicPublicConsultReply(content) {
@@ -1611,6 +1649,27 @@ function getDeterministicPublicConsultReply(content) {
     return {
       answer: "Would you like to book an appointment with us?",
       quickActions: ["book-appointment"],
+      suggestedQuestions: ["How much is a checkup?", "Do you have availability this week?", "Can I book a cleaning?"],
+      shouldCollectContact: false,
+      needsHumanReview: false,
+      safetyNote: "",
+    };
+  }
+  if (normalized === "i want a consultation for suresmile clear aligners/braces") {
+    return {
+      answer: "SureSmile consultations are best planned after Dr. Kim checks your bite, teeth position, and timeline. What would you like to know first?",
+      quickActions: ["book-appointment"],
+      suggestedQuestions: ["How much is it?", "Can I pay in installments?", "How long will it take?"],
+      shouldCollectContact: false,
+      needsHumanReview: false,
+      safetyNote: "",
+    };
+  }
+  if (normalized === "i want a consultation for veneers") {
+    return {
+      answer: "A veneer consultation can compare Economic, Standard, and Premium options based on your smile goals and tooth condition. What would you like to ask first?",
+      quickActions: ["book-appointment"],
+      suggestedQuestions: ["How much are veneers?", "Which veneer option is right for me?", "How many visits will it take?"],
       shouldCollectContact: false,
       needsHumanReview: false,
       safetyNote: "",
@@ -1665,7 +1724,7 @@ async function generatePublicConsultAiReply({ conversation, patientInfo, attachm
       messages: [
         {
           role: "system",
-          content: "You are lofi AI, lofi esthetic dentistry's public website assistant. Be friendly, concise, and goal-directed. For every visitor message, respond in this flow: answer briefly, ask one context-appropriate follow-up question, and move the conversation toward booking an appointment when relevant. Usually keep the answer to 1-3 short sentences total. Use only the supplied site context and safe general dental-clinic guidance. Never diagnose, prescribe, evaluate photos clinically, guarantee treatment suitability/results, or quote exact prices unless the site context explicitly says so. For symptoms, side effects, photos, suitability, or treatment decisions, say a clinical review or in-person consultation is needed, then ask a useful follow-up question such as their main concern, preferred treatment, timing, or whether they would like to book a consultation. Do not end with a generic \"let me know\". The final goal is to guide the visitor to reserve a visit. When the visitor shows appointment intent or booking is the natural next step, include quickActions: [\"book-appointment\"]. Return only JSON with keys: answer, quickActions, shouldCollectContact, needsHumanReview, safetyNote. Match the visitor's language.",
+          content: "You are lofi AI, lofi esthetic dentistry's public website assistant. Be friendly, concise, and goal-directed. For every visitor message, respond in this flow: answer briefly, ask one context-appropriate follow-up question, and move the conversation toward booking an appointment. Usually keep the answer to 1-3 short sentences total. Use only the supplied site context and safe general dental-clinic guidance. Never diagnose, prescribe, evaluate photos clinically, guarantee treatment suitability/results, or quote exact prices unless the site context explicitly says so. For symptoms, side effects, photos, suitability, or treatment decisions, say a clinical review or in-person consultation is needed, then ask a useful follow-up question such as their main concern, preferred treatment, timing, or whether they would like to book a consultation. Do not end with a generic \"let me know\". Always include quickActions: [\"book-appointment\"] and 2-4 suggestedQuestions that the visitor can click as their next reply. Make suggestedQuestions specific to the visitor's topic, such as price, payment installments, treatment duration, options, or availability. Return only JSON with keys: answer, quickActions, suggestedQuestions, shouldCollectContact, needsHumanReview, safetyNote. Match the visitor's language.",
         },
         { role: "user", content: JSON.stringify(prompt) },
       ],
@@ -1682,7 +1741,7 @@ async function generatePublicConsultAiReply({ conversation, patientInfo, attachm
   const content = data?.choices?.[0]?.message?.content || "{}";
   let parsed = {};
   try { parsed = JSON.parse(content); } catch { parsed = {}; }
-  return normalizePublicConsultAiPayload(parsed);
+  return completePublicConsultAiPayload(parsed, compactConversation);
 }
 
 async function markEmailThreadMessagesRead(email, channel = "web") {
@@ -3626,7 +3685,7 @@ createServer(async (request, response) => {
       let aiReply = null;
       try {
         const deterministicReply = getDeterministicPublicConsultReply(content);
-        const assist = deterministicReply || await (async () => {
+        const assist = completePublicConsultAiPayload(deterministicReply || await (async () => {
           const existingThread = await getConsultThread({ email: chatEmail });
           const conversation = existingThread.map((message) => ({
             role: message.type === "admin-reply" || message.type === "auto-reply" ? "assistant" : "user",
@@ -3634,7 +3693,7 @@ createServer(async (request, response) => {
             content: getMessageTextForAi(message),
           }));
           return generatePublicConsultAiReply({ conversation, patientInfo, attachments });
-        })();
+        })(), [{ role: "user", content }]);
         if (assist.answer) {
           aiReply = {
             type: "admin-reply",
@@ -3644,6 +3703,7 @@ createServer(async (request, response) => {
             channel: "web",
             aiAssist: {
               quickActions: assist.quickActions,
+              suggestedQuestions: assist.suggestedQuestions,
               shouldCollectContact: assist.shouldCollectContact,
               needsHumanReview: assist.needsHumanReview,
               safetyNote: assist.safetyNote,
