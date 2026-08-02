@@ -1372,6 +1372,36 @@ function normalizeInstagramDmCheckPayload(value) {
   };
 }
 
+function normalizeInstagramScreenReadPayload(value) {
+  const conversations = Array.isArray(value?.conversations) ? value.conversations : [];
+  return {
+    summary: String(value?.summary || "").trim().slice(0, 1200),
+    conversations: conversations.map((conversation, index) => {
+      const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
+      const normalizedMessages = messages.map((message) => {
+        if (typeof message === "string") return { text: message.trim().slice(0, 1800) };
+        return {
+          author: String(message?.author || "").trim().slice(0, 120),
+          text: String(message?.text || "").trim().slice(0, 1800),
+        };
+      }).filter((message) => message.text).slice(-80);
+      const text = String(conversation?.text || normalizedMessages.map((message) => [message.author, message.text].filter(Boolean).join(": ")).join("\n")).trim().slice(0, 12000);
+      const title = String(conversation?.title || conversation?.sender || `Instagram AI read ${index + 1}`).trim().slice(0, 160);
+      return {
+        senderId: String(conversation?.senderId || conversation?.threadId || title || `ai-read-${index + 1}`).trim().slice(0, 160),
+        threadId: String(conversation?.threadId || "").trim().slice(0, 160),
+        title,
+        url: String(conversation?.url || "").trim().slice(0, 500),
+        capturedAt: String(conversation?.capturedAt || "").trim().slice(0, 80),
+        messages: normalizedMessages.length ? normalizedMessages : text ? [{ text }] : [],
+        text,
+        reservationInfo: normalizeInstagramReservationInfo(conversation?.reservationInfo),
+      };
+    }).filter((conversation) => conversation.senderId && conversation.text.length >= 12).slice(0, 12),
+    check: normalizeInstagramDmCheckPayload(value?.check || value),
+  };
+}
+
 function getLatestThreadMessage(thread) {
   const messages = Array.isArray(thread?.messages) ? thread.messages : [];
   return messages[messages.length - 1] || null;
@@ -1580,6 +1610,99 @@ async function generateInstagramDmCheck() {
   let parsed = {};
   try { parsed = JSON.parse(content); } catch { parsed = {}; }
   return normalizeInstagramDmCheckPayload(parsed);
+}
+
+async function generateInstagramScreenRead(snapshot) {
+  if (!openaiApiKey) {
+    const error = new Error("OpenAI API key is not configured");
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const page = snapshot && typeof snapshot === "object" ? snapshot : {};
+  const prompt = {
+    url: String(page.url || "").slice(0, 500),
+    capturedAt: String(page.capturedAt || "").slice(0, 80),
+    title: String(page.title || "").slice(0, 180),
+    currentConversation: page.currentConversation || null,
+    visibleRows: Array.isArray(page.visibleRows) ? page.visibleRows.slice(0, 30) : [],
+    visibleBlocks: Array.isArray(page.visibleBlocks) ? page.visibleBlocks.slice(0, 80) : [],
+    rawText: String(page.rawText || "").slice(0, 18000),
+  };
+
+  if (!prompt.rawText && !prompt.currentConversation && !prompt.visibleRows.length && !prompt.visibleBlocks.length) {
+    const error = new Error("No Instagram screen text to read");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${openaiApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: openaiModel,
+      temperature: 0.15,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: "You are an Instagram Direct screen reader for lofi esthetic dentistry. The Chrome extension sends raw visible Instagram Direct text and DOM snippets because CSS selectors may fail. Extract only real patient DM conversations visible in the snapshot. Ignore Instagram navigation, search, reels, buttons, importer UI, and duplicate repeated chrome text. Return only JSON with keys: summary, conversations, check. conversations must be an array of objects with keys: senderId, threadId, title, url, capturedAt, messages, text, reservationInfo. messages should preserve conversation order when possible and each item may have author and text. reservationInfo keys: isReservationRelated, name, phone, date, time, concerns. check must have keys: summary, threads; each thread has sender, target, latestNeed, urgency, missingInfo, shouldReply, suggestedReply, needsHumanReview. If the snapshot only shows the DM list, extract latest visible thread previews as conversations with best-effort title/text. If one open conversation is visible, prioritize that full conversation. Never invent messages. Never diagnose or promise treatment outcomes; clinical suitability/photos/medical judgment require human review.",
+        },
+        { role: "user", content: JSON.stringify(prompt) },
+      ],
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data?.error?.message || "OpenAI request failed");
+    error.statusCode = response.status;
+    throw error;
+  }
+
+  const content = data?.choices?.[0]?.message?.content || "{}";
+  let parsed = {};
+  try { parsed = JSON.parse(content); } catch { parsed = {}; }
+  return normalizeInstagramScreenReadPayload(parsed);
+}
+
+async function importInstagramAiScreenRead(request, response) {
+  try {
+    const payload = await getJsonBody(request);
+    const dryRun = Boolean(payload.dryRun);
+    const read = await generateInstagramScreenRead(payload.snapshot || payload);
+    let savedCount = 0;
+    let skippedCount = 0;
+
+    for (const conversation of read.conversations) {
+      const content = [
+        "AI-read from Instagram Direct screen.",
+        conversation.title ? `Conversation: ${conversation.title}` : "",
+        conversation.url ? `URL: ${conversation.url}` : "",
+        conversation.text,
+      ].filter(Boolean).join("\n\n").trim().slice(0, 20000);
+      if (!content || await instagramDmContentExists(conversation.senderId, content)) {
+        skippedCount += 1;
+        continue;
+      }
+      if (dryRun) continue;
+      const saved = await saveInstagramDmMessage(conversation.senderId, content, conversation.capturedAt || new Date().toISOString(), conversation.reservationInfo);
+      if (saved) savedCount += 1;
+      else skippedCount += 1;
+    }
+
+    response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    response.end(JSON.stringify({ ok: true, dryRun, savedCount, skippedCount, read, model: openaiModel }));
+  } catch (error) {
+    console.error("Failed to AI-read Instagram screen", error);
+    const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+    const statusCode = isPayloadError ? 400 : Number(error?.statusCode || 500);
+    response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : error instanceof Error ? error.message : "Failed to AI-read Instagram screen" }));
+  }
 }
 
 function stripHtmlForAi(value) {
@@ -4138,6 +4261,34 @@ createServer(async (request, response) => {
       });
       response.end(JSON.stringify({ message: error instanceof Error ? error.message : "Failed to check Instagram DMs" }));
     }
+    return;
+  }
+
+  if (pathname === "/api/local/instagram-extension/ai-read-screen" && request.method === "POST") {
+    if (!isLocalImporterHost(requestHost)) {
+      response.writeHead(403, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Instagram AI screen read is available only on the local admin computer." }));
+      return;
+    }
+
+    if (!isValidInstagramExtensionImporter(request)) {
+      response.writeHead(403, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Invalid Instagram extension importer header" }));
+      return;
+    }
+
+    await importInstagramAiScreenRead(request, response);
+    return;
+  }
+
+  if (pathname === "/api/instagram-extension/ai-read-screen" && request.method === "POST") {
+    if (!isValidInstagramExtensionImporter(request)) {
+      response.writeHead(403, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Invalid Instagram extension importer token" }));
+      return;
+    }
+
+    await importInstagramAiScreenRead(request, response);
     return;
   }
 

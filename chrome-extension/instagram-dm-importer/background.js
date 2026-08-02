@@ -27,6 +27,14 @@ function getImportUrl(serverUrl) {
   return `${baseUrl}/api/instagram-extension/import`;
 }
 
+function getAiReadUrl(serverUrl) {
+  const baseUrl = normalizeServerUrl(serverUrl);
+  if (baseUrl === "http://localhost:5173" || baseUrl === "http://127.0.0.1:5173") {
+    return `${baseUrl}/api/local/instagram-extension/ai-read-screen`;
+  }
+  return `${baseUrl}/api/instagram-extension/ai-read-screen`;
+}
+
 async function importConversations(conversations) {
   const settings = await getSettings();
   const response = await fetch(getImportUrl(settings.serverUrl), {
@@ -40,6 +48,22 @@ async function importConversations(conversations) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.message || "Failed to save Instagram conversations");
+  return data;
+}
+
+async function aiReadInstagramScreen(snapshot) {
+  const settings = await getSettings();
+  const response = await fetch(getAiReadUrl(settings.serverUrl), {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "X-Lofi-Instagram-Importer": settings.importToken,
+    },
+    body: JSON.stringify({ snapshot }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || "Failed to AI-read Instagram screen");
   return data;
 }
 
@@ -78,6 +102,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     importConversations([conversation])
       .then((data) => sendResponse({ ok: true, ...data }))
       .catch((error) => sendResponse({ ok: false, message: error.message || "Server save test failed" }));
+    return true;
+  }
+
+  if (message?.type === "LOFI_AI_READ_INSTAGRAM_SCREEN") {
+    aiReadInstagramScreen(message.snapshot || {})
+      .then((data) => sendResponse({ ok: true, ...data }))
+      .catch((error) => sendResponse({ ok: false, message: error.message || "AI screen read failed" }));
     return true;
   }
 

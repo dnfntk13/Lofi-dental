@@ -3,6 +3,7 @@ const openInstagramButton = document.getElementById("openInstagram");
 const scanButton = document.getElementById("scanDms");
 const testServerButton = document.getElementById("testServer");
 const saveCurrentDmButton = document.getElementById("saveCurrentDm");
+const aiReadScreenButton = document.getElementById("aiReadScreen");
 const serverUrlInput = document.getElementById("serverUrl");
 const importTokenInput = document.getElementById("importToken");
 const autoSaveInput = document.getElementById("autoSave");
@@ -71,6 +72,15 @@ async function sendCurrentDmSaveMessage(tabId) {
   } catch {
     await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
     return chrome.tabs.sendMessage(tabId, { type: "LOFI_SAVE_CURRENT_INSTAGRAM_DM" });
+  }
+}
+
+async function sendAiReadScreenMessage(tabId) {
+  try {
+    return await chrome.tabs.sendMessage(tabId, { type: "LOFI_AI_READ_VISIBLE_INSTAGRAM_SCREEN" });
+  } catch {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
+    return chrome.tabs.sendMessage(tabId, { type: "LOFI_AI_READ_VISIBLE_INSTAGRAM_SCREEN" });
   }
 }
 
@@ -153,6 +163,24 @@ saveCurrentDmButton.addEventListener("click", async () => {
     setStatus(error.message || "Current DM save failed.");
   } finally {
     saveCurrentDmButton.disabled = false;
+  }
+});
+
+aiReadScreenButton.addEventListener("click", async () => {
+  aiReadScreenButton.disabled = true;
+  setStatus("AI is reading the visible Instagram DM screen...");
+  try {
+    await saveSettings();
+    const tab = await getInstagramTab();
+    const result = await sendAiReadScreenMessage(tab.id);
+    if (!result?.ok) throw new Error(result?.message || "AI screen read failed");
+    const readCount = result.read?.conversations?.length || 0;
+    const summary = result.read?.summary ? ` ${result.read.summary}` : "";
+    setStatus(`AI read ${readCount} conversation${readCount === 1 ? "" : "s"}; saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.${summary}`);
+  } catch (error) {
+    setStatus(error.message || "AI screen read failed.");
+  } finally {
+    aiReadScreenButton.disabled = false;
   }
 });
 

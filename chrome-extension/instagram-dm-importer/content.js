@@ -49,6 +49,7 @@ function renderImporterPanel() {
     <div class="lofi-importer-actions">
       <button type="button" data-lofi-action="save-current">Save open DM</button>
       <button type="button" data-lofi-action="scan-all">Read DMs</button>
+      <button type="button" data-lofi-action="ai-read">AI read screen</button>
     </div>
   `;
 
@@ -83,7 +84,7 @@ function renderImporterPanel() {
     }
     #lofi-importer-panel .lofi-importer-actions {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 7px;
       margin-top: 9px;
     }
@@ -115,13 +116,17 @@ function renderImporterPanel() {
         setImporterPanelStatus("Saving open DM...");
         const result = await saveCurrentConversationNow();
         setImporterPanelStatus(`Saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}. ${result.messageCount || 0} lines.`);
-      } else {
+      } else if (button.dataset.lofiAction === "scan-all") {
         setImporterPanelStatus("Reading DM list...");
         const result = await scanInstagramDms(
           { maxThreads: 10, maxListScrolls: 20, maxMessageScrolls: 30 },
           setImporterPanelStatus,
         );
         setImporterPanelStatus(`Saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`);
+      } else {
+        setImporterPanelStatus("AI is reading the visible DM screen...");
+        const result = await aiReadVisibleInstagramScreen();
+        setImporterPanelStatus(`AI read ${result.read?.conversations?.length || 0}; saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`);
       }
     } catch (error) {
       setImporterPanelStatus(error.message || "Importer failed.");
@@ -641,6 +646,73 @@ function collectCurrentConversation() {
   };
 }
 
+function collectVisibleTextBlocks() {
+  const blocks = [];
+  const seen = new Set();
+  const selectors = "main, section, header, article, div, span, a, button, h1, h2, h3, p";
+  for (const element of Array.from(document.querySelectorAll(selectors))) {
+    if (element.closest("#lofi-importer-panel")) continue;
+    if (!isVisibleElement(element)) continue;
+    const text = cleanText(element.innerText || element.textContent || "");
+    if (text.length < 2 || text.length > 900) continue;
+    if (isChromeText(text)) continue;
+    const rect = element.getBoundingClientRect();
+    const signature = `${Math.round(rect.left)}:${Math.round(rect.top)}:${text}`;
+    if (seen.has(signature)) continue;
+    seen.add(signature);
+    blocks.push({
+      text,
+      role: element.getAttribute("role") || "",
+      tag: element.tagName.toLowerCase(),
+      x: Math.round(rect.left),
+      y: Math.round(rect.top),
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+    });
+    if (blocks.length >= 120) break;
+  }
+  return blocks;
+}
+
+function collectInstagramScreenSnapshot() {
+  if (!location.hostname.endsWith("instagram.com") || !location.pathname.startsWith("/direct")) {
+    throw new Error("Open Instagram Direct first: https://www.instagram.com/direct/inbox/");
+  }
+
+  const rawLines = cleanLines(document.body.innerText || "")
+    .filter((line) => !isChromeText(line))
+    .slice(-420);
+
+  return {
+    url: location.href,
+    title: document.title || extractConversationTitle() || "Instagram Direct",
+    capturedAt: new Date().toISOString(),
+    viewport: { width: window.innerWidth, height: window.innerHeight },
+    currentConversation: collectCurrentConversation(),
+    visibleRows: getThreadRows().slice(0, 20).map((row) => ({
+      title: row.title,
+      text: row.text,
+      url: row.url,
+      x: Math.round(row.rect.left),
+      y: Math.round(row.rect.top),
+      width: Math.round(row.rect.width),
+      height: Math.round(row.rect.height),
+    })),
+    visibleBlocks: collectVisibleTextBlocks(),
+    rawText: rawLines.join("\n").slice(0, 24000),
+  };
+}
+
+async function aiReadVisibleInstagramScreen() {
+  const snapshot = collectInstagramScreenSnapshot();
+  const result = await chrome.runtime.sendMessage({
+    type: "LOFI_AI_READ_INSTAGRAM_SCREEN",
+    snapshot,
+  });
+  if (!result?.ok) throw new Error(result?.message || "AI screen read failed");
+  return result;
+}
+
 async function getImporterSettings() {
   const result = await chrome.runtime.sendMessage({ type: "LOFI_GET_IMPORTER_SETTINGS" });
   return result?.ok ? result.settings : { autoSave: false };
@@ -831,6 +903,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     saveCurrentConversationNow()
       .then((result) => sendResponse({ ok: true, ...result }))
       .catch((error) => sendResponse({ ok: false, message: error.message || "Failed to save current Instagram DM" }));
+
+    return true;
+  }
+
+  if (message?.type === "LOFI_AI_READ_VISIBLE_INSTAGRAM_SCREEN") {
+    aiReadVisibleInstagramScreen()
+      .then((result) => sendResponse({ ok: true, ...result }))
+      .catch((error) => sendResponse({ ok: false, message: error.message || "AI screen read failed" }));
 
     return true;
   }

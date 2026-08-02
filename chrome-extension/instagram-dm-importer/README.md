@@ -22,7 +22,8 @@ This Chrome Extension scans Instagram Direct in the browser and sends the extrac
 9. Keep the Instagram Direct tab open and visible. Auto-scan starts shortly after the importer loads and repeats while the tab is visible.
 10. Click `Test server save` to verify the server URL and import token.
 11. Open one DM thread and click `Save open DM now` in the popup or `Save open DM` in the Instagram tab panel to verify Instagram page reading.
-12. Click `Read each DM & save` in the popup or `Read DMs` in the Instagram tab panel any time to scan the latest 10 DM conversations manually.
+12. Click `AI read visible screen` if the normal scanner misses a DM. This sends the visible Instagram Direct text/DOM snapshot to the server AI so it can extract and save the conversation more flexibly.
+13. Click `Read each DM & save` in the popup or `Read DMs` in the Instagram tab panel any time to scan the latest 10 DM conversations manually.
 
 The server saves imported conversations into Patients through the existing Instagram DM storage path.
 
@@ -32,6 +33,7 @@ The server saves imported conversations into Patients through the existing Insta
 - Local testing uses `/api/local/instagram-extension/import`.
 - The extension reads the Instagram page that is already open in Chrome; it does not ask for or store Instagram passwords.
 - Manual scan and auto-scan first collect a stable snapshot of the latest 10 visible DM rows, then open them one by one, slowly scroll the right-side conversation candidates from top to bottom, and save readable conversations.
+- `AI read visible screen` is the fallback for Instagram UI changes: it does not put the OpenAI key in the extension. The extension sends page text to the lofi server, and the server-side AI extracts DM conversations.
 - Auto-save is near-live only while an Instagram Direct thread is open in Chrome.
 - Auto-scan runs only while the Instagram Direct tab is open and visible because it needs the page content rendered in the browser.
 - Instagram changes its page markup often, so the scanner may need adjustment if the UI changes.
