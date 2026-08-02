@@ -153,6 +153,32 @@
       text-align: right;
     }
 
+    .consult-chat-options {
+      display: grid;
+      gap: 7px;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .consult-chat-option {
+      width: 100%;
+      border: 1px solid rgba(90, 111, 218, 0.2);
+      border-radius: 12px;
+      padding: 9px 10px;
+      background: #fff;
+      color: #1f2d66;
+      font: inherit;
+      font-size: 0.9rem;
+      line-height: 1.35;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .consult-chat-option:hover {
+      border-color: rgba(90, 111, 218, 0.38);
+      background: #f8faff;
+    }
+
     .consult-chat-form {
       display: grid;
       gap: 8px;
@@ -342,6 +368,12 @@
   const fileInput = panel.querySelector(".consult-chat-file");
   const attachmentLabel = panel.querySelector(".consult-chat-attachment");
   const emojis = ["😀", "😊", "🙏", "❤️", "👍", "✨", "🥹", "😄", "😬", "🦷", "📷", "✅", "🙌", "🤍", "😌", "🤝"];
+  const starterOptions = [
+    "I just want regular checkup/cleaning",
+    "I want consultation for SureSmile clear aligners/braces",
+    "I want consultation for veneers",
+    "Or just ask us about anything",
+  ];
   let pendingAttachment = null;
 
   function saveSession() {
@@ -369,6 +401,24 @@
     return message;
   }
 
+  function addStarterOptions() {
+    const message = addMessage("How can help you?", "system");
+    const options = document.createElement("div");
+    options.className = "consult-chat-options";
+    starterOptions.forEach((option, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "consult-chat-option";
+      button.textContent = `${index + 1}) ${option}`;
+      button.addEventListener("click", () => {
+        submitConsultMessage(option);
+      });
+      options.appendChild(button);
+    });
+    message.appendChild(options);
+    log.scrollTop = log.scrollHeight;
+  }
+
   function setMessageStatus(message, status) {
     let statusNode = message.querySelector(".consult-chat-status");
     if (!statusNode) {
@@ -392,6 +442,10 @@
     if (signature === lastThreadSignature) return;
     lastThreadSignature = signature;
     log.innerHTML = "";
+    if (!thread.length) {
+      addStarterOptions();
+      return;
+    }
     thread.forEach((item) => {
       if (item.type === "customer-reply") {
         const message = addMessage(item.content || "", "user", item.attachments || []);
@@ -436,6 +490,7 @@
     isOpen = true;
     panel.classList.add("open");
     launch.setAttribute("aria-expanded", "true");
+    if (!log.children.length) addStarterOptions();
     input.focus();
   }
 
@@ -529,9 +584,8 @@
     });
   }
 
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const content = input.value.trim();
+  async function submitConsultMessage(messageText = "") {
+    const content = String(messageText || input.value).trim();
     const attachments = pendingAttachment ? [pendingAttachment] : [];
     if (!content && !attachments.length) return;
 
@@ -573,6 +627,11 @@
       sendButton.disabled = false;
       input.focus();
     }
+  }
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    submitConsultMessage();
   });
 
   restoreChat();
