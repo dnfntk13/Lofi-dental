@@ -112,8 +112,8 @@ function renderImporterPanel() {
     <div id="lofi-importer-status" class="lofi-importer-status">Applied to this Instagram DM tab.</div>
     <div class="lofi-importer-actions">
       <button type="button" data-lofi-action="save-current">Save open DM</button>
-      <button type="button" data-lofi-action="sync-3-days">Sync 3 days</button>
-      <button type="button" data-lofi-action="sync-7-days">Sync 1 week</button>
+      <button type="button" data-lofi-action="sync-3-days">3일치 스캔</button>
+      <button type="button" data-lofi-action="sync-7-days">일주일치 스캔</button>
       <button type="button" data-lofi-action="ai-read">AI read screen</button>
     </div>
   `;

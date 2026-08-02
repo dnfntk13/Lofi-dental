@@ -23,7 +23,7 @@ This Chrome Extension scans Instagram Direct in the browser and sends the extrac
 10. Click `Test server save` to verify the server URL and import token.
 11. Open one DM thread and click `Save open DM now` in the popup or `Save open DM` in the Instagram tab panel to verify full-thread Instagram page reading.
 12. Click `AI read visible screen` if the normal scanner misses a DM. This sends the visible Instagram Direct text/DOM snapshot to the server AI so it can extract and save the conversation more flexibly.
-13. Click `Sync recent 3 days` or `Sync recent 1 week` in the popup, or `Sync 3 days` / `Sync 1 week` in the Instagram tab panel, to save recent DM conversations manually.
+13. Click `3일치 스캔` or `일주일치 스캔` in the popup or Instagram tab panel to save recent DM conversations manually.
 
 The server saves imported conversations into Patients through the existing Instagram DM storage path.
 
