@@ -108,6 +108,25 @@
       font-weight: 800;
     }
 
+    .consult-chat-head-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .consult-chat-reset {
+      border: 0;
+      background: transparent;
+      color: #5a6fda;
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
     .consult-chat-close {
       border: 0;
       background: transparent;
@@ -346,18 +365,21 @@
   const launch = document.createElement("button");
   launch.type = "button";
   launch.className = "consult-chat-launch";
-  launch.textContent = "Ask Lofi AI";
+  launch.textContent = "Ask lofi AI";
   launch.setAttribute("aria-expanded", "false");
   launch.setAttribute("aria-controls", "consultChatPanel");
 
   const panel = document.createElement("section");
   panel.className = "consult-chat-panel";
   panel.id = "consultChatPanel";
-  panel.setAttribute("aria-label", "Lofi AI assistant");
+  panel.setAttribute("aria-label", "lofi AI assistant");
   panel.innerHTML = `
     <div class="consult-chat-head">
-      <span>Lofi AI Assistant</span>
-      <button class="consult-chat-close" type="button" aria-label="Close chat">×</button>
+      <span>lofi AI Assistant</span>
+      <div class="consult-chat-head-actions">
+        <button class="consult-chat-reset" type="button">Reset chat</button>
+        <button class="consult-chat-close" type="button" aria-label="Close chat">×</button>
+      </div>
     </div>
     <div class="consult-chat-log" aria-live="polite"></div>
     <form class="consult-chat-form">
@@ -381,6 +403,7 @@
   document.body.appendChild(panel);
 
   const closeButton = panel.querySelector(".consult-chat-close");
+  const resetButton = panel.querySelector(".consult-chat-reset");
   const log = panel.querySelector(".consult-chat-log");
   const form = panel.querySelector(".consult-chat-form");
   const input = panel.querySelector(".consult-chat-input");
@@ -553,6 +576,21 @@
     launch.setAttribute("aria-expanded", "false");
   }
 
+  function resetChat() {
+    sessionId = "";
+    displayName = "";
+    deviceId = createDeviceId();
+    lastThreadSignature = "";
+    pendingAttachment = null;
+    input.value = "";
+    input.placeholder = "Ask about reservations, treatments, location...";
+    attachmentLabel.textContent = "";
+    saveSession();
+    log.innerHTML = "";
+    addStarterOptions();
+    input.focus();
+  }
+
   if (appointmentButton) {
     launch.addEventListener("click", () => {
       if (isOpen) closeChat();
@@ -568,6 +606,7 @@
   });
 
   closeButton.addEventListener("click", closeChat);
+  resetButton.addEventListener("click", resetChat);
 
   emojiPanel.innerHTML = emojis.map((emoji) => `<button class="consult-chat-emoji" type="button">${emoji}</button>`).join("");
   emojiToggle.addEventListener("click", () => {
