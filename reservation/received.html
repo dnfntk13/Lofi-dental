@@ -193,6 +193,17 @@
         : "We will confirm your appointment ASAP.<br />(Usually takes 1~2 hours for us to confirm.)";
       document.getElementById("dateChip").textContent = `${isKorean ? "날짜" : "Date"}: ${date}`;
       document.getElementById("timeChip").textContent = `${isKorean ? "시간" : "Time"}: ${time}`;
+
+      if (typeof gtag === "function") {
+        gtag("event", "reservation_received", {
+          event_category: "reservation",
+          event_label: `${date} ${time}`,
+          reservation_date: date,
+          reservation_time: time,
+          reservation_lang: isKorean ? "ko" : "en",
+          transport_type: "beacon",
+        });
+      }
     </script>
   </body>
 </html>
