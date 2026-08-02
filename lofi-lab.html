@@ -159,6 +159,28 @@
         box-shadow: 0 10px 24px rgba(27, 39, 35, 0.04);
       }
 
+      .before-after-more {
+        justify-self: end;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 11px 18px;
+        border: 1px solid rgba(91, 61, 143, 0.34);
+        border-radius: 999px;
+        color: #ffffff;
+        background: #5b3d8f;
+        box-shadow: 0 12px 26px rgba(91, 61, 143, 0.2);
+        font-size: 0.92rem;
+        font-weight: 700;
+        text-decoration: none;
+        transition: 180ms ease;
+      }
+
+      .before-after-more:hover {
+        transform: translateY(-2px);
+      }
+
       .veneer-pricing {
         margin-top: 0;
         padding: 22px;
@@ -544,6 +566,10 @@
         .case-preview {
           border-radius: 14px;
         }
+
+        .before-after-more {
+          justify-self: stretch;
+        }
       }
     </style>
   </head>
@@ -572,6 +598,7 @@
             </video>
           </div>
           <div class="showcase-details">
+            <a class="before-after-more" href="/before-after.html">See more Before &amp; After photos</a>
             <figure class="case-preview">
               <div
                 class="before-after-compare"
