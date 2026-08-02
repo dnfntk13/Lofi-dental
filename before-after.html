@@ -285,33 +285,67 @@
         letter-spacing: 0.08em;
       }
 
-      .compare-fullscreen {
+      .compare-zoom {
+        display: inline-grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
         border: 1px solid rgba(49, 63, 141, 0.18);
         border-radius: 999px;
-        padding: 7px 10px;
+        padding: 0;
         background: #fff;
         color: var(--logo-ink);
-        font: inherit;
-        font-size: 0.74rem;
-        font-weight: 800;
-        letter-spacing: 0;
         cursor: pointer;
       }
 
+      .compare-zoom svg {
+        width: 17px;
+        height: 17px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.1;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
       .case-card-compare:fullscreen {
-        display: grid;
-        place-content: center;
-        gap: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
         width: 100vw;
         height: 100vh;
         padding: 18px;
+        overflow: auto;
         border-radius: 0;
         background: #f8faff;
       }
 
-      .case-card-compare:fullscreen .before-after-compare {
-        max-width: min(100%, 1280px);
-        max-height: calc(100vh - 160px);
+      .case-card-compare.is-zooming:fullscreen .before-after-compare {
+        flex: 0 0 auto;
+        width: min(86vw, 860px);
+        max-width: none;
+        max-height: none;
+        transform: scale(2);
+        transform-origin: center;
+      }
+
+      .case-card-compare.is-zooming:fullscreen .compare-label-row {
+        position: fixed;
+        top: 14px;
+        left: 50%;
+        z-index: 3;
+        width: min(420px, calc(100vw - 28px));
+        padding: 8px 12px;
+        border: 1px solid rgba(49, 63, 141, 0.14);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.94);
+        transform: translateX(-50%);
+      }
+
+      .case-card-compare.is-zooming:fullscreen .case-caption {
+        display: none;
       }
 
       .case-caption {
@@ -435,7 +469,7 @@
                 <span class="compare-handle">↔</span>
               </div>
             </div>
-            <div class="compare-label-row"><span>BEFORE</span><button class="compare-fullscreen" type="button">Full screen</button><span>AFTER</span></div>
+            <div class="compare-label-row"><span>BEFORE</span><button class="compare-zoom" type="button" aria-label="200% 확대"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></button><span>AFTER</span></div>
             <figcaption class="case-caption">
               I already like my smile—I just want it to look brighter and more balanced.
             </figcaption>
@@ -461,7 +495,7 @@
                 <span class="compare-handle">↔</span>
               </div>
             </div>
-            <div class="compare-label-row"><span>BEFORE</span><button class="compare-fullscreen" type="button">Full screen</button><span>AFTER</span></div>
+            <div class="compare-label-row"><span>BEFORE</span><button class="compare-zoom" type="button" aria-label="200% 확대"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></button><span>AFTER</span></div>
             <figcaption class="case-caption">
               "치아가 삐뚤빼뚤한데, 교정은 너무 부담스러워요."
             </figcaption>
@@ -488,7 +522,7 @@
                 <span class="compare-handle">↔</span>
               </div>
             </div>
-            <div class="compare-label-row"><span>BEFORE</span><button class="compare-fullscreen" type="button">Full screen</button><span>AFTER</span></div>
+            <div class="compare-label-row"><span>BEFORE</span><button class="compare-zoom" type="button" aria-label="200% 확대"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></button><span>AFTER</span></div>
             <figcaption class="case-caption">
               "친구들이 라미네이트가 너무 가짜 같대요 ㅠㅠ 자연스럽게 해주세요!"
             </figcaption>
@@ -515,7 +549,7 @@
                 <span class="compare-handle">↔</span>
               </div>
             </div>
-            <div class="compare-label-row"><span>BEFORE</span><button class="compare-fullscreen" type="button">Full screen</button><span>AFTER</span></div>
+            <div class="compare-label-row"><span>BEFORE</span><button class="compare-zoom" type="button" aria-label="200% 확대"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></button><span>AFTER</span></div>
             <figcaption class="case-caption">
               “최대한 안건드리고 못생긴 부분만 좀 개선됐으면 좋겠어요”
             </figcaption>
@@ -540,10 +574,22 @@
 
         components.forEach((compare) => {
           const card = compare.closest(".case-card-compare");
-          const fullscreenButton = card?.querySelector(".compare-fullscreen");
+          const zoomButton = card?.querySelector(".compare-zoom");
           const overlayImage = compare.querySelector(".compare-overlay-image");
           const divider = compare.querySelector(".compare-divider");
           let isDragging = false;
+
+          const shouldLockLandscape = () => window.matchMedia("(max-width: 820px)").matches || (window.matchMedia("(pointer: coarse)").matches && window.innerWidth < 1200);
+
+          const unlockOrientation = () => {
+            try { screen.orientation?.unlock?.(); } catch {}
+          };
+
+          document.addEventListener("fullscreenchange", () => {
+            if (document.fullscreenElement === card) return;
+            card?.classList.remove("is-zooming");
+            unlockOrientation();
+          });
 
           const applyPercent = (percent) => {
             const clamped = Math.min(100, Math.max(0, percent));
@@ -606,12 +652,21 @@
             applyPercent(next);
           });
 
-          fullscreenButton?.addEventListener("click", () => {
-            if (document.fullscreenElement) {
-              document.exitFullscreen?.();
+          zoomButton?.addEventListener("click", async () => {
+            if (document.fullscreenElement === card) {
+              await document.exitFullscreen?.();
               return;
             }
-            card?.requestFullscreen?.();
+            if (!card?.requestFullscreen) return;
+            if (document.fullscreenElement) await document.exitFullscreen?.();
+            card.classList.add("is-zooming");
+            try {
+              await card.requestFullscreen();
+              if (shouldLockLandscape()) await screen.orientation?.lock?.("landscape").catch(() => {});
+            } catch {
+              card.classList.remove("is-zooming");
+              unlockOrientation();
+            }
           });
 
           if (isPlayMode) {
