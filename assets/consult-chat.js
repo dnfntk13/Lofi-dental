@@ -369,10 +369,10 @@
   const attachmentLabel = panel.querySelector(".consult-chat-attachment");
   const emojis = ["😀", "😊", "🙏", "❤️", "👍", "✨", "🥹", "😄", "😬", "🦷", "📷", "✅", "🙌", "🤍", "😌", "🤝"];
   const starterOptions = [
-    "I just want regular checkup/cleaning",
-    "I want consultation for SureSmile clear aligners/braces",
-    "I want consultation for veneers",
-    "Or just ask us about anything",
+    { label: "I just want a regular checkup and cleaning", action: "send" },
+    { label: "I want a consultation for SureSmile clear aligners/braces", action: "send" },
+    { label: "I want a consultation for veneers", action: "send" },
+    { label: "Ask us about anything", action: "freeform" },
   ];
   let pendingAttachment = null;
 
@@ -402,16 +402,21 @@
   }
 
   function addStarterOptions() {
-    const message = addMessage("How can help you?", "system");
+    const message = addMessage("How can I help you?", "system");
     const options = document.createElement("div");
     options.className = "consult-chat-options";
     starterOptions.forEach((option, index) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "consult-chat-option";
-      button.textContent = `${index + 1}) ${option}`;
+      button.textContent = `${index + 1}) ${option.label}`;
       button.addEventListener("click", () => {
-        submitConsultMessage(option);
+        if (option.action === "freeform") {
+          input.placeholder = "Type anything you would like to ask...";
+          input.focus();
+          return;
+        }
+        submitConsultMessage(option.label);
       });
       options.appendChild(button);
     });
