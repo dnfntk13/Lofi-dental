@@ -353,7 +353,7 @@
       .case-card-compare.is-zooming.compare-zoom-fallback.compare-mobile-zoom .before-after-compare {
         width: min(76dvh, 860px);
         margin-top: calc(30dvh + 72px);
-        transform: rotate(90deg) scale(0.98);
+        transform: rotate(90deg) scale(1.18);
       }
 
       .case-card-compare.compare-zoom-fallback.compare-mobile-zoom {
@@ -376,6 +376,13 @@
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.94);
         transform: translateX(-50%);
+      }
+
+      .case-card-compare.is-zooming.compare-zoom-fallback.compare-mobile-zoom .compare-label-row {
+        top: 50%;
+        left: 30px;
+        width: min(420px, calc(100dvh - 28px));
+        transform: translate(-50%, -50%) rotate(90deg);
       }
 
       .case-card-compare.is-zooming:fullscreen .case-caption,
