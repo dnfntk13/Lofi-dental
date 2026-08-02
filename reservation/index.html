@@ -1682,7 +1682,7 @@
             <div class="price-guide-rate">
               <label for="usdRateInput" id="usdRateLabel">USD estimate rate</label>
               <span>1 USD = ₩<input class="price-guide-rate-input" id="usdRateInput" type="number" min="1" step="1" inputmode="numeric" value="1350" aria-describedby="usdRateHelp" /></span>
-              <span id="usdRateHelp">USD prices update when the rate changes.</span>
+              <span id="usdRateHelp">Loading Google exchange rate...</span>
             </div>
             <div class="price-guide-section">
               <p class="price-guide-heading">Covered by Korean National Health Insurance</p>
@@ -1793,7 +1793,10 @@
         priceGuideButton: isKorean ? "가격 안내" : "Price Guide",
         priceGuideTitle: isKorean ? "가격 안내" : "Price Guide",
         usdRateLabel: isKorean ? "USD 예상 환율" : "USD estimate rate",
-        usdRateHelp: isKorean ? "환율을 바꾸면 USD 예상가가 자동으로 업데이트됩니다." : "USD prices update when the rate changes.",
+        usdRateHelp: isKorean ? "Google Finance 기준 환율을 불러옵니다. 필요하면 직접 조정할 수 있습니다." : "Uses the Google Finance exchange rate. You can adjust it if needed.",
+        usdRateLoading: isKorean ? "Google Finance 환율을 불러오는 중..." : "Loading Google Finance exchange rate...",
+        usdRateLoaded: isKorean ? "Google Finance 기준 환율입니다. 필요하면 직접 조정할 수 있습니다." : "Using the Google Finance exchange rate. You can adjust it if needed.",
+        usdRateFailed: isKorean ? "Google Finance 환율을 불러오지 못해 현재 입력값으로 계산합니다." : "Could not load the Google Finance rate, so prices use the current rate.",
         weekdays: isKorean ? ["일", "월", "화", "수", "목", "금", "토"] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
       };
 
@@ -1820,6 +1823,21 @@
         });
       }
 
+      async function loadGoogleUsdRate() {
+        const help = document.getElementById("usdRateHelp");
+        help.textContent = text.usdRateLoading;
+        try {
+          const response = await fetch(`/api/exchange-rate/usd-krw?v=${Date.now()}`, { headers: { Accept: "application/json" } });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !Number.isFinite(Number(data.roundedRate || data.rate))) throw new Error(data.message || "Failed to load exchange rate");
+          usdRateInput.value = String(Math.round(Number(data.roundedRate || data.rate)));
+          renderPriceAmounts();
+          help.textContent = text.usdRateLoaded;
+        } catch {
+          help.textContent = text.usdRateFailed;
+        }
+      }
+
       document.documentElement.lang = isKorean ? "ko" : "en";
       document.title = isKorean ? "예약 날짜 선택 | lofi esthetic dentistry" : "Date Selector | lofi esthetic dentistry";
       document.getElementById("homeLink").href = isKorean ? "/korean" : "/english";
@@ -1837,6 +1855,7 @@
       usdRateInput.value = String(getInitialUsdRate());
       usdRateInput.addEventListener("input", renderPriceAmounts);
       renderPriceAmounts();
+      loadGoogleUsdRate();
       priceGuideButton.addEventListener("click", () => {
         const isOpen = priceGuideButton.getAttribute("aria-expanded") === "true";
         priceGuideButton.setAttribute("aria-expanded", String(!isOpen));
