@@ -185,7 +185,7 @@ function renderImporterPanel() {
         const daysBack = button.dataset.lofiAction === "sync-3-days" ? 3 : 7;
         setImporterPanelStatus(`Syncing recent ${daysBack === 3 ? "3 days" : "1 week"}...`);
         const result = await scanInstagramDms(
-          { daysBack, maxThreads: daysBack === 3 ? 30 : 60, maxListScrolls: daysBack === 3 ? 40 : 80, maxMessageScrolls: 120 },
+          { daysBack, maxThreads: 500, maxListScrolls: daysBack === 3 ? 220 : 500, maxMessageScrolls: 160 },
           setImporterPanelStatus,
         );
         setImporterPanelStatus(`Saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`);
@@ -397,7 +397,7 @@ async function collectLatestThreadRows(maxThreads, maxListScrolls, onProgress, d
   for (let index = 0; index < maxListScrolls && collected.length < maxThreads; index += 1) {
     const rows = getThreadRows();
     const windowLabel = getScanWindowLabel(daysBack);
-    onProgress?.(`Collecting ${windowLabel}: ${collected.length}/${maxThreads}; ${rows.length} visible${skippedOlder ? `, ${skippedOlder} older skipped` : ""}.`);
+    onProgress?.(`Collecting all ${windowLabel} DMs: found ${collected.length}; ${rows.length} visible${skippedOlder ? `, ${skippedOlder} outside range skipped` : ""}.`);
 
     for (const row of rows) {
       if (collected.length >= maxThreads) break;
@@ -856,7 +856,7 @@ async function autoScanInstagramDms() {
     setImporterPanelStatus("Auto-scanning Instagram DMs...");
     chrome.runtime.sendMessage({ type: "LOFI_SCAN_STATUS", status: "Auto-scanning Instagram DMs..." }).catch(() => {});
     const result = await scanInstagramDms(
-      { daysBack: 3, maxThreads: 30, maxListScrolls: 40, maxMessageScrolls: 80 },
+      { daysBack: 3, maxThreads: 500, maxListScrolls: 220, maxMessageScrolls: 120 },
       (status) => chrome.runtime.sendMessage({ type: "LOFI_SCAN_STATUS", status }).catch(() => {}),
     );
     chrome.runtime.sendMessage({
@@ -895,9 +895,9 @@ function scheduleAutoSave() {
 
 async function scanInstagramDms(options = {}, onProgress) {
   const daysBack = [3, 7].includes(Number(options.daysBack)) ? Number(options.daysBack) : 0;
-  const maxThreads = Math.min(Math.max(Number(options.maxThreads || 10), 1), 60);
-  const maxListScrolls = Math.min(Math.max(Number(options.maxListScrolls || 30), 1), 80);
-  const maxMessageScrolls = Math.min(Math.max(Number(options.maxMessageScrolls || 30), 1), 80);
+  const maxThreads = Math.min(Math.max(Number(options.maxThreads || 10), 1), 500);
+  const maxListScrolls = Math.min(Math.max(Number(options.maxListScrolls || 30), 1), 600);
+  const maxMessageScrolls = Math.min(Math.max(Number(options.maxMessageScrolls || 30), 1), 180);
 
   if (!location.hostname.endsWith("instagram.com") || !location.pathname.startsWith("/direct")) {
     throw new Error("Open Instagram Direct first: https://www.instagram.com/direct/inbox/");

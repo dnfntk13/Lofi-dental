@@ -35,9 +35,9 @@ async function getInstagramTab() {
 function getSyncOptions(daysBack) {
   return {
     daysBack,
-    maxThreads: daysBack <= 3 ? 30 : 60,
-    maxListScrolls: daysBack <= 3 ? 40 : 80,
-    maxMessageScrolls: 120,
+    maxThreads: 500,
+    maxListScrolls: daysBack <= 3 ? 220 : 500,
+    maxMessageScrolls: 160,
   };
 }
 
