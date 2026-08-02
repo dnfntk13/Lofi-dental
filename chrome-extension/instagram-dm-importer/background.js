@@ -35,6 +35,14 @@ function getAiReadUrl(serverUrl) {
   return `${baseUrl}/api/instagram-extension/ai-read-screen`;
 }
 
+function getAiPlanNavigationUrl(serverUrl) {
+  const baseUrl = normalizeServerUrl(serverUrl);
+  if (baseUrl === "http://localhost:5173" || baseUrl === "http://127.0.0.1:5173") {
+    return `${baseUrl}/api/local/instagram-extension/ai-plan-dm-navigation`;
+  }
+  return `${baseUrl}/api/instagram-extension/ai-plan-dm-navigation`;
+}
+
 async function importConversations(conversations) {
   const settings = await getSettings();
   const response = await fetch(getImportUrl(settings.serverUrl), {
@@ -64,6 +72,22 @@ async function aiReadInstagramScreen(snapshot) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.message || "Failed to AI-read Instagram screen");
+  return data;
+}
+
+async function aiPlanInstagramDmNavigation(snapshot) {
+  const settings = await getSettings();
+  const response = await fetch(getAiPlanNavigationUrl(settings.serverUrl), {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "X-Lofi-Instagram-Importer": settings.importToken,
+    },
+    body: JSON.stringify({ snapshot }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || "Failed to AI-plan Instagram DM navigation");
   return data;
 }
 
@@ -109,6 +133,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     aiReadInstagramScreen(message.snapshot || {})
       .then((data) => sendResponse({ ok: true, ...data }))
       .catch((error) => sendResponse({ ok: false, message: error.message || "AI screen read failed" }));
+    return true;
+  }
+
+  if (message?.type === "LOFI_AI_PLAN_INSTAGRAM_DM_NAVIGATION") {
+    aiPlanInstagramDmNavigation(message.snapshot || {})
+      .then((data) => sendResponse({ ok: true, ...data }))
+      .catch((error) => sendResponse({ ok: false, message: error.message || "AI DM navigation planning failed" }));
     return true;
   }
 

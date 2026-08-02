@@ -90,6 +90,30 @@ function threadRowMatchesSyncWindow(row, daysBack) {
   return ageDays === null || ageDays <= daysBack;
 }
 
+function createThreadRowSnapshot(row, index, seen) {
+  const signature = `${row.title}:${row.text.slice(0, 180)}`;
+  const ageDays = parseThreadRowAgeDays(row.text);
+  return {
+    index,
+    signature,
+    title: row.title,
+    text: row.text,
+    url: row.url,
+    ageDays,
+    alreadyCollected: seen.has(signature),
+    y: Math.round(row.rect.top),
+  };
+}
+
+async function aiPlanInstagramDmNavigation(snapshot) {
+  const result = await chrome.runtime.sendMessage({
+    type: "LOFI_AI_PLAN_INSTAGRAM_DM_NAVIGATION",
+    snapshot,
+  });
+  if (!result?.ok) throw new Error(result?.message || "AI DM navigation planning failed");
+  return result.plan || { action: "scroll", openRowIndexes: [] };
+}
+
 function isVisibleElement(element) {
   const rect = element.getBoundingClientRect();
   return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0;
@@ -397,10 +421,36 @@ async function collectLatestThreadRows(maxThreads, maxListScrolls, onProgress, d
   for (let index = 0; index < maxListScrolls && collected.length < maxThreads; index += 1) {
     const rows = getThreadRows();
     const windowLabel = getScanWindowLabel(daysBack);
-    onProgress?.(`Collecting all ${windowLabel} DMs: found ${collected.length}; ${rows.length} visible${skippedOlder ? `, ${skippedOlder} outside range skipped` : ""}.`);
+    const reachedBottom = scrollTarget.scrollTop + scrollTarget.clientHeight >= scrollTarget.scrollHeight - 8;
+    const visibleRows = rows.map((row, rowIndex) => createThreadRowSnapshot(row, rowIndex, seen));
+    onProgress?.(`AI choosing ${windowLabel} DMs: found ${collected.length}; ${rows.length} visible${skippedOlder ? `, ${skippedOlder} outside range skipped` : ""}.`);
 
-    for (const row of rows) {
+    let plan = { action: "scroll", openRowIndexes: [] };
+    try {
+      plan = await aiPlanInstagramDmNavigation({
+        daysBack,
+        scanWindowLabel: windowLabel,
+        collectedCount: collected.length,
+        skippedOlder,
+        reachedBottom,
+        visibleRows,
+      });
+    } catch (error) {
+      onProgress?.(`${error.message || "AI navigation failed"}. Using local fallback for this screen.`);
+      plan = {
+        action: "open",
+        openRowIndexes: visibleRows
+          .filter((row) => !row.alreadyCollected && (row.ageDays === null || !daysBack || row.ageDays <= daysBack))
+          .map((row) => row.index),
+      };
+    }
+
+    onProgress?.(`AI action: ${plan.action}${plan.reason ? ` - ${plan.reason}` : ""}`);
+
+    for (const rowIndex of Array.isArray(plan.openRowIndexes) ? plan.openRowIndexes : []) {
       if (collected.length >= maxThreads) break;
+      const row = rows[rowIndex];
+      if (!row) continue;
       const signature = `${row.title}:${row.text.slice(0, 180)}`;
       if (seen.has(signature)) continue;
       seen.add(signature);
@@ -413,8 +463,8 @@ async function collectLatestThreadRows(maxThreads, maxListScrolls, onProgress, d
     }
 
     if (collected.length >= maxThreads) break;
+    if (plan.action === "stop") break;
     const beforeTop = scrollTarget.scrollTop;
-    const reachedBottom = beforeTop + scrollTarget.clientHeight >= scrollTarget.scrollHeight - 8;
     if (reachedBottom) break;
     scrollTarget.scrollTop += Math.max(220, scrollTarget.clientHeight * 0.45);
     await sleep(LOFI_SCAN_DELAY_MS);

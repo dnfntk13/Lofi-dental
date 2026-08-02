@@ -1402,6 +1402,20 @@ function normalizeInstagramScreenReadPayload(value) {
   };
 }
 
+function normalizeInstagramDmNavigationPlan(value, maxRows = 30) {
+  const action = ["open", "scroll", "stop"].includes(String(value?.action || "").toLowerCase())
+    ? String(value.action).toLowerCase()
+    : "scroll";
+  const openRowIndexes = Array.isArray(value?.openRowIndexes) ? value.openRowIndexes : [];
+  return {
+    action,
+    openRowIndexes: [...new Set(openRowIndexes
+      .map((index) => Number(index))
+      .filter((index) => Number.isInteger(index) && index >= 0 && index < maxRows))].slice(0, 20),
+    reason: String(value?.reason || "").trim().slice(0, 500),
+  };
+}
+
 function getLatestThreadMessage(thread) {
   const messages = Array.isArray(thread?.messages) ? thread.messages : [];
   return messages[messages.length - 1] || null;
@@ -1667,6 +1681,77 @@ async function generateInstagramScreenRead(snapshot) {
   let parsed = {};
   try { parsed = JSON.parse(content); } catch { parsed = {}; }
   return normalizeInstagramScreenReadPayload(parsed);
+}
+
+async function generateInstagramDmNavigationPlan(snapshot) {
+  if (!openaiApiKey) {
+    const error = new Error("OpenAI API key is not configured");
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const visibleRows = Array.isArray(snapshot?.visibleRows) ? snapshot.visibleRows.slice(0, 40).map((row, index) => ({
+    index,
+    title: String(row?.title || "").slice(0, 140),
+    text: String(row?.text || "").slice(0, 700),
+    ageDays: row?.ageDays === null || row?.ageDays === undefined ? null : Number(row.ageDays),
+    alreadyCollected: Boolean(row?.alreadyCollected),
+    y: Number(row?.y || 0),
+  })) : [];
+
+  const prompt = {
+    daysBack: Number(snapshot?.daysBack || 0),
+    scanWindowLabel: String(snapshot?.scanWindowLabel || "recent DMs"),
+    collectedCount: Number(snapshot?.collectedCount || 0),
+    skippedOlder: Number(snapshot?.skippedOlder || 0),
+    reachedBottom: Boolean(snapshot?.reachedBottom),
+    visibleRows,
+  };
+
+  const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${openaiApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: openaiModel,
+      temperature: 0.1,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: "You control a Chrome extension scanning Instagram Direct DM rows for lofi esthetic dentistry. Choose which visible DM rows should be opened now. Ignore read/unread state; include every readable patient DM row in the requested date range. Use ageDays when available: include rows with ageDays null or ageDays <= daysBack; exclude rows with ageDays > daysBack. Do not open rows alreadyCollected. If there are eligible visible rows, return action 'open' and openRowIndexes. If there are no eligible rows and reachedBottom is false, return action 'scroll'. If reachedBottom is true and no eligible rows remain, return action 'stop'. Return only JSON with keys: action, openRowIndexes, reason.",
+        },
+        { role: "user", content: JSON.stringify(prompt) },
+      ],
+    }),
+  });
+
+  const data = await aiResponse.json().catch(() => ({}));
+  if (!aiResponse.ok) {
+    const error = new Error(data?.error?.message || "OpenAI request failed");
+    error.statusCode = aiResponse.status;
+    throw error;
+  }
+
+  let parsed = {};
+  try { parsed = JSON.parse(data?.choices?.[0]?.message?.content || "{}"); } catch { parsed = {}; }
+  return normalizeInstagramDmNavigationPlan(parsed, visibleRows.length);
+}
+
+async function planInstagramDmNavigation(request, response) {
+  try {
+    const payload = await getJsonBody(request);
+    const plan = await generateInstagramDmNavigationPlan(payload.snapshot || payload);
+    response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ ok: true, plan, model: openaiModel }));
+  } catch (error) {
+    console.error("Failed to plan Instagram DM navigation", error);
+    const statusCode = error.statusCode || 500;
+    response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ message: error instanceof Error ? error.message : "Failed to plan Instagram DM navigation" }));
+  }
 }
 
 async function importInstagramAiScreenRead(request, response) {
@@ -4351,6 +4436,34 @@ createServer(async (request, response) => {
     }
 
     await importInstagramAiScreenRead(request, response);
+    return;
+  }
+
+  if (pathname === "/api/local/instagram-extension/ai-plan-dm-navigation" && request.method === "POST") {
+    if (!isLocalImporterHost(requestHost)) {
+      response.writeHead(403, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Instagram AI DM navigation is available only on the local admin computer." }));
+      return;
+    }
+
+    if (!isValidInstagramExtensionImporter(request)) {
+      response.writeHead(403, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Invalid Instagram extension importer token" }));
+      return;
+    }
+
+    await planInstagramDmNavigation(request, response);
+    return;
+  }
+
+  if (pathname === "/api/instagram-extension/ai-plan-dm-navigation" && request.method === "POST") {
+    if (!isValidInstagramExtensionImporter(request)) {
+      response.writeHead(403, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Invalid Instagram extension importer token" }));
+      return;
+    }
+
+    await planInstagramDmNavigation(request, response);
     return;
   }
 

@@ -32,7 +32,7 @@ The server saves imported conversations into Patients through the existing Insta
 - Production import uses `/api/instagram-extension/import`.
 - Local testing uses `/api/local/instagram-extension/import`.
 - The extension reads the Instagram page that is already open in Chrome; it does not ask for or store Instagram passwords.
-- Manual sync and auto-scan first collect a stable snapshot of all readable DM rows in the selected date range, regardless of read/unread status, then open them one by one, slowly scroll the right-side conversation candidates from top to bottom, and save readable conversations. Auto-scan uses the recent 3-day window.
+- Manual sync and auto-scan send each visible Instagram DM list snapshot to the server AI. The AI decides which rows to open, when to keep scrolling, and when to stop, regardless of read/unread status. The extension executes those AI navigation decisions, opens the chosen threads one by one, slowly scrolls each conversation from top to bottom, and saves readable conversations. Auto-scan uses the recent 3-day window.
 - The server uses Admin AI to extract reservation date, patient name, phone number, and chief complaint from saved Instagram DM conversations, then stores those details in the reservation inbox/calendar data.
 - Recent sync reads Instagram row date text such as minutes, hours, days, weeks, and month/day labels. Rows with unreadable date text are included so the scanner does not miss conversations when Instagram changes the UI.
 - `AI read visible screen` is the fallback for Instagram UI changes: it does not put the OpenAI key in the extension. The extension sends page text to the lofi server, and the server-side AI extracts DM conversations.
