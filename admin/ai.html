@@ -212,9 +212,9 @@
           <section class="panel info-panel">
             <div class="dm-check-head">
               <span class="section-title">Instagram DM checker</span>
-              <button class="import-btn" id="instagramCheckBtn" type="button">Check saved DMs</button>
+              <button class="import-btn" id="instagramCheckBtn" type="button">Check reader DMs</button>
             </div>
-            <p class="import-status" id="instagramCheckStatus">Reads saved Instagram DMs and separates reply-needed threads.</p>
+            <p class="import-status" id="instagramCheckStatus">Checks Instagram DMs collected by the local reader and separates reply-needed threads.</p>
             <div class="dm-check-list" id="instagramCheckResults"></div>
           </section>
           <section class="panel info-panel">
@@ -377,7 +377,7 @@
       instagramCheckBtn.addEventListener("click", async () => {
         instagramCheckBtn.disabled = true;
         instagramCheckStatus.className = "import-status";
-        instagramCheckStatus.textContent = "AI is checking saved Instagram DMs...";
+        instagramCheckStatus.textContent = "AI is checking Instagram DMs from the local reader...";
         instagramCheckResults.innerHTML = "";
         try {
           const response = await fetch("/api/admin/instagram-dms/check", {
@@ -388,7 +388,7 @@
           const data = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(data.message || "Failed to check Instagram DMs.");
           const check = data.check || {};
-          instagramCheckStatus.textContent = data.model ? `Checked saved DMs · ${data.model}` : "Checked saved DMs.";
+          instagramCheckStatus.textContent = data.model ? `Checked reader DMs · ${data.model}` : "Checked reader DMs.";
           renderInstagramCheck(check);
           if (check.summary) addBubble("assistant", check.summary);
         } catch (error) {

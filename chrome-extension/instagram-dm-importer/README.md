@@ -14,12 +14,12 @@ This Chrome Extension scans Instagram Direct in the browser and sends the extrac
 1. Click the extension icon.
 2. Confirm `Server URL` is `https://lofiesthetic.com` for production, or `http://localhost:5173` for local testing.
 3. Set the import token to match `INSTAGRAM_EXTENSION_IMPORT_TOKEN` on the server.
-4. Enable `Auto-save current DM thread` for near-live updates in the open thread.
-5. Enable `Auto-scan DM list after login` if you want the logged-in Instagram Direct tab to automatically read visible DM threads and save them every few minutes.
+4. `Let Admin AI read the open DM thread automatically` is enabled by default for near-live updates in the open thread.
+5. `Let Admin AI read the DM list automatically` is enabled by default so the logged-in Instagram Direct tab automatically reads visible DM threads and saves them for Admin AI.
 6. Click `Open Instagram DM`.
 7. Log in to Instagram in that tab if needed.
 8. Confirm the small `Lofi Importer` panel appears inside the Instagram Direct tab.
-9. Keep the Instagram Direct tab open. Auto-scan repeats while the tab is visible, but it does not start immediately so you can open threads manually.
+9. Keep the Instagram Direct tab open and visible. Auto-scan starts shortly after the importer loads and repeats while the tab is visible.
 10. Click `Test server save` to verify the server URL and import token.
 11. Open one DM thread and click `Save open DM now` in the popup or `Save open DM` in the Instagram tab panel to verify Instagram page reading.
 12. Click `Read each DM & save` in the popup or `Read DMs` in the Instagram tab panel any time to scan the latest 10 DM conversations manually.

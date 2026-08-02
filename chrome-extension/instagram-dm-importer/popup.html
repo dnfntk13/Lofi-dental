@@ -9,7 +9,7 @@
   <body>
     <main class="panel">
       <h1>Lofi DM Importer</h1>
-      <p class="status" id="status">Open Instagram Direct, then let the importer read and save visible DM threads.</p>
+      <p class="status" id="status">Open Instagram Direct. The reader saves visible DM threads so Admin AI can read them.</p>
       <label class="field">
         <span>Server URL</span>
         <input id="serverUrl" type="url" spellcheck="false" />
@@ -20,20 +20,20 @@
       </label>
       <label class="toggle">
         <input id="autoSave" type="checkbox" />
-        <span>Auto-save current DM thread</span>
+        <span>Let Admin AI read the open DM thread automatically</span>
       </label>
       <label class="toggle">
         <input id="autoScanDms" type="checkbox" />
-        <span>Auto-scan DM list after login</span>
+        <span>Let Admin AI read the DM list automatically</span>
       </label>
       <div class="controls">
         <button id="saveSettings" type="button">Save settings</button>
         <button id="openInstagram" type="button">Open Instagram DM</button>
         <button id="testServer" type="button">Test server save</button>
         <button id="saveCurrentDm" type="button">Save open DM now</button>
-        <button id="scanDms" class="primary" type="button">Read each DM & save</button>
+        <button id="scanDms" class="primary" type="button">Read DMs for Admin AI</button>
       </div>
-      <p class="note">The importer uses your already logged-in Instagram tab. It saves scanned DM conversations to Patients so Admin AI can check them one by one.</p>
+      <p class="note">The reader uses your already logged-in Instagram tab. It saves scanned DM conversations to Patients so Admin AI can check them one by one.</p>
     </main>
     <script src="popup.js"></script>
   </body>

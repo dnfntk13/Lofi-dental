@@ -1,8 +1,8 @@
 const DEFAULT_SETTINGS = {
   serverUrl: "https://lofiesthetic.com",
   importToken: "extension-v1",
-  autoSave: false,
-  autoScanDms: false,
+  autoSave: true,
+  autoScanDms: true,
 };
 
 function normalizeServerUrl(value) {

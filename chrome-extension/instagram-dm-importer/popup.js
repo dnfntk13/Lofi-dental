@@ -100,8 +100,11 @@ openInstagramButton.addEventListener("click", async () => {
   setStatus("Opening Instagram Direct...");
   const tab = await getInstagramTab();
   try {
+    autoSaveInput.checked = true;
+    autoScanDmsInput.checked = true;
+    await saveSettings();
     await ensureImporterOnTab(tab.id);
-    setStatus("Importer applied in the Instagram tab. Use the Lofi Importer panel there.");
+    setStatus("Instagram reader is on. Keep this tab visible so Admin AI can read saved DMs.");
   } catch (error) {
     setStatus(error.message || "Instagram opened. Reload the tab if the importer panel does not appear.");
   }
@@ -114,7 +117,7 @@ scanButton.addEventListener("click", async () => {
     const tab = await getInstagramTab();
     const result = await sendScanMessage(tab.id);
     if (!result?.ok) throw new Error(result?.message || "Scan failed");
-    setStatus(`Saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`);
+    setStatus(`Admin AI can now read saved DMs. Saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`);
   } catch (error) {
     setStatus(error.message || "Scan failed.");
   } finally {

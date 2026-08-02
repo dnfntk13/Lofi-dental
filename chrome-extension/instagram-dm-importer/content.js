@@ -2,9 +2,11 @@ const LOFI_SCAN_DELAY_MS = 650;
 const LOFI_MESSAGE_SCROLL_DELAY_MS = 950;
 const LOFI_AUTO_SAVE_DEBOUNCE_MS = 2400;
 const LOFI_AUTO_SCAN_INTERVAL_MS = 5 * 60 * 1000;
+const LOFI_AUTO_SCAN_START_DELAY_MS = 3500;
 let autoSaveTimer = null;
 let lastAutoSaveSignature = "";
 let autoScanTimer = null;
+let autoScanStartTimer = null;
 let autoScanInProgress = false;
 let importerPanelStatus = null;
 
@@ -730,6 +732,10 @@ async function autoScanInstagramDms() {
 
 function startAutoScanLoop() {
   window.clearInterval(autoScanTimer);
+  window.clearTimeout(autoScanStartTimer);
+  autoScanStartTimer = window.setTimeout(() => {
+    autoScanInstagramDms().catch(() => {});
+  }, LOFI_AUTO_SCAN_START_DELAY_MS);
   autoScanTimer = window.setInterval(() => {
     autoScanInstagramDms().catch(() => {});
   }, LOFI_AUTO_SCAN_INTERVAL_MS);
