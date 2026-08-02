@@ -433,6 +433,38 @@
         line-height: 1.4;
       }
 
+      .price-guide-rate {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 0 0 12px;
+        padding: 10px 12px;
+        border: 1px solid rgba(90, 111, 218, 0.1);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.78);
+        color: var(--soft);
+        font-size: 0.84rem;
+        line-height: 1.4;
+        flex-wrap: wrap;
+      }
+
+      .price-guide-rate label {
+        font-weight: 700;
+      }
+
+      .price-guide-rate-input {
+        width: 112px;
+        border: 1px solid rgba(90, 111, 218, 0.22);
+        border-radius: 10px;
+        padding: 7px 9px;
+        color: var(--ink);
+        background: #fff;
+        font: inherit;
+        font-weight: 700;
+        text-align: right;
+      }
+
       .price-guide-section {
         margin-top: 12px;
         padding: 12px;
@@ -555,6 +587,21 @@
         font-weight: 700;
         text-align: right;
         white-space: nowrap;
+      }
+
+      .price-amount {
+        display: inline-grid;
+        gap: 2px;
+        justify-items: end;
+        color: #4d64d8;
+        font-weight: 700;
+        line-height: 1.35;
+      }
+
+      .price-usd {
+        color: var(--soft);
+        font-size: 0.78rem;
+        font-weight: 600;
       }
 
       .price-guide-row:last-child {
@@ -1550,6 +1597,10 @@
           text-align: left;
         }
 
+        .price-amount {
+          justify-items: start;
+        }
+
         .price-guide-subheading {
           display: grid;
           gap: 2px;
@@ -1628,6 +1679,11 @@
               <p class="price-guide-title" id="priceGuideTitle">Price Guide</p>
               <span class="price-guide-subtitle">Most can be paid in multiple installments</span>
             </div>
+            <div class="price-guide-rate">
+              <label for="usdRateInput" id="usdRateLabel">USD estimate rate</label>
+              <span>1 USD = ₩<input class="price-guide-rate-input" id="usdRateInput" type="number" min="1" step="1" inputmode="numeric" value="1350" aria-describedby="usdRateHelp" /></span>
+              <span id="usdRateHelp">USD prices update when the rate changes.</span>
+            </div>
             <div class="price-guide-section">
               <p class="price-guide-heading">Covered by Korean National Health Insurance</p>
               <ul class="price-guide-bullets">
@@ -1644,48 +1700,48 @@
             <div class="price-guide-section">
               <p class="price-guide-heading">Not Covered by Korean National Health Insurance</p>
               <div class="price-guide-subsection">
-                <p class="price-guide-subheading"><span>Teeth Whitening <button class="clip-trigger" type="button" data-clip="whitening" aria-label="Play Teeth Whitening 5 second clip">?</button></span><span>₩89,000 per whitening cycle</span></p>
+                <p class="price-guide-subheading"><span>Teeth Whitening <button class="clip-trigger" type="button" data-clip="whitening" aria-label="Play Teeth Whitening 5 second clip">?</button></span><span class="price-amount" data-krw="89000" data-suffix="per whitening cycle">₩89,000 per whitening cycle</span></p>
               </div>
 
               <div class="price-guide-subsection">
-                <p class="price-guide-subheading"><span>Simple Composite Filling <button class="clip-trigger" type="button" data-clip="filling" aria-label="Play Simple Composite Filling 5 second clip">?</button></span><span>₩99,000 per tooth</span></p>
+                <p class="price-guide-subheading"><span>Simple Composite Filling <button class="clip-trigger" type="button" data-clip="filling" aria-label="Play Simple Composite Filling 5 second clip">?</button></span><span class="price-amount" data-krw="99000" data-suffix="per tooth">₩99,000 per tooth</span></p>
               </div>
 
               <div class="price-guide-subsection">
-                <p class="price-guide-subheading"><span>Dental Crown <button class="clip-trigger" type="button" data-clip="crown" aria-label="Play Dental Crown 5 second clip">?</button></span><span>₩350,000 per tooth</span></p>
+                <p class="price-guide-subheading"><span>Dental Crown <button class="clip-trigger" type="button" data-clip="crown" aria-label="Play Dental Crown 5 second clip">?</button></span><span class="price-amount" data-krw="350000" data-suffix="per tooth">₩350,000 per tooth</span></p>
               </div>
 
               <div class="price-guide-subsection">
-                <p class="price-guide-subheading"><span>Masseter Botox (Jaw Slimming) <button class="clip-trigger" type="button" data-clip="masseterBotox" aria-label="Play Masseter Botox 5 second clip">?</button></span><span>₩150,000</span></p>
+                <p class="price-guide-subheading"><span>Masseter Botox (Jaw Slimming) <button class="clip-trigger" type="button" data-clip="masseterBotox" aria-label="Play Masseter Botox 5 second clip">?</button></span><span class="price-amount" data-krw="150000">₩150,000</span></p>
               </div>
 
               <div class="price-guide-subsection">
                 <p class="price-guide-subheading"><span>Veneers <button class="clip-trigger" type="button" data-clip="veneers" aria-label="Play Veneers 5 second clip">?</button></span></p>
                 <div class="price-guide-list is-nested">
-                  <div class="price-guide-row"><span>Minimal-prep Resin Veneers</span><span>₩99,000 per tooth</span></div>
-                  <div class="price-guide-row"><span>Standard Porcelain Veneer · Rosetta</span><span>₩259,000 per tooth</span></div>
-                  <div class="price-guide-row"><span>Premium Porcelain Veneer · IPS e.max</span><span>₩399,000 per tooth</span></div>
+                  <div class="price-guide-row"><span>Minimal-prep Resin Veneers</span><span class="price-amount" data-krw="99000" data-suffix="per tooth">₩99,000 per tooth</span></div>
+                  <div class="price-guide-row"><span>Standard Porcelain Veneer · Rosetta</span><span class="price-amount" data-krw="259000" data-suffix="per tooth">₩259,000 per tooth</span></div>
+                  <div class="price-guide-row"><span>Premium Porcelain Veneer · IPS e.max</span><span class="price-amount" data-krw="399000" data-suffix="per tooth">₩399,000 per tooth</span></div>
                 </div>
               </div>
 
               <div class="price-guide-subsection">
                 <p class="price-guide-subheading"><span>Dental Implants <button class="clip-trigger" type="button" data-clip="implants" aria-label="Play Dental Implants 5 second clip">?</button></span></p>
                 <div class="price-guide-list is-nested">
-                  <div class="price-guide-row"><span>Standard Implant · MegaGen</span><span>₩599,000 per tooth</span></div>
-                  <div class="price-guide-row"><span>Premium Implant · Osstem</span><span>₩799,000 per tooth</span></div>
+                  <div class="price-guide-row"><span>Standard Implant · MegaGen</span><span class="price-amount" data-krw="599000" data-suffix="per tooth">₩599,000 per tooth</span></div>
+                  <div class="price-guide-row"><span>Premium Implant · Osstem</span><span class="price-amount" data-krw="799000" data-suffix="per tooth">₩799,000 per tooth</span></div>
                 </div>
               </div>
 
               <div class="price-guide-subsection">
-                <p class="price-guide-subheading"><span>All on X <button class="clip-trigger" type="button" data-clip="allOnX" aria-label="Play All on X 5 second clip">?</button></span><span>₩4,990,000 per arch</span></p>
+                <p class="price-guide-subheading"><span>All on X <button class="clip-trigger" type="button" data-clip="allOnX" aria-label="Play All on X 5 second clip">?</button></span><span class="price-amount" data-krw="4990000" data-suffix="per arch">₩4,990,000 per arch</span></p>
                 <p class="price-guide-description">Full mouth restoration for multiple missing teeth</p>
               </div>
 
               <div class="price-guide-subsection">
                 <p class="price-guide-subheading"><span>SureSmile Clear Aligners <button class="clip-trigger" type="button" data-clip="sureSmile" aria-label="Play SureSmile Clear Aligners 5 second clip">?</button></span></p>
                 <div class="price-guide-list is-nested">
-                  <div class="price-guide-row"><span>Front Teeth Only</span><span>₩1,500,000</span></div>
-                  <div class="price-guide-row"><span>Full Treatment</span><span>₩3,500,000</span></div>
+                  <div class="price-guide-row"><span>Front Teeth Only</span><span class="price-amount" data-krw="2000000">₩2,000,000</span></div>
+                  <div class="price-guide-row"><span>Full Treatment</span><span class="price-amount" data-krw="4000000">₩4,000,000</span></div>
                 </div>
               </div>
             </div>
@@ -1713,6 +1769,7 @@
       const cursorTooltip = document.getElementById("cursorTooltip");
       const priceGuideButton = document.getElementById("priceGuideButton");
       const priceGuidePanel = document.getElementById("priceGuidePanel");
+      const usdRateInput = document.getElementById("usdRateInput");
       const clipOverlay = document.getElementById("clipOverlay");
       const clipStage = document.getElementById("clipStage");
       const clipTitle = document.getElementById("clipTitle");
@@ -1735,8 +1792,33 @@
         usageStepClosed: isKorean ? "오늘이 휴진일이면 다음 예약 가능일이 자동으로 선택됩니다." : "If today is closed, the next available day is selected automatically.",
         priceGuideButton: isKorean ? "가격 안내" : "Price Guide",
         priceGuideTitle: isKorean ? "가격 안내" : "Price Guide",
+        usdRateLabel: isKorean ? "USD 예상 환율" : "USD estimate rate",
+        usdRateHelp: isKorean ? "환율을 바꾸면 USD 예상가가 자동으로 업데이트됩니다." : "USD prices update when the rate changes.",
         weekdays: isKorean ? ["일", "월", "화", "수", "목", "금", "토"] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
       };
+
+      const krwFormatter = new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW", maximumFractionDigits: 0 });
+      const usdFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+      function getInitialUsdRate() {
+        const queryRate = Number(params.get("usdRate"));
+        if (Number.isFinite(queryRate) && queryRate > 0) return Math.round(queryRate);
+        const savedRate = Number(window.localStorage.getItem("lofiUsdRate"));
+        if (Number.isFinite(savedRate) && savedRate > 0) return Math.round(savedRate);
+        return 1350;
+      }
+
+      function renderPriceAmounts() {
+        const rate = Math.max(1, Number(usdRateInput.value) || 1350);
+        window.localStorage.setItem("lofiUsdRate", String(rate));
+        document.querySelectorAll(".price-amount[data-krw]").forEach((price) => {
+          const krw = Number(price.dataset.krw || 0);
+          if (!Number.isFinite(krw) || krw <= 0) return;
+          const suffix = price.dataset.suffix ? ` ${price.dataset.suffix}` : "";
+          const usd = krw / rate;
+          price.innerHTML = `<span>${krwFormatter.format(krw)}${suffix}</span><span class="price-usd">${usdFormatter.format(usd)} USD${suffix}</span>`;
+        });
+      }
 
       document.documentElement.lang = isKorean ? "ko" : "en";
       document.title = isKorean ? "예약 날짜 선택 | lofi esthetic dentistry" : "Date Selector | lofi esthetic dentistry";
@@ -1750,6 +1832,11 @@
       document.getElementById("usageStepClosed").textContent = text.usageStepClosed;
       priceGuideButton.textContent = text.priceGuideButton;
       document.getElementById("priceGuideTitle").textContent = text.priceGuideTitle;
+      document.getElementById("usdRateLabel").textContent = text.usdRateLabel;
+      document.getElementById("usdRateHelp").textContent = text.usdRateHelp;
+      usdRateInput.value = String(getInitialUsdRate());
+      usdRateInput.addEventListener("input", renderPriceAmounts);
+      renderPriceAmounts();
       priceGuideButton.addEventListener("click", () => {
         const isOpen = priceGuideButton.getAttribute("aria-expanded") === "true";
         priceGuideButton.setAttribute("aria-expanded", String(!isOpen));
