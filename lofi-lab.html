@@ -152,6 +152,88 @@
         box-shadow: 0 10px 24px rgba(27, 39, 35, 0.04);
       }
 
+      .veneer-pricing {
+        margin-top: 28px;
+        padding: 22px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--card);
+        box-shadow: 0 10px 24px rgba(27, 39, 35, 0.04);
+      }
+
+      .veneer-pricing-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: end;
+        margin-bottom: 16px;
+      }
+
+      .veneer-pricing h2 {
+        margin: 0;
+        font-size: clamp(1.2rem, 2.4vw, 1.65rem);
+      }
+
+      .veneer-rate-note {
+        margin: 0;
+        color: var(--soft-ink);
+        font-size: 0.84rem;
+        line-height: 1.5;
+        text-align: right;
+      }
+
+      .veneer-options {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .veneer-option {
+        display: grid;
+        gap: 10px;
+        padding: 16px;
+        border: 1px solid rgba(90, 111, 218, 0.14);
+        border-radius: 14px;
+        background: rgba(248, 250, 255, 0.74);
+      }
+
+      .veneer-option h3 {
+        margin: 0;
+        color: var(--ink);
+        font-size: 1rem;
+        line-height: 1.35;
+      }
+
+      .veneer-material {
+        margin: 0;
+        color: var(--soft-ink);
+        font-size: 0.86rem;
+        font-weight: 700;
+        line-height: 1.45;
+      }
+
+      .veneer-description {
+        margin: 0;
+        color: var(--ink);
+        font-size: 0.9rem;
+        line-height: 1.6;
+      }
+
+      .veneer-price {
+        display: grid;
+        gap: 2px;
+        margin-top: 2px;
+        color: var(--ink);
+        font-weight: 700;
+        line-height: 1.35;
+      }
+
+      .veneer-foreign-price {
+        color: var(--soft-ink);
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+
       .before-after-compare {
         position: relative;
         width: 100%;
@@ -272,6 +354,18 @@
           grid-template-columns: 1fr;
         }
 
+        .veneer-pricing-head {
+          display: grid;
+        }
+
+        .veneer-rate-note {
+          text-align: left;
+        }
+
+        .veneer-options {
+          grid-template-columns: 1fr;
+        }
+
         .reel-stage {
           max-width: 440px;
         }
@@ -342,6 +436,32 @@
             </div>
           </figure>
         </section>
+        <section class="veneer-pricing" aria-label="lofi veneers 재료와 가격">
+          <div class="veneer-pricing-head">
+            <h2>Veneer options</h2>
+            <p class="veneer-rate-note" id="veneerRateNote">Google Finance 환율을 불러오는 중...</p>
+          </div>
+          <div class="veneer-options">
+            <article class="veneer-option">
+              <h3>Economic Composite Resin Veneer</h3>
+              <p class="veneer-material">재료: Composite resin</p>
+              <p class="veneer-description">작은 형태와 색감 개선에 적합한 보존적인 레진 베니어 옵션입니다.</p>
+              <p class="veneer-price" data-krw="99000" data-suffix="per tooth">₩99,000 per tooth</p>
+            </article>
+            <article class="veneer-option">
+              <h3>Standard Porcelain Veneer</h3>
+              <p class="veneer-material">재료: Porcelain - Rosetta</p>
+              <p class="veneer-description">자연스러운 투명감과 내구성, 일상적인 심미성을 균형 있게 고려한 포세린 옵션입니다.</p>
+              <p class="veneer-price" data-krw="259000" data-suffix="per tooth">₩259,000 per tooth</p>
+            </article>
+            <article class="veneer-option">
+              <h3>Premium Porcelain Veneer</h3>
+              <p class="veneer-material">재료: Porcelain - IPS e.max</p>
+              <p class="veneer-description">강도, 층감 있는 투명감, 맞춤형 스마일 디자인을 위한 프리미엄 세라믹 옵션입니다.</p>
+              <p class="veneer-price" data-krw="399000" data-suffix="per tooth">₩399,000 per tooth</p>
+            </article>
+          </div>
+        </section>
         <div class="bottom-cta">
           <a class="btn btn-primary" href="/reservation/?lang=ko">예약하기</a>
         </div>
@@ -355,6 +475,61 @@
         "assets/story/lofi-lab-primemill.mp4",
       ];
       let veneerIndex = 0;
+      const veneerParams = new URLSearchParams(window.location.search);
+      const krwFormatter = new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW", maximumFractionDigits: 0 });
+      const currencyFormatters = {
+        USD: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }),
+        HKD: new Intl.NumberFormat("en-US", { style: "currency", currency: "HKD", maximumFractionDigits: 0 }),
+        SGD: new Intl.NumberFormat("en-US", { style: "currency", currency: "SGD", maximumFractionDigits: 0 }),
+      };
+      const fallbackRates = { USD: 1350, HKD: 184, SGD: 1125 };
+      let veneerRates = { ...fallbackRates };
+
+      function getInitialRate(currency) {
+        const key = currency.toLowerCase();
+        const queryRate = Number(veneerParams.get(`${key}Rate`));
+        if (Number.isFinite(queryRate) && queryRate > 0) return Math.round(queryRate);
+        const savedRate = Number(window.localStorage.getItem(`lofi${currency}Rate`));
+        if (Number.isFinite(savedRate) && savedRate > 0) return Math.round(savedRate);
+        return fallbackRates[currency];
+      }
+
+      function renderVeneerPrices() {
+        document.querySelectorAll(".veneer-price[data-krw]").forEach((price) => {
+          const krw = Number(price.dataset.krw || 0);
+          if (!Number.isFinite(krw) || krw <= 0) return;
+          const suffix = price.dataset.suffix ? ` ${price.dataset.suffix}` : "";
+          const converted = Object.entries(veneerRates).map(([currency, rate]) => {
+            const value = krw / Math.max(1, Number(rate) || fallbackRates[currency]);
+            return `<span class="veneer-foreign-price">${currencyFormatters[currency].format(value)} ${currency}${suffix}</span>`;
+          }).join("");
+          price.innerHTML = `<span>${krwFormatter.format(krw)}${suffix}</span>${converted}`;
+        });
+      }
+
+      async function loadVeneerExchangeRates() {
+        const note = document.getElementById("veneerRateNote");
+        veneerRates = Object.fromEntries(Object.keys(fallbackRates).map((currency) => [currency, getInitialRate(currency)]));
+        renderVeneerPrices();
+        try {
+          const response = await fetch(`/api/exchange-rates/krw?v=${Date.now()}`, { headers: { Accept: "application/json" } });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data.rates) throw new Error(data.message || "Failed to load exchange rates");
+          Object.keys(fallbackRates).forEach((currency) => {
+            const rate = Number(data.rates?.[currency]?.roundedRate || data.rates?.[currency]?.rate);
+            if (Number.isFinite(rate) && rate > 0) {
+              veneerRates[currency] = Math.round(rate);
+              window.localStorage.setItem(`lofi${currency}Rate`, String(veneerRates[currency]));
+            }
+          });
+          renderVeneerPrices();
+          note.textContent = "Google Finance 기준 환율로 계산한 예상 금액입니다.";
+        } catch {
+          note.textContent = "Google Finance 환율을 불러오지 못해 저장된 환율로 계산합니다.";
+        }
+      }
+
+      loadVeneerExchangeRates();
 
       veneerReel.addEventListener("ended", () => {
         veneerIndex = (veneerIndex + 1) % veneerPlaylist.length;
