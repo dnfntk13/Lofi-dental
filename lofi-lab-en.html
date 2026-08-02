@@ -430,12 +430,14 @@
       }
 
       .case-preview.is-zooming.compare-zoom-fallback.compare-mobile-zoom .before-after-compare {
-        width: min(76vh, 860px);
+        width: min(76dvh, 860px);
+        margin-top: calc(30dvh + 72px);
         transform: rotate(90deg) scale(0.98);
       }
 
       .case-preview.compare-zoom-fallback.compare-mobile-zoom {
         justify-content: flex-start;
+        height: 100dvh;
         overflow-x: hidden;
         overflow-y: auto;
         padding: 72px 18px 36px;
