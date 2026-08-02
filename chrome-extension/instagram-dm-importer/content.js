@@ -88,7 +88,17 @@ function parseThreadRowAgeDays(text, now = new Date()) {
 function threadRowMatchesSyncWindow(row, daysBack) {
   if (!daysBack) return true;
   const ageDays = parseThreadRowAgeDays(row.text);
-  return ageDays === null || ageDays <= daysBack;
+  return ageDays !== null && ageDays <= daysBack;
+}
+
+function threadRowSnapshotMatchesSyncWindow(row, daysBack) {
+  if (!daysBack) return true;
+  return row.ageDays !== null && row.ageDays <= daysBack;
+}
+
+function visibleRowsAreOutsideSyncWindow(rows, daysBack) {
+  if (!daysBack || !rows.length) return false;
+  return rows.every((row) => row.ageDays !== null && row.ageDays > daysBack);
 }
 
 function createThreadRowSnapshot(row, index, seen) {
@@ -459,7 +469,10 @@ async function collectLatestThreadRows(maxThreads, maxListScrolls, onProgress, d
 
     onProgress?.(`AI action: ${plan.action}${plan.reason ? ` - ${plan.reason}` : ""}`);
 
-    for (const rowIndex of Array.isArray(plan.openRowIndexes) ? plan.openRowIndexes : []) {
+    const plannedOpenIndexes = Array.isArray(plan.openRowIndexes) ? plan.openRowIndexes : [];
+    const openRowIndexes = plannedOpenIndexes.filter((rowIndex) => threadRowSnapshotMatchesSyncWindow(visibleRows[rowIndex], daysBack));
+
+    for (const rowIndex of openRowIndexes) {
       if (collected.length >= maxThreads) break;
       const row = rows[rowIndex];
       if (!row) continue;
@@ -476,6 +489,7 @@ async function collectLatestThreadRows(maxThreads, maxListScrolls, onProgress, d
 
     if (collected.length >= maxThreads) break;
     if (plan.action === "stop") break;
+  if (!openRowIndexes.length && visibleRowsAreOutsideSyncWindow(visibleRows, daysBack)) break;
     const beforeTop = scrollTarget.scrollTop;
     if (reachedBottom) break;
     scrollTarget.scrollTop += Math.max(220, scrollTarget.clientHeight * 0.45);
