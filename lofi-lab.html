@@ -400,6 +400,11 @@
         transform-origin: center;
       }
 
+      .case-preview.is-zooming.compare-zoom-fallback.compare-mobile-zoom .before-after-compare {
+        width: min(76vh, 860px);
+        transform: rotate(90deg) scale(2);
+      }
+
       .case-preview.is-zooming:fullscreen .compare-label-row,
       .case-preview.is-zooming.compare-zoom-fallback .compare-label-row {
         position: fixed;
@@ -639,19 +644,21 @@
         let isDragging = false;
 
         const shouldLockLandscape = () => window.matchMedia("(max-width: 820px)").matches || (window.matchMedia("(pointer: coarse)").matches && window.innerWidth < 1200);
+        const shouldUseMobileZoom = shouldLockLandscape;
 
         const unlockOrientation = () => {
           try { screen.orientation?.unlock?.(); } catch {}
         };
 
         const closeZoomFallback = () => {
-          card?.classList.remove("is-zooming", "compare-zoom-fallback");
+          card?.classList.remove("is-zooming", "compare-zoom-fallback", "compare-mobile-zoom");
           document.body.classList.remove("compare-zoom-open");
           unlockOrientation();
         };
 
-        const openZoomFallback = () => {
+        const openZoomFallback = (mobileZoom = false) => {
           card?.classList.add("is-zooming", "compare-zoom-fallback");
+          card?.classList.toggle("compare-mobile-zoom", mobileZoom);
           document.body.classList.add("compare-zoom-open");
         };
 
@@ -732,6 +739,10 @@
           }
           if (document.fullscreenElement === card) {
             await document.exitFullscreen?.();
+            return;
+          }
+          if (shouldUseMobileZoom()) {
+            openZoomFallback(true);
             return;
           }
           if (!card?.requestFullscreen) {
