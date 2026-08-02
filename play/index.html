@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lofi Monitor Play | lofi esthetic dentistry</title>
+    <title>lofi veneers | lofi esthetic dentistry</title>
     <style>
       @font-face {
         font-family: "Paperlogy";
@@ -25,6 +25,7 @@
         --ink: #1f2d66;
         --soft: #5a6fda;
         --line: rgba(90, 111, 218, 0.22);
+        --card: rgba(255, 255, 255, 0.94);
       }
 
       * { box-sizing: border-box; }
@@ -35,444 +36,260 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background: #000;
         color: var(--ink);
         font-family: "Paperlogy", "Nunito Sans", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at 12% 8%, rgba(90, 111, 218, 0.18), transparent 42%),
+          radial-gradient(circle at 88% 14%, rgba(103, 128, 245, 0.2), transparent 46%),
+          linear-gradient(180deg, #f8faff 0%, #f5f7ff 48%, #e7edff 100%);
       }
 
-      body {
-        display: grid;
-        place-items: center;
-      }
-
-      .signage-stage {
-        position: relative;
+      .play-screen {
         width: 100vw;
         height: 100vh;
-        overflow: hidden;
-        background: #000;
-      }
-
-      .screen {
-        position: absolute;
-        inset: 0;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 420ms ease;
-      }
-
-      .screen.active {
-        opacity: 1;
-        pointer-events: auto;
-      }
-
-      .video-diagnostics {
-        position: absolute;
-        left: 12px;
-        bottom: 10px;
-        z-index: 10;
-        max-width: min(86vw, 980px);
-        padding: 6px 10px;
-        border-radius: 8px;
-        background: rgba(0, 0, 0, 0.66);
-        color: #fff;
-        font-size: 12px;
-        line-height: 1.4;
-        letter-spacing: 0.01em;
-        opacity: 0;
-        transition: opacity 180ms ease;
-        pointer-events: none;
-      }
-
-      .video-diagnostics.visible {
-        opacity: 1;
-      }
-
-      .doctor-screen {
         display: grid;
-        grid-template-rows: minmax(0, 1fr) clamp(108px, 13vh, 148px);
-        gap: clamp(10px, 1.4vh, 18px);
-        padding: clamp(14px, 2vh, 26px) clamp(28px, 4vw, 72px) clamp(14px, 2vh, 26px);
-        background:
-          radial-gradient(circle at 15% 10%, rgba(90, 111, 218, 0.22), transparent 36%),
-          radial-gradient(circle at 86% 16%, rgba(120, 143, 245, 0.18), transparent 42%),
-          linear-gradient(170deg, #f8faff 0%, #e7edff 100%);
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        gap: clamp(14px, 2.2vh, 28px);
+        padding: clamp(22px, 3.6vh, 54px) clamp(28px, 5vw, 90px);
       }
 
-      .doctor-media {
-        position: relative;
-        min-height: 0;
-        display: grid;
-        place-items: center;
-        overflow: hidden;
-      }
-
-      .doctor-video {
-        position: absolute;
-        inset: 0;
-        margin: auto;
-        width: min(70vw, 920px);
-        height: 100%;
-        max-height: 100%;
-        max-width: 100%;
-        border: 1px solid var(--line);
-        border-radius: 18px;
-        background: #000;
-        object-fit: contain;
-        box-shadow: 0 20px 54px rgba(31, 45, 102, 0.16);
-      }
-
-      .career-panel {
-        width: min(1560px, 100%);
-        margin: 0 auto;
-        display: grid;
-        grid-template-columns: minmax(160px, 0.82fr) repeat(5, minmax(0, 1fr));
-        gap: 12px;
-        align-items: stretch;
-        align-self: end;
-        height: 100%;
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 28px;
         min-height: 0;
       }
 
-      .career-title,
-      .career-item {
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.92);
-        box-shadow: 0 12px 30px rgba(31, 45, 102, 0.08);
+      .logo-img {
+        display: block;
+        width: min(400px, 27vw);
+        height: auto;
       }
 
-      .career-title {
-        min-width: 160px;
-        display: grid;
-        place-items: center;
-        padding: 10px 14px;
-        font-size: clamp(1.08rem, 1.5vw, 1.62rem);
+      .eyebrow {
+        margin: 0;
+        color: var(--soft);
+        font-size: clamp(0.92rem, 1.2vw, 1.22rem);
         font-weight: 700;
-        line-height: 1.05;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .hero {
+        min-height: 0;
+        display: grid;
+        align-content: center;
+        gap: clamp(18px, 3vh, 36px);
+      }
+
+      .hero-copy {
+        display: grid;
+        gap: 10px;
         text-align: center;
       }
 
-      .career-item {
-        padding: 10px 12px;
-        display: grid;
-        gap: 3px;
-        align-content: start;
-        min-width: 0;
-      }
-
-      .career-year {
+      h1 {
         margin: 0;
         color: var(--ink);
-        font-size: clamp(1rem, 1.3vw, 1.32rem);
+        font-size: clamp(2.4rem, 5.2vw, 6.2rem);
+        line-height: 0.92;
+        letter-spacing: 0;
         font-weight: 700;
-        line-height: 1.1;
+        text-transform: lowercase;
       }
 
-      .career-text {
+      .intro {
         margin: 0;
         color: var(--soft);
-        font-size: clamp(0.68rem, 0.86vw, 0.92rem);
-        line-height: 1.26;
+        font-size: clamp(1.04rem, 1.8vw, 2rem);
+        line-height: 1.35;
       }
 
-      .video-screen {
-        display: grid;
-        place-items: center;
-        background: #000;
+      .case-film {
+        position: relative;
+        width: min(100%, calc((100vh - 310px) * 5.3333), 1560px);
+        margin: 0 auto;
+        aspect-ratio: 16 / 3;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: clamp(16px, 2vw, 28px);
+        background: var(--card);
+        box-shadow: 0 26px 70px rgba(31, 45, 102, 0.15);
+        isolation: isolate;
       }
 
-      .story-video {
-        width: auto;
-        height: 100vh;
-        max-width: 100vw;
+      .case-film img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
         display: block;
         object-fit: contain;
-        background: #000;
+        user-select: none;
+        -webkit-user-drag: none;
       }
 
-      @media (max-height: 720px) {
-        .doctor-screen {
-          grid-template-rows: minmax(0, 1fr) 112px;
+      .case-before {
+        opacity: 1;
+        animation: beforeFade 12s ease-in-out infinite;
+      }
+
+      .case-after {
+        opacity: 0;
+        animation: afterFade 12s ease-in-out infinite;
+      }
+
+      .case-film::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        pointer-events: none;
+        background:
+          linear-gradient(90deg, rgba(31, 45, 102, 0.1), transparent 12%, transparent 88%, rgba(31, 45, 102, 0.1)),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.3), transparent 24%, transparent 76%, rgba(255, 255, 255, 0.28));
+      }
+
+      .film-labels {
+        position: absolute;
+        left: 18px;
+        right: 18px;
+        bottom: 14px;
+        z-index: 4;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #ffffff;
+        font-size: clamp(0.74rem, 1vw, 1rem);
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+      }
+
+      .film-progress {
+        position: absolute;
+        left: 18px;
+        right: 18px;
+        bottom: 8px;
+        z-index: 4;
+        height: 3px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.42);
+      }
+
+      .film-progress span {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+        transform-origin: left center;
+        animation: filmProgress 12s linear infinite;
+      }
+
+      .veneer-options {
+        width: min(1180px, 100%);
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: clamp(10px, 1.3vw, 18px);
+      }
+
+      .veneer-option {
+        min-width: 0;
+        padding: clamp(14px, 1.6vw, 22px);
+        border: 1px solid rgba(90, 111, 218, 0.16);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.8);
+        box-shadow: 0 16px 38px rgba(31, 45, 102, 0.08);
+      }
+
+      .veneer-option h2 {
+        margin: 0;
+        color: var(--ink);
+        font-size: clamp(1rem, 1.45vw, 1.42rem);
+        line-height: 1.2;
+      }
+
+      .veneer-option p {
+        margin: 8px 0 0;
+        color: var(--soft);
+        font-size: clamp(0.82rem, 1.05vw, 1.02rem);
+        line-height: 1.42;
+      }
+
+      @keyframes beforeFade {
+        0%, 34% { opacity: 1; }
+        48%, 86% { opacity: 0; }
+        100% { opacity: 1; }
+      }
+
+      @keyframes afterFade {
+        0%, 34% { opacity: 0; }
+        48%, 86% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+
+      @keyframes filmProgress {
+        0% { transform: scaleX(0); }
+        100% { transform: scaleX(1); }
+      }
+
+      @media (max-width: 900px), (max-height: 720px) {
+        .play-screen {
+          padding: 18px 22px;
+          gap: 14px;
         }
 
-        .career-title,
-        .career-item {
-          padding: 8px 10px;
+        .logo-img {
+          width: min(260px, 42vw);
         }
 
-        .career-title {
-          min-width: 132px;
-          font-size: 1rem;
+        .case-film {
+          width: min(100%, calc((100vh - 240px) * 5.3333));
         }
 
-        .career-year {
-          font-size: 0.86rem;
-        }
-
-        .career-text {
-          font-size: 0.68rem;
-          line-height: 1.18;
+        .veneer-option {
+          padding: 12px;
         }
       }
     </style>
   </head>
   <body>
-    <main class="signage-stage" aria-label="Lofi monitor play sequence">
-      <div class="video-diagnostics" id="videoDiagnostics" aria-hidden="true"></div>
-      <section class="screen doctor-screen active" id="doctorScreen" aria-label="Meet Dr. Ryan Kim">
-        <div class="doctor-media">
-          <video class="doctor-video" id="doctorVideo" muted autoplay playsinline preload="auto"></video>
+    <main class="play-screen" aria-label="lofi veneers monitor screen">
+      <header class="topbar">
+        <img class="logo-img" src="/assets/영문로고.png" alt="lofi esthetic dentistry" />
+        <p class="eyebrow">before and after case 4</p>
+      </header>
+
+      <section class="hero" aria-label="lofi veneers before and after animation">
+        <div class="hero-copy">
+          <h1>lofi veneers</h1>
+          <p class="intro">A timeless smile, uniquely yours.</p>
         </div>
-        <section class="career-panel" aria-label="Career Highlights">
-          <h1 class="career-title">Career Highlights</h1>
-          <article class="career-item">
-            <p class="career-year">2018</p>
-            <p class="career-text">Graduated from NYU College of Dentistry</p>
-          </article>
-          <article class="career-item">
-            <p class="career-year">2018-2020</p>
-            <p class="career-text">Served as Dental Corpsman in the Republic of Korea Army</p>
-          </article>
-          <article class="career-item">
-            <p class="career-year">2023-2024</p>
-            <p class="career-text">General Practice Residency at Brookdale and Interfaith Hospital</p>
-          </article>
-          <article class="career-item">
-            <p class="career-year">2025</p>
-            <p class="career-text">Associate Dentist at Castle Bubu Dental and Smile Studios Dental</p>
-          </article>
-          <article class="career-item">
-            <p class="career-year">2026</p>
-            <p class="career-text">Founder and lead doctor at lofi esthetic dentistry</p>
-          </article>
-        </section>
+        <figure class="case-film">
+          <img class="case-before" src="/assets/before-after/case-04-before.jpg" alt="Before veneer case 4 left, front, and right side views" />
+          <img class="case-after" src="/assets/before-after/case-04-after.jpg" alt="After veneer case 4 left, front, and right side views" />
+          <figcaption class="film-labels"><span>BEFORE</span><span>AFTER</span></figcaption>
+          <div class="film-progress" aria-hidden="true"><span></span></div>
+        </figure>
       </section>
 
-      <section class="screen video-screen" id="videoScreen" aria-label="Lofi veneers story video">
-        <video class="story-video" id="storyVideo" muted autoplay playsinline preload="auto"></video>
+      <section class="veneer-options" aria-label="lofi veneers options">
+        <article class="veneer-option">
+          <h2>Economic Composite Resin Veneer</h2>
+          <p>Composite resin for practical shape and color refinement.</p>
+        </article>
+        <article class="veneer-option">
+          <h2>Standard Porcelain Veneer</h2>
+          <p>Porcelain - Rosetta for natural translucency and everyday esthetics.</p>
+        </article>
+        <article class="veneer-option">
+          <h2>Premium Porcelain Veneer</h2>
+          <p>Porcelain - IPS e.max for strength and customized smile design.</p>
+        </article>
       </section>
     </main>
-
-    <script>
-      var sequence = [
-        { type: "doctor", src: "/assets/story/meet-dr-kim.mp4" },
-        { type: "story", src: "/assets/story/lofi-lab-dentistryisart.mp4" },
-        { type: "story", src: "/assets/story/lofi-lab-primemill.mp4" },
-        { type: "story", src: "/assets/story/lofi-lab-veneers.mp4" }
-      ];
-
-      var doctorScreen = document.getElementById("doctorScreen");
-      var videoScreen = document.getElementById("videoScreen");
-      var doctorVideo = document.getElementById("doctorVideo");
-      var storyVideo = document.getElementById("storyVideo");
-      var videoDiagnostics = document.getElementById("videoDiagnostics");
-      var current = 0;
-      var fallbackTimer = null;
-      var retryTimers = { doctor: null, story: null };
-      var doctorErrorCount = 0;
-      var VIDEO_READY_TIMEOUT = 15000;
-      var DOCTOR_RETRY_DELAY = 1200;
-      var MAX_DOCTOR_RETRIES = 3;
-
-      function clearFallback() {
-        if (fallbackTimer) {
-          clearTimeout(fallbackTimer);
-          fallbackTimer = null;
-        }
-      }
-
-      function getVideoKey(video) {
-        return video === doctorVideo ? "doctor" : "story";
-      }
-
-      function setDiagnostics(message) {
-        if (!videoDiagnostics) return;
-        if (!message) {
-          videoDiagnostics.textContent = "";
-          videoDiagnostics.classList.remove("visible");
-          return;
-        }
-        videoDiagnostics.textContent = message;
-        videoDiagnostics.classList.add("visible");
-      }
-
-      function getVideoErrorMessage(video) {
-        if (!video || !video.error) return "";
-        var err = video.error;
-        var codeMap = {
-          1: "MEDIA_ERR_ABORTED",
-          2: "MEDIA_ERR_NETWORK",
-          3: "MEDIA_ERR_DECODE",
-          4: "MEDIA_ERR_SRC_NOT_SUPPORTED"
-        };
-        var codeText = codeMap[err.code] || "UNKNOWN";
-        var msg = err.message ? String(err.message) : "";
-        return codeText + " (code " + err.code + ")" + (msg ? " - " + msg : "");
-      }
-
-      function logVideoDiagnostics(label, video, reason) {
-        var details = [
-          label,
-          reason || "video issue",
-          "src=" + (video.currentSrc || video.getAttribute("src") || "(none)"),
-          "readyState=" + video.readyState,
-          "networkState=" + video.networkState
-        ];
-        var errorText = getVideoErrorMessage(video);
-        if (errorText) details.push("error=" + errorText);
-        var message = details.join(" | ");
-        console.warn(message);
-        setDiagnostics(message);
-      }
-
-      function clearRetry(video) {
-        var key = getVideoKey(video);
-        if (retryTimers[key]) {
-          clearTimeout(retryTimers[key]);
-          retryTimers[key] = null;
-        }
-      }
-
-      function clearAllRetry() {
-        clearRetry(doctorVideo);
-        clearRetry(storyVideo);
-      }
-
-      function setActiveScreen(screen) {
-        doctorScreen.classList.toggle("active", screen === "doctor");
-        videoScreen.classList.toggle("active", screen === "story");
-      }
-
-      function playVideo(video, reset) {
-        clearRetry(video);
-        video.muted = true;
-        video.playsInline = true;
-        video.autoplay = true;
-        if (reset && video.readyState > 0) video.currentTime = 0;
-        var attempt = video.play();
-        if (attempt && typeof attempt.catch === "function") {
-          attempt.catch(function (error) {
-            var key = getVideoKey(video);
-            logVideoDiagnostics(key === "doctor" ? "doctorVideo" : "storyVideo", video, "autoplay retry");
-            if (error && error.message) console.warn("Autoplay error:", error.message);
-            retryTimers[key] = setTimeout(function () { playVideo(video, false); }, 1000);
-          });
-        }
-      }
-
-      function setVideoSource(video, src) {
-        var source = video.querySelector("source");
-        if (!source) {
-          source = document.createElement("source");
-          video.appendChild(source);
-        }
-        source.type = "video/mp4";
-        source.setAttribute("src", src);
-      }
-
-      function clearVideoSource(video) {
-        var source = video.querySelector("source");
-        if (source) source.removeAttribute("src");
-        video.removeAttribute("src");
-      }
-
-      function prepareVideoPlayback(video, src) {
-        video.pause();
-        if (video.readyState > 0) video.currentTime = 0;
-        setVideoSource(video, src);
-        video.load();
-      }
-
-      function playWhenReady(video) {
-        var triggered = false;
-        var events = ["loadedmetadata", "canplay", "canplaythrough"];
-        var cleanupTimer = null;
-        function clearListeners() {
-          if (cleanupTimer) {
-            clearTimeout(cleanupTimer);
-            cleanupTimer = null;
-          }
-          events.forEach(function (eventName) {
-            video.removeEventListener(eventName, startPlayback);
-          });
-        }
-        function startPlayback() {
-          if (triggered) return;
-          triggered = true;
-          clearListeners();
-          playVideo(video, false);
-        }
-        events.forEach(function (eventName) {
-          video.addEventListener(eventName, startPlayback);
-        });
-        cleanupTimer = setTimeout(function () {
-          if (video.readyState >= 1) startPlayback();
-          else clearListeners();
-        }, VIDEO_READY_TIMEOUT);
-        if (video.readyState >= 1) startPlayback();
-      }
-
-      function advance() {
-        clearFallback();
-        clearAllRetry();
-        doctorVideo.pause();
-        storyVideo.pause();
-        setDiagnostics("");
-        current = (current + 1) % sequence.length;
-        showItem(current);
-      }
-
-      function showDoctor(item) {
-        clearAllRetry();
-        setActiveScreen("doctor");
-        doctorErrorCount = 0;
-        storyVideo.pause();
-        clearVideoSource(storyVideo);
-        storyVideo.load();
-        doctorVideo.onended = advance;
-        doctorVideo.onerror = function () {
-          doctorErrorCount += 1;
-          logVideoDiagnostics("doctorVideo", doctorVideo, "load/play error attempt " + doctorErrorCount);
-          if (doctorErrorCount <= MAX_DOCTOR_RETRIES) {
-            clearRetry(doctorVideo);
-            retryTimers.doctor = setTimeout(function () {
-              prepareVideoPlayback(doctorVideo, item.src);
-              playWhenReady(doctorVideo);
-            }, DOCTOR_RETRY_DELAY);
-            return;
-          }
-          advance();
-        };
-        prepareVideoPlayback(doctorVideo, item.src);
-        playWhenReady(doctorVideo);
-        fallbackTimer = setTimeout(advance, 12 * 60 * 1000);
-      }
-
-      function showStory(item) {
-        clearAllRetry();
-        setActiveScreen("story");
-        doctorVideo.pause();
-        storyVideo.onended = advance;
-        storyVideo.onerror = function () {
-          logVideoDiagnostics("storyVideo", storyVideo, "load/play error");
-          advance();
-        };
-        prepareVideoPlayback(storyVideo, item.src);
-        playWhenReady(storyVideo);
-        fallbackTimer = setTimeout(advance, 12 * 60 * 1000);
-      }
-
-      function showItem(index) {
-        clearFallback();
-        var item = sequence[index];
-        if (item.type === "doctor") showDoctor(item);
-        else showStory(item);
-      }
-
-      window.addEventListener("load", function () {
-        showItem(0);
-      });
-    </script>
   </body>
 </html>
