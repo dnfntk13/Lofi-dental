@@ -323,6 +323,47 @@
         box-shadow: 0 0 0 4px rgba(103, 128, 245, 0.18);
       }
 
+      .compare-label-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 14px 12px;
+        color: var(--ink);
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+      }
+
+      .compare-fullscreen {
+        border: 1px solid rgba(49, 63, 141, 0.18);
+        border-radius: 999px;
+        padding: 7px 10px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0;
+        cursor: pointer;
+      }
+
+      .case-preview:fullscreen {
+        display: grid;
+        place-content: center;
+        gap: 10px;
+        width: 100vw;
+        height: 100vh;
+        padding: 18px;
+        border-radius: 0;
+        background: #f8faff;
+      }
+
+      .case-preview:fullscreen .before-after-compare {
+        max-width: min(100%, 1280px);
+        max-height: calc(100vh - 90px);
+      }
+
       .bottom-cta {
         margin-top: 30px;
         display: flex;
@@ -431,9 +472,8 @@
               <div class="compare-divider" aria-hidden="true">
                 <span class="compare-handle">↔</span>
               </div>
-              <span class="compare-label compare-label-before">BEFORE</span>
-              <span class="compare-label compare-label-after">AFTER</span>
             </div>
+            <div class="compare-label-row"><span>BEFORE</span><button class="compare-fullscreen" type="button">Full screen</button><span>AFTER</span></div>
           </figure>
         </section>
         <section class="veneer-pricing" aria-label="lofi veneers 재료와 가격">
@@ -538,6 +578,8 @@
       });
 
       document.querySelectorAll(".before-after-compare").forEach((compare) => {
+        const card = compare.closest(".case-preview");
+        const fullscreenButton = card?.querySelector(".compare-fullscreen");
         const overlayImage = compare.querySelector(".compare-overlay-image");
         const divider = compare.querySelector(".compare-divider");
         let isDragging = false;
@@ -605,6 +647,14 @@
           const percent = Math.min(100, Math.max(0, next));
           overlayImage.style.clipPath = `inset(0 ${100 - percent}% 0 0)`;
           divider.style.left = `${percent}%`;
+        });
+
+        fullscreenButton?.addEventListener("click", () => {
+          if (document.fullscreenElement) {
+            document.exitFullscreen?.();
+            return;
+          }
+          card?.requestFullscreen?.();
         });
       });
     </script>

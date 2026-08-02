@@ -273,6 +273,47 @@
         box-shadow: 0 0 0 4px rgba(103, 128, 245, 0.18);
       }
 
+      .compare-label-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 14px 0;
+        color: var(--logo-ink);
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+      }
+
+      .compare-fullscreen {
+        border: 1px solid rgba(49, 63, 141, 0.18);
+        border-radius: 999px;
+        padding: 7px 10px;
+        background: #fff;
+        color: var(--logo-ink);
+        font: inherit;
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0;
+        cursor: pointer;
+      }
+
+      .case-card-compare:fullscreen {
+        display: grid;
+        place-content: center;
+        gap: 10px;
+        width: 100vw;
+        height: 100vh;
+        padding: 18px;
+        border-radius: 0;
+        background: #f8faff;
+      }
+
+      .case-card-compare:fullscreen .before-after-compare {
+        max-width: min(100%, 1280px);
+        max-height: calc(100vh - 160px);
+      }
+
       .case-caption {
         margin: 0;
         padding: 28px 30px;
@@ -393,9 +434,8 @@
               <div class="compare-divider" aria-hidden="true">
                 <span class="compare-handle">↔</span>
               </div>
-              <span class="compare-label compare-label-before">BEFORE</span>
-              <span class="compare-label compare-label-after">AFTER</span>
             </div>
+            <div class="compare-label-row"><span>BEFORE</span><button class="compare-fullscreen" type="button">Full screen</button><span>AFTER</span></div>
             <figcaption class="case-caption">
               I already like my smile—I just want it to look brighter and more balanced.
             </figcaption>
@@ -420,9 +460,8 @@
               <div class="compare-divider" aria-hidden="true">
                 <span class="compare-handle">↔</span>
               </div>
-              <span class="compare-label compare-label-before">BEFORE</span>
-              <span class="compare-label compare-label-after">AFTER</span>
             </div>
+            <div class="compare-label-row"><span>BEFORE</span><button class="compare-fullscreen" type="button">Full screen</button><span>AFTER</span></div>
             <figcaption class="case-caption">
               "치아가 삐뚤빼뚤한데, 교정은 너무 부담스러워요."
             </figcaption>
@@ -448,9 +487,8 @@
               <div class="compare-divider" aria-hidden="true">
                 <span class="compare-handle">↔</span>
               </div>
-              <span class="compare-label compare-label-before">BEFORE</span>
-              <span class="compare-label compare-label-after">AFTER</span>
             </div>
+            <div class="compare-label-row"><span>BEFORE</span><button class="compare-fullscreen" type="button">Full screen</button><span>AFTER</span></div>
             <figcaption class="case-caption">
               "친구들이 라미네이트가 너무 가짜 같대요 ㅠㅠ 자연스럽게 해주세요!"
             </figcaption>
@@ -476,9 +514,8 @@
               <div class="compare-divider" aria-hidden="true">
                 <span class="compare-handle">↔</span>
               </div>
-              <span class="compare-label compare-label-before">BEFORE</span>
-              <span class="compare-label compare-label-after">AFTER</span>
             </div>
+            <div class="compare-label-row"><span>BEFORE</span><button class="compare-fullscreen" type="button">Full screen</button><span>AFTER</span></div>
             <figcaption class="case-caption">
               “최대한 안건드리고 못생긴 부분만 좀 개선됐으면 좋겠어요”
             </figcaption>
@@ -502,6 +539,8 @@
         };
 
         components.forEach((compare) => {
+          const card = compare.closest(".case-card-compare");
+          const fullscreenButton = card?.querySelector(".compare-fullscreen");
           const overlayImage = compare.querySelector(".compare-overlay-image");
           const divider = compare.querySelector(".compare-divider");
           let isDragging = false;
@@ -565,6 +604,14 @@
             const current = Number.isFinite(currentInset) ? 100 - currentInset : 50;
             const next = event.key === "ArrowLeft" ? current - 3 : current + 3;
             applyPercent(next);
+          });
+
+          fullscreenButton?.addEventListener("click", () => {
+            if (document.fullscreenElement) {
+              document.exitFullscreen?.();
+              return;
+            }
+            card?.requestFullscreen?.();
           });
 
           if (isPlayMode) {
