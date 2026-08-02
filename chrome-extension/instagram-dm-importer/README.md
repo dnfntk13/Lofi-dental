@@ -21,7 +21,7 @@ This Chrome Extension scans Instagram Direct in the browser and sends the extrac
 8. Confirm the small `Lofi Importer` panel appears inside the Instagram Direct tab.
 9. Keep the Instagram Direct tab open and visible. Auto-scan starts shortly after the importer loads and repeats while the tab is visible.
 10. Click `Test server save` to verify the server URL and import token.
-11. Open one DM thread and click `Save open DM now` in the popup or `Save open DM` in the Instagram tab panel to verify Instagram page reading.
+11. Open one DM thread and click `Save open DM now` in the popup or `Save open DM` in the Instagram tab panel to verify full-thread Instagram page reading.
 12. Click `AI read visible screen` if the normal scanner misses a DM. This sends the visible Instagram Direct text/DOM snapshot to the server AI so it can extract and save the conversation more flexibly.
 13. Click `Sync recent 3 days` or `Sync recent 1 week` in the popup, or `Sync 3 days` / `Sync 1 week` in the Instagram tab panel, to save recent DM conversations manually.
 
@@ -33,6 +33,7 @@ The server saves imported conversations into Patients through the existing Insta
 - Local testing uses `/api/local/instagram-extension/import`.
 - The extension reads the Instagram page that is already open in Chrome; it does not ask for or store Instagram passwords.
 - Manual sync and auto-scan first collect a stable snapshot of recent visible DM rows, then open them one by one, slowly scroll the right-side conversation candidates from top to bottom, and save readable conversations. Auto-scan uses the recent 3-day window.
+- The server uses Admin AI to extract reservation date, patient name, phone number, and chief complaint from saved Instagram DM conversations, then stores those details in the reservation inbox/calendar data.
 - Recent sync reads Instagram row date text such as minutes, hours, days, weeks, and month/day labels. Rows with unreadable date text are included so the scanner does not miss conversations when Instagram changes the UI.
 - `AI read visible screen` is the fallback for Instagram UI changes: it does not put the OpenAI key in the extension. The extension sends page text to the lofi server, and the server-side AI extracts DM conversations.
 - Auto-save is near-live only while an Instagram Direct thread is open in Chrome.

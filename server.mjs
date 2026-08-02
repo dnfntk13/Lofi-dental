@@ -2337,14 +2337,75 @@ async function syncInboxReservationsToPatients() {
 
 function normalizeInstagramReservationInfo(value) {
   const info = value && typeof value === "object" ? value : {};
+  const chiefComplaint = String(info.chiefComplaint || info.chief_complaint || "").trim();
+  const concerns = String(info.concerns || info.concern || "").trim();
   return {
     isReservationRelated: Boolean(info.isReservationRelated),
     name: String(info.name || "").trim().slice(0, 120),
     phone: String(info.phone || "").trim().slice(0, 80),
     date: String(info.date || "").trim().slice(0, 80),
     time: String(info.time || "").trim().slice(0, 80),
-    concerns: String(info.concerns || "").trim().slice(0, 2000),
+    concerns: (chiefComplaint || concerns).slice(0, 2000),
+    chiefComplaint: (chiefComplaint || concerns).slice(0, 2000),
   };
+}
+
+function mergeInstagramReservationInfo(...items) {
+  return normalizeInstagramReservationInfo(items.reduce((result, item) => {
+    const info = normalizeInstagramReservationInfo(item);
+    return {
+      isReservationRelated: result.isReservationRelated || info.isReservationRelated,
+      name: result.name || info.name,
+      phone: result.phone || info.phone,
+      date: result.date || info.date,
+      time: result.time || info.time,
+      concerns: result.concerns || info.concerns,
+      chiefComplaint: result.chiefComplaint || info.chiefComplaint,
+    };
+  }, {}));
+}
+
+async function generateInstagramReservationInfoFromDm({ title, content, capturedAt, fallback }) {
+  const baseInfo = normalizeInstagramReservationInfo(fallback);
+  if (!openaiApiKey || !content) return baseInfo;
+
+  try {
+    const prompt = {
+      currentDate: new Date().toISOString().slice(0, 10),
+      capturedAt: String(capturedAt || "").slice(0, 40),
+      threadTitle: String(title || "").slice(0, 160),
+      existingExtraction: baseInfo,
+      conversation: String(content || "").slice(0, 50000),
+    };
+
+    const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openaiApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: openaiModel,
+        temperature: 0.1,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content: "You extract reservation details from Instagram DM conversations for lofi esthetic dentistry admin. Return only JSON with keys: isReservationRelated, name, phone, date, time, chiefComplaint, concerns. Use the patient's language for chiefComplaint/concerns. date must be YYYY-MM-DD only when the patient clearly requested or agreed to a specific date; otherwise empty string. time must be HH:MM 24-hour only when clearly present; otherwise empty string. name and phone should be empty strings if not present. chiefComplaint should summarize the main dental/aesthetic concern or requested treatment, not the whole conversation. Never invent details.",
+          },
+          { role: "user", content: JSON.stringify(prompt) },
+        ],
+      }),
+    });
+
+    const data = await aiResponse.json().catch(() => ({}));
+    if (!aiResponse.ok) throw new Error(data?.error?.message || "OpenAI request failed");
+    const parsed = JSON.parse(data?.choices?.[0]?.message?.content || "{}");
+    return mergeInstagramReservationInfo(parsed, baseInfo);
+  } catch (error) {
+    console.error("Failed to extract Instagram reservation info with AI", error);
+    return baseInfo;
+  }
 }
 
 async function saveInstagramDmMessage(senderId, content, receivedAt = new Date().toISOString(), reservationInfo = {}) {
@@ -2364,7 +2425,7 @@ async function saveInstagramDmMessage(senderId, content, receivedAt = new Date()
     time: extractedReservation.time || existingRecord?.time || "Live",
     email,
     name,
-    concerns: extractedReservation.concerns || existingRecord?.concerns || text,
+    concerns: extractedReservation.chiefComplaint || extractedReservation.concerns || existingRecord?.concerns || text,
     source: "instagram-dm",
     channel: "instagram",
     instagramSenderId: normalizedSenderId,
@@ -2476,7 +2537,7 @@ async function importInstagramExtensionConversations(request, response) {
         title ? `Conversation: ${title}` : "",
         url ? `URL: ${url}` : "",
         messageText || fallbackText,
-      ].filter(Boolean).join("\n\n").trim().slice(0, 20000);
+      ].filter(Boolean).join("\n\n").trim().slice(0, 60000);
 
       if (!senderId || !content || content.length < 20) {
         skippedCount += 1;
@@ -2488,7 +2549,8 @@ async function importInstagramExtensionConversations(request, response) {
         continue;
       }
 
-      const saved = await saveInstagramDmMessage(senderId, content, capturedAt, reservationInfo);
+      const enrichedReservationInfo = await generateInstagramReservationInfoFromDm({ title, content, capturedAt, fallback: reservationInfo });
+      const saved = await saveInstagramDmMessage(senderId, content, capturedAt, enrichedReservationInfo);
       if (saved) savedCount += 1;
       else skippedCount += 1;
     }

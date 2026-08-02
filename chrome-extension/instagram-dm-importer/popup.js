@@ -37,7 +37,7 @@ function getSyncOptions(daysBack) {
     daysBack,
     maxThreads: daysBack <= 3 ? 30 : 60,
     maxListScrolls: daysBack <= 3 ? 40 : 80,
-    maxMessageScrolls: 30,
+    maxMessageScrolls: 120,
   };
 }
 

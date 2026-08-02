@@ -185,7 +185,7 @@ function renderImporterPanel() {
         const daysBack = button.dataset.lofiAction === "sync-3-days" ? 3 : 7;
         setImporterPanelStatus(`Syncing recent ${daysBack === 3 ? "3 days" : "1 week"}...`);
         const result = await scanInstagramDms(
-          { daysBack, maxThreads: daysBack === 3 ? 30 : 60, maxListScrolls: daysBack === 3 ? 40 : 80, maxMessageScrolls: 30 },
+          { daysBack, maxThreads: daysBack === 3 ? 30 : 60, maxListScrolls: daysBack === 3 ? 40 : 80, maxMessageScrolls: 120 },
           setImporterPanelStatus,
         );
         setImporterPanelStatus(`Saved ${result.savedCount || 0}; skipped ${result.skippedCount || 0}.`);
@@ -596,7 +596,7 @@ async function extractConversationMessagesByScrolling(maxMessageScrolls, onProgr
   }
 
   addVisibleMessages();
-  return messages.slice(-500);
+  return messages.slice(-1000);
 }
 
 function extractConversationTitle() {
@@ -635,7 +635,7 @@ function extractConversationMessages() {
     if (uniqueLines[uniqueLines.length - 1] !== line) uniqueLines.push(line);
   }
 
-  return uniqueLines.map((text) => ({ text })).slice(-500);
+  return uniqueLines.map((text) => ({ text })).slice(-1000);
 }
 
 function firstMatch(text, patterns) {
@@ -817,7 +817,7 @@ async function autoSaveCurrentConversation() {
 
 async function saveCurrentConversationNow() {
   const currentConversation = collectCurrentConversation();
-  const messages = currentConversation ? await extractConversationMessagesByScrolling(30, setImporterPanelStatus) : [];
+  const messages = currentConversation ? await extractConversationMessagesByScrolling(120, setImporterPanelStatus) : [];
   const text = messages.map((message) => message.text).join("\n");
   const title = extractConversationTitle();
   const fallbackThreadId = cleanText(title || text.slice(0, 80)).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || "instagram-dm";
@@ -856,7 +856,7 @@ async function autoScanInstagramDms() {
     setImporterPanelStatus("Auto-scanning Instagram DMs...");
     chrome.runtime.sendMessage({ type: "LOFI_SCAN_STATUS", status: "Auto-scanning Instagram DMs..." }).catch(() => {});
     const result = await scanInstagramDms(
-      { daysBack: 3, maxThreads: 30, maxListScrolls: 40, maxMessageScrolls: 30 },
+      { daysBack: 3, maxThreads: 30, maxListScrolls: 40, maxMessageScrolls: 80 },
       (status) => chrome.runtime.sendMessage({ type: "LOFI_SCAN_STATUS", status }).catch(() => {}),
     );
     chrome.runtime.sendMessage({
