@@ -1354,6 +1354,24 @@ function normalizeAdminAiConsolePayload(value) {
   };
 }
 
+function normalizeInstagramDmCheckPayload(value) {
+  const threads = Array.isArray(value?.threads) ? value.threads : [];
+  return {
+    summary: String(value?.summary || "").trim().slice(0, 1200),
+    checkedAt: new Date().toISOString(),
+    threads: threads.map((thread) => ({
+      sender: String(thread?.sender || "").trim().slice(0, 160),
+      target: String(thread?.target || "").trim().slice(0, 180),
+      latestNeed: String(thread?.latestNeed || "").trim().slice(0, 700),
+      urgency: String(thread?.urgency || "normal").trim().slice(0, 40),
+      missingInfo: Array.isArray(thread?.missingInfo) ? thread.missingInfo.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 8) : [],
+      shouldReply: Boolean(thread?.shouldReply),
+      suggestedReply: String(thread?.suggestedReply || "").trim().slice(0, 1800),
+      needsHumanReview: thread?.needsHumanReview !== false,
+    })).filter((thread) => thread.sender || thread.target || thread.latestNeed || thread.suggestedReply).slice(0, 25),
+  };
+}
+
 function getLatestThreadMessage(thread) {
   const messages = Array.isArray(thread?.messages) ? thread.messages : [];
   return messages[messages.length - 1] || null;
@@ -1514,6 +1532,54 @@ async function generateAdminAiConsoleReply({ messages }) {
   let parsed = {};
   try { parsed = JSON.parse(content); } catch { parsed = {}; }
   return normalizeAdminAiConsolePayload(parsed);
+}
+
+async function generateInstagramDmCheck() {
+  if (!openaiApiKey) {
+    const error = new Error("OpenAI API key is not configured");
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const context = await buildAdminAiConsoleContext();
+  const recentInstagramDms = Array.isArray(context.recentInstagramDms) ? context.recentInstagramDms : [];
+  if (!recentInstagramDms.length) {
+    const error = new Error("No saved Instagram DMs to check");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${openaiApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: openaiModel,
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: "You are the Instagram DM checker for lofi esthetic dentistry. Inspect each saved Instagram DM thread separately and return only JSON with keys: summary, threads. threads must be an array of objects with keys: sender, target, latestNeed, urgency, missingInfo, shouldReply, suggestedReply, needsHumanReview. Use Korean if the admin-facing content is Korean; match the patient's language inside suggestedReply. Urgency should be low, normal, high, or urgent. shouldReply is true when staff should answer now. missingInfo should list booking details still needed, such as name, phone, preferred date/time, treatment, or travel dates. Never diagnose, prescribe, or promise treatment outcomes. For clinical suitability, photos, side effects, pain, medical history, or treatment decisions, require clinical review or in-person consultation and set needsHumanReview true. Do not claim you sent or opened Instagram; you are checking saved DM records.",
+        },
+        { role: "user", content: JSON.stringify({ today: context.today, recentInstagramDms }) },
+      ],
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data?.error?.message || "OpenAI request failed");
+    error.statusCode = response.status;
+    throw error;
+  }
+
+  const content = data?.choices?.[0]?.message?.content || "{}";
+  let parsed = {};
+  try { parsed = JSON.parse(content); } catch { parsed = {}; }
+  return normalizeInstagramDmCheckPayload(parsed);
 }
 
 function stripHtmlForAi(value) {
@@ -4049,6 +4115,28 @@ createServer(async (request, response) => {
       const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
       response.writeHead(isPayloadError ? 400 : 500, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : "Failed to import Instagram screen text" }));
+    }
+    return;
+  }
+
+  if (pathname === "/api/admin/instagram-dms/check" && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+
+    try {
+      const check = await generateInstagramDmCheck();
+      response.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+      });
+      response.end(JSON.stringify({ ok: true, check, model: openaiModel }));
+    } catch (error) {
+      console.error("Failed to check Instagram DMs with AI", error);
+      const statusCode = Number(error?.statusCode || 500);
+      response.writeHead(statusCode, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+      });
+      response.end(JSON.stringify({ message: error instanceof Error ? error.message : "Failed to check Instagram DMs" }));
     }
     return;
   }
