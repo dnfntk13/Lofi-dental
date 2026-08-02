@@ -120,8 +120,8 @@ const reservationCorsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Accept",
 };
-let usdKrwRateCache = null;
-const usdKrwRateCacheMs = 60 * 60 * 1000;
+const krwRateCache = new Map();
+const krwRateCacheMs = 60 * 60 * 1000;
 const publicSiteKnowledgePages = [
   { path: "index.html", title: "Korean home" },
   { path: "english.html", title: "English home" },
@@ -3086,11 +3086,22 @@ async function migrateInboxToEmailThreads() {
     });
   }
 
-  async function getGoogleUsdKrwRate() {
-    const now = Date.now();
-    if (usdKrwRateCache && now - usdKrwRateCache.fetchedAtMs < usdKrwRateCacheMs) return usdKrwRateCache;
+  const googleKrwRateSources = {
+    USD: { pair: "USD-KRW", marker: "United States Dollar / South Korean won", min: 500, max: 2500 },
+    HKD: { pair: "HKD-KRW", marker: "Hong Kong Dollar / South Korean won", min: 50, max: 400 },
+    SGD: { pair: "SGD-KRW", marker: "Singapore Dollar / South Korean won", min: 500, max: 2000 },
+  };
 
-    const googleFinanceUrl = "https://www.google.com/finance/quote/USD-KRW";
+  async function getGoogleKrwRate(currency) {
+    const code = String(currency || "").trim().toUpperCase();
+    const config = googleKrwRateSources[code];
+    if (!config) throw new Error("Unsupported exchange rate currency");
+
+    const now = Date.now();
+    const cached = krwRateCache.get(code);
+    if (cached && now - cached.fetchedAtMs < krwRateCacheMs) return cached;
+
+    const googleFinanceUrl = `https://www.google.com/finance/quote/${config.pair}`;
     const response = await fetch(googleFinanceUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
@@ -3101,15 +3112,15 @@ async function migrateInboxToEmailThreads() {
     if (!response.ok) throw new Error(`Google Finance returned ${response.status}`);
 
     const html = await response.text();
-    const marker = "United States Dollar / South Korean won";
-    const markerIndex = html.indexOf(marker);
+    const markerIndex = html.indexOf(config.marker);
     const searchArea = markerIndex >= 0 ? html.slice(markerIndex, markerIndex + 3000) : html;
-    const match = searchArea.match(/([0-9]{1,3}(?:,[0-9]{3})+\.[0-9]{2,4})/);
+    const match = searchArea.match(/([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2,4})/);
     const rate = Number(String(match?.[1] || "").replace(/,/g, ""));
 
-    if (!Number.isFinite(rate) || rate < 500 || rate > 2500) throw new Error("Could not parse a valid USD/KRW rate from Google Finance");
+    if (!Number.isFinite(rate) || rate < config.min || rate > config.max) throw new Error(`Could not parse a valid ${code}/KRW rate from Google Finance`);
 
-    usdKrwRateCache = {
+    const rateData = {
+      currency: code,
       rate,
       roundedRate: Math.round(rate),
       source: "Google Finance",
@@ -3117,7 +3128,14 @@ async function migrateInboxToEmailThreads() {
       fetchedAt: new Date().toISOString(),
       fetchedAtMs: now,
     };
-    return usdKrwRateCache;
+
+    krwRateCache.set(code, rateData);
+    return rateData;
+  }
+
+  async function getGoogleKrwRates() {
+    const entries = await Promise.all(Object.keys(googleKrwRateSources).map(async (currency) => [currency, await getGoogleKrwRate(currency)]));
+    return Object.fromEntries(entries);
   }
 
 createServer(async (request, response) => {
@@ -3170,7 +3188,7 @@ createServer(async (request, response) => {
 
   if (pathname === "/api/exchange-rate/usd-krw" && request.method === "GET") {
     try {
-      const rate = await getGoogleUsdKrwRate();
+      const rate = await getGoogleKrwRate("USD");
       response.writeHead(200, {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "public, max-age=1800",
@@ -3185,6 +3203,27 @@ createServer(async (request, response) => {
         ...reservationCorsHeaders,
       });
       response.end(JSON.stringify({ ok: false, message: error instanceof Error ? error.message : "Failed to load exchange rate" }));
+    }
+    return;
+  }
+
+  if (pathname === "/api/exchange-rates/krw" && request.method === "GET") {
+    try {
+      const rates = await getGoogleKrwRates();
+      response.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "public, max-age=1800",
+        ...reservationCorsHeaders,
+      });
+      response.end(JSON.stringify({ ok: true, rates }));
+    } catch (error) {
+      console.error("Failed to load KRW exchange rates", error);
+      response.writeHead(502, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+        ...reservationCorsHeaders,
+      });
+      response.end(JSON.stringify({ ok: false, message: error instanceof Error ? error.message : "Failed to load exchange rates" }));
     }
     return;
   }

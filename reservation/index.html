@@ -465,6 +465,13 @@
         text-align: right;
       }
 
+      .price-guide-rate-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        white-space: nowrap;
+      }
+
       .price-guide-section {
         margin-top: 12px;
         padding: 12px;
@@ -1680,9 +1687,11 @@
               <span class="price-guide-subtitle">Most can be paid in multiple installments</span>
             </div>
             <div class="price-guide-rate">
-              <label for="usdRateInput" id="usdRateLabel">USD estimate rate</label>
-              <span>1 USD = ₩<input class="price-guide-rate-input" id="usdRateInput" type="number" min="1" step="1" inputmode="numeric" value="1350" aria-describedby="usdRateHelp" /></span>
-              <span id="usdRateHelp">Loading Google exchange rate...</span>
+              <span id="exchangeRateLabel">Exchange rates</span>
+              <label class="price-guide-rate-item" for="usdRateInput">1 USD = ₩<input class="price-guide-rate-input" id="usdRateInput" type="number" min="1" step="1" inputmode="numeric" value="1350" aria-describedby="exchangeRateHelp" /></label>
+              <label class="price-guide-rate-item" for="hkdRateInput">1 HKD = ₩<input class="price-guide-rate-input" id="hkdRateInput" type="number" min="1" step="1" inputmode="numeric" value="184" aria-describedby="exchangeRateHelp" /></label>
+              <label class="price-guide-rate-item" for="sgdRateInput">1 SGD = ₩<input class="price-guide-rate-input" id="sgdRateInput" type="number" min="1" step="1" inputmode="numeric" value="1125" aria-describedby="exchangeRateHelp" /></label>
+              <span id="exchangeRateHelp">Loading Google exchange rates...</span>
             </div>
             <div class="price-guide-section">
               <p class="price-guide-heading">Covered by Korean National Health Insurance</p>
@@ -1770,6 +1779,8 @@
       const priceGuideButton = document.getElementById("priceGuideButton");
       const priceGuidePanel = document.getElementById("priceGuidePanel");
       const usdRateInput = document.getElementById("usdRateInput");
+      const hkdRateInput = document.getElementById("hkdRateInput");
+      const sgdRateInput = document.getElementById("sgdRateInput");
       const clipOverlay = document.getElementById("clipOverlay");
       const clipStage = document.getElementById("clipStage");
       const clipTitle = document.getElementById("clipTitle");
@@ -1792,49 +1803,65 @@
         usageStepClosed: isKorean ? "오늘이 휴진일이면 다음 예약 가능일이 자동으로 선택됩니다." : "If today is closed, the next available day is selected automatically.",
         priceGuideButton: isKorean ? "가격 안내" : "Price Guide",
         priceGuideTitle: isKorean ? "가격 안내" : "Price Guide",
-        usdRateLabel: isKorean ? "USD 예상 환율" : "USD estimate rate",
-        usdRateHelp: isKorean ? "Google Finance 기준 환율을 불러옵니다. 필요하면 직접 조정할 수 있습니다." : "Uses the Google Finance exchange rate. You can adjust it if needed.",
-        usdRateLoading: isKorean ? "Google Finance 환율을 불러오는 중..." : "Loading Google Finance exchange rate...",
-        usdRateLoaded: isKorean ? "Google Finance 기준 환율입니다. 필요하면 직접 조정할 수 있습니다." : "Using the Google Finance exchange rate. You can adjust it if needed.",
-        usdRateFailed: isKorean ? "Google Finance 환율을 불러오지 못해 현재 입력값으로 계산합니다." : "Could not load the Google Finance rate, so prices use the current rate.",
+        exchangeRateLabel: isKorean ? "예상 환율" : "Exchange rates",
+        exchangeRateHelp: isKorean ? "Google Finance 기준 환율을 불러옵니다. 필요하면 직접 조정할 수 있습니다." : "Uses Google Finance exchange rates. You can adjust them if needed.",
+        exchangeRateLoading: isKorean ? "Google Finance 환율을 불러오는 중..." : "Loading Google Finance exchange rates...",
+        exchangeRateLoaded: isKorean ? "Google Finance 기준 환율입니다. 필요하면 직접 조정할 수 있습니다." : "Using Google Finance exchange rates. You can adjust them if needed.",
+        exchangeRateFailed: isKorean ? "Google Finance 환율을 불러오지 못해 현재 입력값으로 계산합니다." : "Could not load Google Finance rates, so prices use the current rates.",
         weekdays: isKorean ? ["일", "월", "화", "수", "목", "금", "토"] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
       };
 
       const krwFormatter = new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW", maximumFractionDigits: 0 });
-      const usdFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+      const currencyFormatters = {
+        USD: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }),
+        HKD: new Intl.NumberFormat("en-US", { style: "currency", currency: "HKD", maximumFractionDigits: 0 }),
+        SGD: new Intl.NumberFormat("en-US", { style: "currency", currency: "SGD", maximumFractionDigits: 0 }),
+      };
+      const rateInputs = { USD: usdRateInput, HKD: hkdRateInput, SGD: sgdRateInput };
+      const fallbackRates = { USD: 1350, HKD: 184, SGD: 1125 };
 
-      function getInitialUsdRate() {
-        const queryRate = Number(params.get("usdRate"));
+      function getInitialRate(currency) {
+        const key = currency.toLowerCase();
+        const queryRate = Number(params.get(`${key}Rate`));
         if (Number.isFinite(queryRate) && queryRate > 0) return Math.round(queryRate);
-        const savedRate = Number(window.localStorage.getItem("lofiUsdRate"));
+        const savedRate = Number(window.localStorage.getItem(`lofi${currency}Rate`));
         if (Number.isFinite(savedRate) && savedRate > 0) return Math.round(savedRate);
-        return 1350;
+        return fallbackRates[currency];
       }
 
       function renderPriceAmounts() {
-        const rate = Math.max(1, Number(usdRateInput.value) || 1350);
-        window.localStorage.setItem("lofiUsdRate", String(rate));
+        const rates = Object.fromEntries(Object.entries(rateInputs).map(([currency, input]) => {
+          const rate = Math.max(1, Number(input.value) || fallbackRates[currency]);
+          window.localStorage.setItem(`lofi${currency}Rate`, String(rate));
+          return [currency, rate];
+        }));
         document.querySelectorAll(".price-amount[data-krw]").forEach((price) => {
           const krw = Number(price.dataset.krw || 0);
           if (!Number.isFinite(krw) || krw <= 0) return;
           const suffix = price.dataset.suffix ? ` ${price.dataset.suffix}` : "";
-          const usd = krw / rate;
-          price.innerHTML = `<span>${krwFormatter.format(krw)}${suffix}</span><span class="price-usd">${usdFormatter.format(usd)} USD${suffix}</span>`;
+          const converted = Object.entries(rates).map(([currency, rate]) => {
+            const value = krw / rate;
+            return `<span class="price-usd">${currencyFormatters[currency].format(value)} ${currency}${suffix}</span>`;
+          }).join("");
+          price.innerHTML = `<span>${krwFormatter.format(krw)}${suffix}</span>${converted}`;
         });
       }
 
-      async function loadGoogleUsdRate() {
-        const help = document.getElementById("usdRateHelp");
-        help.textContent = text.usdRateLoading;
+      async function loadGoogleExchangeRates() {
+        const help = document.getElementById("exchangeRateHelp");
+        help.textContent = text.exchangeRateLoading;
         try {
-          const response = await fetch(`/api/exchange-rate/usd-krw?v=${Date.now()}`, { headers: { Accept: "application/json" } });
+          const response = await fetch(`/api/exchange-rates/krw?v=${Date.now()}`, { headers: { Accept: "application/json" } });
           const data = await response.json().catch(() => ({}));
-          if (!response.ok || !Number.isFinite(Number(data.roundedRate || data.rate))) throw new Error(data.message || "Failed to load exchange rate");
-          usdRateInput.value = String(Math.round(Number(data.roundedRate || data.rate)));
+          if (!response.ok || !data.rates) throw new Error(data.message || "Failed to load exchange rates");
+          Object.entries(rateInputs).forEach(([currency, input]) => {
+            const rate = Number(data.rates?.[currency]?.roundedRate || data.rates?.[currency]?.rate);
+            if (Number.isFinite(rate) && rate > 0) input.value = String(Math.round(rate));
+          });
           renderPriceAmounts();
-          help.textContent = text.usdRateLoaded;
+          help.textContent = text.exchangeRateLoaded;
         } catch {
-          help.textContent = text.usdRateFailed;
+          help.textContent = text.exchangeRateFailed;
         }
       }
 
@@ -1850,12 +1877,14 @@
       document.getElementById("usageStepClosed").textContent = text.usageStepClosed;
       priceGuideButton.textContent = text.priceGuideButton;
       document.getElementById("priceGuideTitle").textContent = text.priceGuideTitle;
-      document.getElementById("usdRateLabel").textContent = text.usdRateLabel;
-      document.getElementById("usdRateHelp").textContent = text.usdRateHelp;
-      usdRateInput.value = String(getInitialUsdRate());
-      usdRateInput.addEventListener("input", renderPriceAmounts);
+      document.getElementById("exchangeRateLabel").textContent = text.exchangeRateLabel;
+      document.getElementById("exchangeRateHelp").textContent = text.exchangeRateHelp;
+      Object.entries(rateInputs).forEach(([currency, input]) => {
+        input.value = String(getInitialRate(currency));
+        input.addEventListener("input", renderPriceAmounts);
+      });
       renderPriceAmounts();
-      loadGoogleUsdRate();
+      loadGoogleExchangeRates();
       priceGuideButton.addEventListener("click", () => {
         const isOpen = priceGuideButton.getAttribute("aria-expanded") === "true";
         priceGuideButton.setAttribute("aria-expanded", String(!isOpen));
