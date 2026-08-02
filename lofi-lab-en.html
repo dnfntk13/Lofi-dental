@@ -372,7 +372,26 @@
         background: #f8faff;
       }
 
-      .case-preview.is-zooming:fullscreen .before-after-compare {
+      .case-preview.compare-zoom-fallback {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        width: 100vw;
+        height: 100vh;
+        max-width: none;
+        padding: 18px;
+        overflow: auto;
+        border-radius: 0;
+        background: #f8faff;
+      }
+
+      .case-preview.is-zooming:fullscreen .before-after-compare,
+      .case-preview.is-zooming.compare-zoom-fallback .before-after-compare {
         flex: 0 0 auto;
         width: min(86vw, 860px);
         max-width: none;
@@ -381,7 +400,8 @@
         transform-origin: center;
       }
 
-      .case-preview.is-zooming:fullscreen .compare-label-row {
+      .case-preview.is-zooming:fullscreen .compare-label-row,
+      .case-preview.is-zooming.compare-zoom-fallback .compare-label-row {
         position: fixed;
         top: 14px;
         left: 50%;
@@ -392,6 +412,10 @@
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.94);
         transform: translateX(-50%);
+      }
+
+      body.compare-zoom-open {
+        overflow: hidden;
       }
 
       .bottom-cta {
@@ -634,10 +658,20 @@
           try { screen.orientation?.unlock?.(); } catch {}
         };
 
+        const closeZoomFallback = () => {
+          card?.classList.remove("is-zooming", "compare-zoom-fallback");
+          document.body.classList.remove("compare-zoom-open");
+          unlockOrientation();
+        };
+
+        const openZoomFallback = () => {
+          card?.classList.add("is-zooming", "compare-zoom-fallback");
+          document.body.classList.add("compare-zoom-open");
+        };
+
         document.addEventListener("fullscreenchange", () => {
           if (document.fullscreenElement === card) return;
-          card?.classList.remove("is-zooming");
-          unlockOrientation();
+          closeZoomFallback();
         });
 
         const getClientX = (event) => {
@@ -706,19 +740,25 @@
         });
 
         zoomButton?.addEventListener("click", async () => {
+          if (card?.classList.contains("compare-zoom-fallback")) {
+            closeZoomFallback();
+            return;
+          }
           if (document.fullscreenElement === card) {
             await document.exitFullscreen?.();
             return;
           }
-          if (!card?.requestFullscreen) return;
+          if (!card?.requestFullscreen) {
+            openZoomFallback();
+            return;
+          }
           if (document.fullscreenElement) await document.exitFullscreen?.();
           card.classList.add("is-zooming");
           try {
             await card.requestFullscreen();
             if (shouldLockLandscape()) await screen.orientation?.lock?.("landscape").catch(() => {});
           } catch {
-            card.classList.remove("is-zooming");
-            unlockOrientation();
+            openZoomFallback();
           }
         });
       });
