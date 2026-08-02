@@ -120,8 +120,15 @@
         line-height: 1.7;
       }
 
+      .veneer-showcase {
+        display: grid;
+        grid-template-columns: minmax(280px, 440px) minmax(360px, 1fr);
+        gap: 18px;
+        align-items: start;
+      }
+
       .reel-stage {
-        width: min(440px, 100%);
+        width: 100%;
         border: 1px solid var(--line);
         border-radius: 18px;
         overflow: hidden;
@@ -134,6 +141,104 @@
         aspect-ratio: 9 / 16;
         display: block;
         object-fit: cover;
+      }
+
+      .case-preview {
+        margin: 0;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        overflow: hidden;
+        background: var(--card);
+        box-shadow: 0 10px 24px rgba(27, 39, 35, 0.04);
+      }
+
+      .before-after-compare {
+        position: relative;
+        width: 100%;
+        overflow: hidden;
+        background: linear-gradient(135deg, #eff3ff 0%, #dfe8ff 100%);
+        cursor: ew-resize;
+        touch-action: none;
+      }
+
+      .before-after-compare:focus-visible {
+        outline: 2px solid var(--soft-ink);
+        outline-offset: -4px;
+      }
+
+      .compare-image {
+        user-select: none;
+        -webkit-user-drag: none;
+        pointer-events: none;
+      }
+
+      .compare-base-image {
+        position: relative;
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .compare-overlay-image {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        clip-path: inset(0 50% 0 0);
+      }
+
+      .compare-divider {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 2px;
+        background: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 0 0 1px rgba(49, 63, 141, 0.12);
+        transform: translateX(-50%);
+      }
+
+      .compare-handle {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 42px;
+        height: 42px;
+        border-radius: 999px;
+        transform: translate(-50%, -50%);
+        display: grid;
+        place-items: center;
+        background: rgba(255, 255, 255, 0.94);
+        border: 1px solid rgba(49, 63, 141, 0.18);
+        color: var(--ink);
+        font-size: 1rem;
+        font-weight: 700;
+      }
+
+      .compare-label {
+        position: absolute;
+        top: 12px;
+        z-index: 2;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(31, 45, 102, 0.78);
+        color: #ffffff;
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+        font-weight: 700;
+      }
+
+      .compare-label-before {
+        left: 12px;
+      }
+
+      .compare-label-after {
+        right: 12px;
+      }
+
+      .before-after-compare.is-dragging .compare-handle {
+        box-shadow: 0 0 0 4px rgba(103, 128, 245, 0.18);
       }
 
       .bottom-cta {
@@ -170,6 +275,16 @@
         white-space: nowrap;
       }
 
+      @media (max-width: 900px) {
+        .veneer-showcase {
+          grid-template-columns: 1fr;
+        }
+
+        .reel-stage {
+          max-width: 440px;
+        }
+      }
+
       @media (max-width: 640px) {
         .page {
           width: min(560px, 92vw);
@@ -179,7 +294,8 @@
           max-width: min(360px, 78vw);
         }
 
-        .reel-stage {
+        .reel-stage,
+        .case-preview {
           border-radius: 14px;
         }
 
@@ -209,10 +325,36 @@
       <main>
         <h1>lofi veneers</h1>
         <p class="intro">A timeless smile, uniquely yours.</p>
-        <section class="reel-stage" aria-label="lofi veneers videos">
-          <video id="veneerReel" controls playsinline autoplay muted preload="metadata">
-            <source src="assets/story/lofi-lab-veneers.mp4" type="video/mp4" />
-          </video>
+        <section class="veneer-showcase" aria-label="lofi veneers video and case 4 before and after">
+          <div class="reel-stage" aria-label="lofi veneers videos">
+            <video id="veneerReel" controls playsinline autoplay muted preload="metadata">
+              <source src="assets/story/lofi-lab-veneers.mp4" type="video/mp4" />
+            </video>
+          </div>
+          <figure class="case-preview">
+            <div
+              class="before-after-compare"
+              tabindex="0"
+              data-start="50"
+              aria-label="Before and after veneer case 4 front, left side, and right side view comparison"
+            >
+              <img
+                class="compare-image compare-base-image"
+                src="assets/before-after/case-04-after.jpg"
+                alt="Veneer after front, left side, and right side view image"
+              />
+              <img
+                class="compare-image compare-overlay-image"
+                src="assets/before-after/case-04-before.jpg"
+                alt="Veneer before front, left side, and right side view image"
+              />
+              <div class="compare-divider" aria-hidden="true">
+                <span class="compare-handle">↔</span>
+              </div>
+              <span class="compare-label compare-label-before">BEFORE</span>
+              <span class="compare-label compare-label-after">AFTER</span>
+            </div>
+          </figure>
         </section>
         <div class="bottom-cta">
           <a class="btn btn-primary sticky-appointment" href="/reservation/index.html">Book your appointment</a>
@@ -232,6 +374,77 @@
         veneerIndex = (veneerIndex + 1) % veneerPlaylist.length;
         veneerReel.src = veneerPlaylist[veneerIndex];
         veneerReel.play().catch(() => {});
+      });
+
+      document.querySelectorAll(".before-after-compare").forEach((compare) => {
+        const overlayImage = compare.querySelector(".compare-overlay-image");
+        const divider = compare.querySelector(".compare-divider");
+        let isDragging = false;
+
+        const getClientX = (event) => {
+          if (event.touches && event.touches.length > 0) return event.touches[0].clientX;
+          if (event.changedTouches && event.changedTouches.length > 0) return event.changedTouches[0].clientX;
+          return event.clientX;
+        };
+
+        const setSplit = (clientX) => {
+          const rect = compare.getBoundingClientRect();
+          if (!rect.width) return;
+          const ratio = (clientX - rect.left) / rect.width;
+          const percent = Math.min(100, Math.max(0, ratio * 100));
+          overlayImage.style.clipPath = `inset(0 ${100 - percent}% 0 0)`;
+          divider.style.left = `${percent}%`;
+        };
+
+        const startPercent = Number(compare.dataset.start) || 50;
+        overlayImage.style.clipPath = `inset(0 ${100 - startPercent}% 0 0)`;
+        divider.style.left = `${startPercent}%`;
+
+        compare.addEventListener("mousedown", (event) => {
+          isDragging = true;
+          compare.classList.add("is-dragging");
+          setSplit(getClientX(event));
+        });
+
+        window.addEventListener("mousemove", (event) => {
+          if (!isDragging) return;
+          setSplit(getClientX(event));
+        });
+
+        window.addEventListener("mouseup", () => {
+          if (!isDragging) return;
+          isDragging = false;
+          compare.classList.remove("is-dragging");
+        });
+
+        compare.addEventListener("touchstart", (event) => {
+          isDragging = true;
+          compare.classList.add("is-dragging");
+          setSplit(getClientX(event));
+        }, { passive: true });
+
+        compare.addEventListener("touchmove", (event) => {
+          if (!isDragging) return;
+          event.preventDefault();
+          setSplit(getClientX(event));
+        }, { passive: false });
+
+        compare.addEventListener("touchend", () => {
+          if (!isDragging) return;
+          isDragging = false;
+          compare.classList.remove("is-dragging");
+        });
+
+        compare.addEventListener("keydown", (event) => {
+          if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+          event.preventDefault();
+          const currentInset = Number((overlayImage.style.clipPath.match(/inset\(0\s+([0-9.]+)%/) || [])[1]);
+          const current = Number.isFinite(currentInset) ? 100 - currentInset : 50;
+          const next = event.key === "ArrowLeft" ? current - 3 : current + 3;
+          const percent = Math.min(100, Math.max(0, next));
+          overlayImage.style.clipPath = `inset(0 ${100 - percent}% 0 0)`;
+          divider.style.left = `${percent}%`;
+        });
       });
     </script>
     <script src="/assets/consult-chat.js" defer></script>
