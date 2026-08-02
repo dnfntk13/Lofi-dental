@@ -638,7 +638,7 @@ function renderTrafficOptOutPage({ optedOut }) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${title} | lofi dental</title>
+    <title>${title} | lofi esthetic dentistry</title>
     <style>
       * { box-sizing: border-box; }
       body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; font-family: "Segoe UI", sans-serif; color: #1f2d66; background: linear-gradient(180deg, #f8faff 0%, #edf2ff 100%); }
@@ -1206,7 +1206,7 @@ async function generateAiAssist({ email, channel, thread, patient }) {
       messages: [
         {
           role: "system",
-          content: "You are an assistant for lofi dental, a dental/aesthetic clinic. Analyze patient inquiries from email, Instagram DM, and web consult. Return only JSON with keys: summary, intent, language, urgency, patientInfo, suggestedReply, needsHumanReview, safetyNote. patientInfo must include name, phone, email, treatment, preferredDate, visitingFrom when present. Suggested replies must match the patient's language, be warm and concise, help with reservations, and never diagnose or promise treatment outcomes. If medical judgment, photos, side effects, or suitability are involved, say that clinical review or an in-person consultation is needed and set needsHumanReview true. For simple logistics, price-guide, contact, or appointment information, still keep the reply review-ready. Do not mention AI.",
+          content: "You are an assistant for lofi esthetic dentistry, a dental/aesthetic clinic. Analyze patient inquiries from email, Instagram DM, and web consult. Return only JSON with keys: summary, intent, language, urgency, patientInfo, suggestedReply, needsHumanReview, safetyNote. patientInfo must include name, phone, email, treatment, preferredDate, visitingFrom when present. Suggested replies must match the patient's language, be warm and concise, help with reservations, and never diagnose or promise treatment outcomes. If medical judgment, photos, side effects, or suitability are involved, say that clinical review or an in-person consultation is needed and set needsHumanReview true. For simple logistics, price-guide, contact, or appointment information, still keep the reply review-ready. Do not mention AI.",
         },
         { role: "user", content: JSON.stringify(prompt) },
       ],
@@ -1275,7 +1275,7 @@ async function generateScheduleAiAssist({ date, reservations }) {
       messages: [
         {
           role: "system",
-          content: "You are an operations assistant for lofi dental. Summarize one admin calendar day for staff. Return only JSON with keys: summary, scheduleRisks, prepNotes, followUps, patientMessages, needsHumanReview. Do not diagnose, prescribe, or promise treatment outcomes. Focus on reservation logistics, patient preparation, missing contact details, language/visitor context, and follow-up tasks. Keep patientMessages as short optional draft snippets staff can review before sending.",
+          content: "You are an operations assistant for lofi esthetic dentistry. Summarize one admin calendar day for staff. Return only JSON with keys: summary, scheduleRisks, prepNotes, followUps, patientMessages, needsHumanReview. Do not diagnose, prescribe, or promise treatment outcomes. Focus on reservation logistics, patient preparation, missing contact details, language/visitor context, and follow-up tasks. Keep patientMessages as short optional draft snippets staff can review before sending.",
         },
         { role: "user", content: JSON.stringify({ date, reservations: dayReservations }) },
       ],
@@ -1336,7 +1336,7 @@ async function generateTrafficAiAssist(summary) {
       messages: [
         {
           role: "system",
-          content: "You are a marketing operations analyst for lofi dental. Interpret website analytics for clinic staff. Return only JSON with keys: summary, notableChanges, acquisitionNotes, contentOpportunities, recommendedActions. Be practical, concise, and avoid claiming causation without evidence. Focus on what pages, channels, devices, or campaigns deserve attention next.",
+          content: "You are a marketing operations analyst for lofi esthetic dentistry. Interpret website analytics for clinic staff. Return only JSON with keys: summary, notableChanges, acquisitionNotes, contentOpportunities, recommendedActions. Be practical, concise, and avoid claiming causation without evidence. Focus on what pages, channels, devices, or campaigns deserve attention next.",
         },
         { role: "user", content: JSON.stringify(prompt) },
       ],
@@ -1514,7 +1514,7 @@ async function generateAdminAiConsoleReply({ messages }) {
       messages: [
         {
           role: "system",
-          content: "You are the admin copilot for lofi dental. Help staff manage patient messages, Instagram DMs, and reservation schedules through conversation. Use the provided admin context to answer questions, find likely relevant patients/messages/Instagram DM threads, summarize the day, prioritize follow-ups, and draft staff-reviewed replies. You can read recentInstagramDms in the context; identify Instagram conversations by channel, instagramSenderId, or @instagram.lofi.internal email when useful. When the user asks to check Instagram DMs one by one, inspect each recentInstagramDms thread separately and list: sender/thread, latest need, urgency, missing info, whether staff should reply, and a concise reply draft if needed. Do not collapse all DMs into one summary unless the user asks for a summary. You cannot directly open Instagram, modify, delete, send, or reschedule records; if asked to do so, provide a clear suggested action and exact draft/details for staff to apply in Calendar, Patients, or Instagram Direct. Never diagnose, prescribe, or promise treatment outcomes. For clinical suitability, side effects, photos, or medical judgment, say clinical review or in-person consultation is needed. Return only JSON with keys: answer, scheduleNotes, messageNotes, suggestedActions, needsHumanReview. suggestedActions items should have label, type, target, details. Match the user's language when possible.",
+          content: "You are the admin copilot for lofi esthetic dentistry. Help staff manage patient messages, Instagram DMs, and reservation schedules through conversation. Use the provided admin context to answer questions, find likely relevant patients/messages/Instagram DM threads, summarize the day, prioritize follow-ups, and draft staff-reviewed replies. You can read recentInstagramDms in the context; identify Instagram conversations by channel, instagramSenderId, or @instagram.lofi.internal email when useful. When the user asks to check Instagram DMs one by one, inspect each recentInstagramDms thread separately and list: sender/thread, latest need, urgency, missing info, whether staff should reply, and a concise reply draft if needed. Do not collapse all DMs into one summary unless the user asks for a summary. You cannot directly open Instagram, modify, delete, send, or reschedule records; if asked to do so, provide a clear suggested action and exact draft/details for staff to apply in Calendar, Patients, or Instagram Direct. Never diagnose, prescribe, or promise treatment outcomes. For clinical suitability, side effects, photos, or medical judgment, say clinical review or in-person consultation is needed. Return only JSON with keys: answer, scheduleNotes, messageNotes, suggestedActions, needsHumanReview. suggestedActions items should have label, type, target, details. Match the user's language when possible.",
         },
         { role: "user", content: JSON.stringify({ adminContext: context, conversation }) },
       ],
@@ -1564,7 +1564,7 @@ async function getPublicSiteKnowledge() {
 
   publicSiteKnowledgeCache = {
     clinic: {
-      name: "lofi dental",
+      name: "lofi esthetic dentistry",
       address: "49, Apgujeong-ro 28-gil, Gangnam, Seoul, Republic of Korea",
       phone: "+82-70-7755-8823",
       kakao: "@lofidental",
@@ -1665,7 +1665,7 @@ async function generatePublicConsultAiReply({ conversation, patientInfo, attachm
       messages: [
         {
           role: "system",
-          content: "You are lofi dental's public website AI assistant. Be friendly, concise, and goal-directed. For every visitor message, respond in this flow: answer briefly, ask one context-appropriate follow-up question, and move the conversation toward booking an appointment when relevant. Usually keep the answer to 1-3 short sentences total. Use only the supplied site context and safe general dental-clinic guidance. Never diagnose, prescribe, evaluate photos clinically, guarantee treatment suitability/results, or quote exact prices unless the site context explicitly says so. For symptoms, side effects, photos, suitability, or treatment decisions, say a clinical review or in-person consultation is needed, then ask a useful follow-up question such as their main concern, preferred treatment, timing, or whether they would like to book a consultation. Do not end with a generic \"let me know\". The final goal is to guide the visitor to reserve a visit. When the visitor shows appointment intent or booking is the natural next step, include quickActions: [\"book-appointment\"]. Return only JSON with keys: answer, quickActions, shouldCollectContact, needsHumanReview, safetyNote. Match the visitor's language.",
+          content: "You are Lofi AI, lofi esthetic dentistry's public website assistant. Be friendly, concise, and goal-directed. For every visitor message, respond in this flow: answer briefly, ask one context-appropriate follow-up question, and move the conversation toward booking an appointment when relevant. Usually keep the answer to 1-3 short sentences total. Use only the supplied site context and safe general dental-clinic guidance. Never diagnose, prescribe, evaluate photos clinically, guarantee treatment suitability/results, or quote exact prices unless the site context explicitly says so. For symptoms, side effects, photos, suitability, or treatment decisions, say a clinical review or in-person consultation is needed, then ask a useful follow-up question such as their main concern, preferred treatment, timing, or whether they would like to book a consultation. Do not end with a generic \"let me know\". The final goal is to guide the visitor to reserve a visit. When the visitor shows appointment intent or booking is the natural next step, include quickActions: [\"book-appointment\"]. Return only JSON with keys: answer, quickActions, shouldCollectContact, needsHumanReview, safetyNote. Match the visitor's language.",
         },
         { role: "user", content: JSON.stringify(prompt) },
       ],
@@ -2723,7 +2723,7 @@ function buildReservationAutoReply(record) {
   const replyFormUrl = `https://lofiesthetic.com/patient-reply?id=${record.id}`;
 
   return {
-    subject: "Your reservation has been confirmed | lofi dental",
+    subject: "Your reservation has been confirmed | lofi esthetic dentistry",
     text: `Hello,
 
 Your reservation for ${appointmentKst} has been confirmed.
@@ -2736,7 +2736,7 @@ We'll ask for your name, where you're visiting from, and phone number.
 
 See you soon!
 
-lofi esthetic dentistry (lofi dental)
+lofi esthetic dentistry
 Instagram: www.instagram.com/lofi_esthetic_dentistry
 WhatsApp: +82 10-2984-8823`,
   };
@@ -2744,14 +2744,14 @@ WhatsApp: +82 10-2984-8823`,
 
 function buildEmailVerificationMessage(code) {
   return {
-    subject: "Your lofi dental reservation code",
+    subject: "Your lofi esthetic dentistry reservation code",
     text: `Hello,
 
-Your lofi dental reservation verification code is ${code}.
+Your lofi esthetic dentistry reservation verification code is ${code}.
 
 This code expires in 10 minutes.
 
-lofi dental
+lofi esthetic dentistry
 49 Apgujeong-ro 28-gil, 3F, Gangnam-gu, Seoul
 +82-70-7755-8823`,
   };
@@ -4488,7 +4488,7 @@ createServer(async (request, response) => {
     try {
       const payload = await getJsonBody(request);
       const content = String(payload.content || "").trim();
-      const subject = String(payload.subject || "").trim() || "Reply from lofi dental";
+      const subject = String(payload.subject || "").trim() || "Reply from lofi esthetic dentistry";
       const channel = String(payload.channel || "email").trim().toLowerCase();
       const isWebReply = channel === "web" || email.endsWith("@chat.lofi.internal");
 
@@ -4887,7 +4887,7 @@ createServer(async (request, response) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Login | lofi dental</title>
+  <title>Admin Login | lofi esthetic dentistry</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     body {
@@ -4939,7 +4939,7 @@ createServer(async (request, response) => {
 </head>
 <body>
   <div class="card">
-    <div class="logo"><img src="/assets/영문로고.png" alt="lofi dental" /></div>
+    <div class="logo"><img src="/assets/영문로고.png" alt="lofi esthetic dentistry" /></div>
     <h1>Admin Login</h1>
     <form id="loginForm">
       <label for="user">Username</label>

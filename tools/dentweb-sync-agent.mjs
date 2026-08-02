@@ -407,7 +407,7 @@ async function askPcAiChat(messages, screenshot) {
         {
           role: "system",
           content: [
-            "You are PC AI for lofi dental staff on the clinic Windows PC.",
+            "You are PC AI for lofi esthetic dentistry staff on the clinic Windows PC.",
             "You can talk normally with staff and inspect the current Dentweb desktop program screenshot.",
             "Your only controllable target is the Dentweb Windows desktop program, not the lofi website, admin calendar, Chrome, or any browser page.",
             "If the screenshot does not show Dentweb, return action wait and tell the user to open or log in to Dentweb.",

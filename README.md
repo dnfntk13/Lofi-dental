@@ -44,7 +44,7 @@ Recommended for Render: use Resend over HTTPS. This avoids outbound SMTP port ti
 
 ```bash
 RESEND_API_KEY=your_resend_api_key
-RESEND_FROM=lofi dental <reservation@lofiesthetic.com>
+RESEND_FROM=lofi esthetic dentistry <reservation@lofiesthetic.com>
 RESERVATION_NOTIFY_TO=lofidentalcs@lofiesthetic.com
 EMAIL_DNS_SERVERS=8.8.8.8,1.1.1.1
 ```

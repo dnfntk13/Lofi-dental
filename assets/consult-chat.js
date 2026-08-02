@@ -353,10 +353,10 @@
   const panel = document.createElement("section");
   panel.className = "consult-chat-panel";
   panel.id = "consultChatPanel";
-  panel.setAttribute("aria-label", "Lofi Dental AI assistant");
+  panel.setAttribute("aria-label", "Lofi AI assistant");
   panel.innerHTML = `
     <div class="consult-chat-head">
-      <span>Lofi Dental AI Assistant</span>
+      <span>Lofi AI Assistant</span>
       <button class="consult-chat-close" type="button" aria-label="Close chat">×</button>
     </div>
     <div class="consult-chat-log" aria-live="polite"></div>
@@ -672,7 +672,7 @@
       if (data.aiReply?.content) {
         addMessage(data.aiReply.content, "system", [], data.aiReply.aiAssist?.quickActions || []);
       } else if (data.aiConfigured === false) {
-        addMessage("Your message was saved for the lofi dental team. AI replies are not configured yet, so staff will follow up after review.", "system");
+        addMessage("Your message was saved for the lofi esthetic dentistry team. AI replies are not configured yet, so staff will follow up after review.", "system");
       }
     } catch {
       setMessageStatus(message, "Not sent");

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -31,7 +31,7 @@
         font-style: normal;
       }
     </style>
-    <title>Reservation Received | lofi dental</title>
+    <title>Reservation Received | lofi esthetic dentistry</title>
     <meta name="description" content="Reservation confirmation page." />
     <style>
       :root {
@@ -159,8 +159,8 @@
   </head>
   <body>
     <div class="page">
-      <a class="site-logo" id="homeLink" href="/english" aria-label="Lofi Dental home">
-        <img id="siteLogoImage" src="../assets/영문로고.png" alt="lofi dental" />
+      <a class="site-logo" id="homeLink" href="/english" aria-label="lofi esthetic dentistry home">
+        <img id="siteLogoImage" src="../assets/영문로고.png" alt="lofi esthetic dentistry" />
       </a>
       <a class="back-link" href="#" aria-label="Back" onclick="history.back(); return false;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -184,7 +184,7 @@
       const time = params.get("time") || "-";
       const isKorean = params.get("lang") === "ko";
       document.documentElement.lang = isKorean ? "ko" : "en";
-      document.title = isKorean ? "예약 신청 완료 | lofi dental" : "Reservation Received | lofi dental";
+      document.title = isKorean ? "예약 신청 완료 | lofi esthetic dentistry" : "Reservation Received | lofi esthetic dentistry";
       document.getElementById("homeLink").href = isKorean ? "/korean" : "/english";
       document.getElementById("siteLogoImage").src = isKorean ? "../assets/한글로고.png" : "../assets/영문로고.png";
       document.getElementById("pageTitle").textContent = isKorean ? "예약 신청이 접수되었습니다" : "Your reservation was received";
