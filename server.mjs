@@ -1569,6 +1569,12 @@ async function getPublicSiteKnowledge() {
       phone: "+82-70-7755-8823",
       kakao: "@lofidental",
       website: "https://lofiesthetic.com",
+      hours: {
+        weekdays: "Monday-Friday 10:00 AM-1:00 PM, 2:00 PM-7:00 PM",
+        saturday: "Saturday 10:00 AM-2:00 PM",
+        closed: "Closed on Sundays and Korean public holidays",
+        korean: "월-금 오전 10:00-오후 1:00, 오후 2:00-오후 7:00 / 토요일 오전 10:00-오후 2:00 / 일요일 및 공휴일 휴진",
+      },
     },
     pages,
   };
@@ -1607,6 +1613,27 @@ function normalizePublicConsultAiPayload(value) {
   };
 }
 
+function removeBookingActionDuplicates(answer) {
+  const text = String(answer || "").trim();
+  if (!text) return "";
+  const duplicateBookingPattern = /(reservation\s+page|booking\s+button|book\s+button|click\s+(the\s+)?(book|booking|reservation)|use\s+(the\s+)?(book|booking|reservation)|예약\s*(페이지|버튼)|예약하기\s*버튼)/i;
+  const sentences = text
+    .split(/(?<=[.!?。！？])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+  if (sentences.length <= 1) return duplicateBookingPattern.test(text) ? "" : text;
+  const filtered = sentences.filter((sentence) => !duplicateBookingPattern.test(sentence));
+  return (filtered.length ? filtered : sentences).join(" ").trim();
+}
+
+function removeBookingQuestionDuplicates(questions) {
+  const duplicateBookingQuestionPattern = /(how\s+do\s+i\s+book|can\s+i\s+book|book\s+an\s+appointment|make\s+an\s+appointment|reservation\s+page|예약\s*(방법|할\s*수|하려면)|예약하기)/i;
+  return (Array.isArray(questions) ? questions : [])
+    .map((question) => String(question || "").trim())
+    .filter((question) => question && !duplicateBookingQuestionPattern.test(question))
+    .slice(0, 4);
+}
+
 function getPublicConsultSuggestedQuestions(conversation) {
   const latest = [...(Array.isArray(conversation) ? conversation : [])].reverse().find((message) => message?.role !== "assistant")?.content || "";
   const normalized = String(latest).toLowerCase();
@@ -1626,17 +1653,22 @@ function getPublicConsultSuggestedQuestions(conversation) {
 
   if (/checkup|cleaning|검진|스케일링|clean/.test(normalized)) {
     return isKorean
-      ? ["검진 비용은 얼마인가요?", "이번 주 예약 가능한가요?", "스케일링 예약할 수 있나요?"]
-      : ["How much is a checkup?", "Do you have availability this week?", "Can I book a cleaning?"];
+      ? ["검진 비용은 얼마인가요?", "소요 시간은 얼마나 걸리나요?", "진료시간은 어떻게 되나요?"]
+      : ["How much is a checkup?", "How long does it take?", "What are your clinic hours?"];
   }
 
   return isKorean
-    ? ["비용은 얼마인가요?", "기간은 얼마나 걸리나요?", "예약하려면 어떻게 하면 되나요?"]
-    : ["How much is it?", "How long will it take?", "How do I book an appointment?"];
+    ? ["비용은 얼마인가요?", "기간은 얼마나 걸리나요?", "진료시간은 어떻게 되나요?"]
+    : ["How much is it?", "How long will it take?", "What are your clinic hours?"];
 }
 
 function completePublicConsultAiPayload(assist, conversation) {
   const normalized = normalizePublicConsultAiPayload(assist || {});
+  if (normalized.quickActions.includes("book-appointment")) {
+    const dedupedAnswer = removeBookingActionDuplicates(normalized.answer);
+    if (dedupedAnswer) normalized.answer = dedupedAnswer;
+    normalized.suggestedQuestions = removeBookingQuestionDuplicates(normalized.suggestedQuestions);
+  }
   if (!normalized.suggestedQuestions.length) {
     normalized.suggestedQuestions = getPublicConsultSuggestedQuestions(conversation);
   }
@@ -1645,11 +1677,26 @@ function completePublicConsultAiPayload(assist, conversation) {
 
 function getDeterministicPublicConsultReply(content) {
   const normalized = String(content || "").trim().toLowerCase();
+  const isKorean = /[가-힣]/.test(String(content || ""));
+  if (/(which days|what days|what time|what hours|opening hours|clinic hours|are you open|when are you open|hours|open\?)/.test(normalized) || /(진료\s*시간|운영\s*시간|영업\s*시간|언제\s*열|몇\s*시|토요일|일요일|휴진)/.test(String(content || ""))) {
+    return {
+      answer: isKorean
+        ? "진료시간은 월-금 오전 10:00-오후 1:00, 오후 2:00-오후 7:00이고, 토요일은 오전 10:00-오후 2:00입니다. 일요일과 한국 공휴일은 휴진입니다."
+        : "We are open Monday-Friday from 10:00 AM-1:00 PM and 2:00 PM-7:00 PM, and Saturday from 10:00 AM-2:00 PM. We are closed on Sundays and Korean public holidays.",
+      quickActions: ["book-appointment"],
+      suggestedQuestions: isKorean
+        ? ["이번 주 가능한 시간은 있나요?", "검진 비용은 얼마인가요?", "위치는 어디인가요?"]
+        : ["Do you have availability this week?", "How much is a checkup?", "Where are you located?"],
+      shouldCollectContact: false,
+      needsHumanReview: false,
+      safetyNote: "",
+    };
+  }
   if (normalized === "i just want a regular checkup and cleaning") {
     return {
-      answer: "Would you like to book an appointment with us?",
+      answer: "For a regular checkup and cleaning, we can help with timing and basic visit details. What would you like to know first?",
       quickActions: ["book-appointment"],
-      suggestedQuestions: ["How much is a checkup?", "Do you have availability this week?", "Can I book a cleaning?"],
+      suggestedQuestions: ["How much is a checkup?", "How long does it take?", "What are your clinic hours?"],
       shouldCollectContact: false,
       needsHumanReview: false,
       safetyNote: "",
@@ -1724,7 +1771,7 @@ async function generatePublicConsultAiReply({ conversation, patientInfo, attachm
       messages: [
         {
           role: "system",
-          content: "You are lofi AI, lofi esthetic dentistry's public website assistant. Be friendly, concise, and goal-directed. For every visitor message, respond in this flow: answer briefly, ask one context-appropriate follow-up question, and move the conversation toward booking an appointment. Usually keep the answer to 1-3 short sentences total. Use only the supplied site context and safe general dental-clinic guidance. Never diagnose, prescribe, evaluate photos clinically, guarantee treatment suitability/results, or quote exact prices unless the site context explicitly says so. For symptoms, side effects, photos, suitability, or treatment decisions, say a clinical review or in-person consultation is needed, then ask a useful follow-up question such as their main concern, preferred treatment, timing, or whether they would like to book a consultation. Do not end with a generic \"let me know\". Always include quickActions: [\"book-appointment\"] and 2-4 suggestedQuestions that the visitor can click as their next reply. Make suggestedQuestions specific to the visitor's topic, such as price, payment installments, treatment duration, options, or availability. Return only JSON with keys: answer, quickActions, suggestedQuestions, shouldCollectContact, needsHumanReview, safetyNote. Match the visitor's language.",
+          content: "You are lofi AI, lofi esthetic dentistry's public website assistant. Be friendly, concise, and goal-directed. For every visitor message, respond in this flow: answer briefly, ask one context-appropriate follow-up question, and move the conversation toward booking an appointment. Usually keep the answer to 1-3 short sentences total. Use only the supplied site context and safe general dental-clinic guidance. Never diagnose, prescribe, evaluate photos clinically, guarantee treatment suitability/results, or quote exact prices unless the site context explicitly says so. For symptoms, side effects, photos, suitability, or treatment decisions, say a clinical review or in-person consultation is needed, then ask a useful follow-up question such as their main concern, preferred treatment, timing, or whether they would like to book a consultation. If the visitor asks which days the clinic is open, clinic hours, or whether a specific day is open, answer with both days and hours: Monday-Friday 10:00 AM-1:00 PM and 2:00 PM-7:00 PM; Saturday 10:00 AM-2:00 PM; closed Sundays and Korean public holidays. Do not end with a generic \"let me know\". Always include quickActions: [\"book-appointment\"] and 2-4 suggestedQuestions that the visitor can click as their next reply. Make suggestedQuestions specific to the visitor's topic, such as price, payment installments, treatment duration, options, hours, or availability. Do not duplicate what buttons already do: if quickActions includes book-appointment, do not explain the reservation page, say \"click the booking button\", or include suggestedQuestions like \"How do I book an appointment?\" or \"Can I book?\". Return only JSON with keys: answer, quickActions, suggestedQuestions, shouldCollectContact, needsHumanReview, safetyNote. Match the visitor's language.",
         },
         { role: "user", content: JSON.stringify(prompt) },
       ],
