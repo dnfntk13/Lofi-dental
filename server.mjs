@@ -138,7 +138,6 @@ const publicSiteKnowledgePages = [
   { path: "concourse-app.html", title: "Concourse app" },
   { path: "whatsapp/index.html", title: "WhatsApp" },
   { path: "instagram/index.html", title: "Instagram" },
-  { path: "mobile/index.html", title: "Mobile page" },
 ];
 let publicSiteKnowledgeCache;
 
@@ -234,23 +233,6 @@ function resolvePath(urlPath) {
 
 function parsePathname(urlPath) {
   return new URL(urlPath || "/", `http://localhost:${port}`).pathname;
-}
-
-function isMobileRequest(request) {
-  const userAgent = String(request.headers["user-agent"] || "").toLowerCase();
-  return /android|iphone|ipod|blackberry|iemobile|opera mini|mobile/.test(userAgent);
-}
-
-function getMobileRedirectPath(pathname) {
-  if (["/", "/index.html"].includes(pathname)) {
-    return "/mobile/";
-  }
-
-  if (["/english", "/english/", "/english.html"].includes(pathname)) {
-    return "/mobile/";
-  }
-
-  return null;
 }
 
 async function getInboxCollection() {
