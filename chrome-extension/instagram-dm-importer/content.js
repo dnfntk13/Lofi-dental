@@ -5,6 +5,8 @@ const LOFI_AUTO_SCAN_INTERVAL_MS = 5 * 60 * 1000;
 const LOFI_AUTO_SCAN_START_DELAY_MS = 3500;
 const LOFI_DAY_MS = 24 * 60 * 60 * 1000;
 const LOFI_THREAD_LIST_TOP_GUARD_PX = 120;
+const LOFI_INBOX_REQUEST_EVENT = "lofi:instagram-inbox-request";
+const LOFI_INBOX_RESPONSE_EVENT = "lofi:instagram-inbox-response";
 let autoSaveTimer = null;
 let lastAutoSaveSignature = "";
 let autoScanTimer = null;
@@ -14,6 +16,32 @@ let importerPanelStatus = null;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function collectInstagramInboxThreads(daysBack, maxThreads) {
+  return new Promise((resolve, reject) => {
+    const requestId = `${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    const timeout = window.setTimeout(() => {
+      window.removeEventListener(LOFI_INBOX_RESPONSE_EVENT, handleResponse);
+      reject(new Error("Instagram inbox pagination timed out"));
+    }, 20000);
+
+    function handleResponse(event) {
+      if (event.detail?.requestId !== requestId) return;
+      window.clearTimeout(timeout);
+      window.removeEventListener(LOFI_INBOX_RESPONSE_EVENT, handleResponse);
+      if (!event.detail?.ok) {
+        reject(new Error(event.detail?.message || "Instagram inbox pagination failed"));
+        return;
+      }
+      resolve(Array.isArray(event.detail.threads) ? event.detail.threads : []);
+    }
+
+    window.addEventListener(LOFI_INBOX_RESPONSE_EVENT, handleResponse);
+    window.dispatchEvent(new CustomEvent(LOFI_INBOX_REQUEST_EVENT, {
+      detail: { requestId, daysBack, maxThreads },
+    }));
+  });
 }
 
 function cleanText(value) {
@@ -489,7 +517,7 @@ async function collectLatestThreadRows(maxThreads, maxListScrolls, onProgress, d
 
     if (collected.length >= maxThreads) break;
     if (plan.action === "stop") break;
-  if (!openRowIndexes.length && visibleRowsAreOutsideSyncWindow(visibleRows, daysBack)) break;
+    if (!openRowIndexes.length && visibleRowsAreOutsideSyncWindow(visibleRows, daysBack)) break;
     const beforeTop = scrollTarget.scrollTop;
     if (reachedBottom) break;
     scrollTarget.scrollTop += Math.max(220, scrollTarget.clientHeight * 0.45);
@@ -501,6 +529,22 @@ async function collectLatestThreadRows(maxThreads, maxListScrolls, onProgress, d
 }
 
 async function openThreadRowSnapshot(snapshot, maxListScrolls = 20) {
+  if (snapshot.threadFbid) {
+    const threadId = String(snapshot.threadFbid);
+    if (getThreadIdFromUrl(location.href) === threadId) return true;
+    history.pushState({}, "", `/direct/t/${threadId}/`);
+    window.dispatchEvent(new PopStateEvent("popstate", { state: history.state }));
+
+    for (let attempt = 0; attempt < 32; attempt += 1) {
+      await sleep(250);
+      if (getThreadIdFromUrl(location.href) === threadId) {
+        await sleep(1000);
+        return true;
+      }
+    }
+    return false;
+  }
+
   const scrollTarget = getThreadListScrollTarget();
   scrollTarget.scrollTop = 0;
   await sleep(LOFI_SCAN_DELAY_MS);
@@ -993,7 +1037,19 @@ async function scanInstagramDms(options = {}, onProgress) {
 
   const scanWindowLabel = getScanWindowLabel(daysBack);
   onProgress?.(`Scanning ${scanWindowLabel}...`);
-  const threadRows = await collectLatestThreadRows(maxThreads, maxListScrolls, onProgress, daysBack);
+  let threadRows = [];
+  if (daysBack) {
+    try {
+      onProgress?.(`Loading the complete ${scanWindowLabel} inbox range...`);
+      threadRows = await collectInstagramInboxThreads(daysBack, maxThreads);
+      onProgress?.(`Found ${threadRows.length} ${scanWindowLabel} threads through Instagram pagination.`);
+    } catch (error) {
+      onProgress?.(`${error.message}. Falling back to the visible DM list.`);
+    }
+  }
+  if (!threadRows.length) {
+    threadRows = await collectLatestThreadRows(maxThreads, maxListScrolls, onProgress, daysBack);
+  }
   if (!threadRows.length) {
     throw new Error(`No ${scanWindowLabel} rows found. Make sure you are logged in and the left DM list is visible.`);
   }

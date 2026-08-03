@@ -1126,7 +1126,7 @@
         </div>
         <div class="pc-ai-messages" id="pcAiMessages"></div>
         <form class="pc-ai-form" id="pcAiForm">
-          <textarea class="pc-ai-input" id="pcAiInput" placeholder="예: 덴트웹에서 김민지 환자 예약 화면 찾아줘."></textarea>
+          <textarea class="pc-ai-input" id="pcAiInput" placeholder="예: 지금 PC 화면에서 필요한 작업을 대신 진행해줘."></textarea>
           <div class="pc-ai-actions">
             <label class="pc-ai-toggle"><input id="pcAiApply" type="checkbox" checked /> Allow PC action</label>
             <button class="pc-ai-send" id="pcAiSend" type="submit">Send</button>
@@ -1337,7 +1337,7 @@
       function openPcAi() {
         pcAiOverlay.classList.add("open");
         if (!pcAiConversation.length) {
-          appendPcAiMessage("assistant", "PC AI is ready. If Dentweb is logged in on this PC, I can look at the screen and operate it when you allow PC action.");
+          appendPcAiMessage("assistant", "PC AI is ready. I can look at the current PC screen and operate visible apps when you allow PC action.");
         }
         pcAiInput.focus();
       }
@@ -1363,11 +1363,46 @@
 
       function summarizePcAiAction(action) {
         const type = String(action?.action || "wait").toLowerCase();
+        if (type === "element_click") return `PC action: click element #${action.elementId}`;
+        if (type === "element_type") return `PC action: type into element #${action.elementId}`;
         if (type === "click") return `PC action: click ${action.x}, ${action.y}`;
+        if (type === "double_click") return `PC action: double click ${action.x}, ${action.y}`;
+        if (type === "right_click") return `PC action: right click ${action.x}, ${action.y}`;
+        if (type === "drag") return `PC action: drag ${action.x}, ${action.y} to ${action.toX}, ${action.toY}`;
+        if (type === "scroll") return `PC action: scroll ${action.deltaY || 700}`;
         if (type === "type") return `PC action: type ${String(action.text || "").length} chars`;
         if (type === "key") return `PC action: key ${action.key || ""}`.trim();
         if (type === "done") return "PC action: done";
         return "PC action: wait";
+      }
+
+      function buildPcAiPageContext() {
+        const visibleStart = new Date(viewYear, viewMonth, 1);
+        const visibleEnd = new Date(viewYear, viewMonth + 1, 0);
+        const monthReservations = allReservations
+          .filter((reservation) => {
+            const date = normalizeDate(reservation.date);
+            return date >= formatDateKey(visibleStart) && date <= formatDateKey(visibleEnd);
+          })
+          .map((reservation) => ({
+            id: reservation.id,
+            date: normalizeDate(reservation.date),
+            time: reservation.time || "",
+            name: reservation.name || "",
+            phone: reservation.phone || "",
+            concerns: reservation.concerns || reservation.memo || "",
+            source: reservation.source || "",
+          }))
+          .sort((a, b) => String(a.date).localeCompare(String(b.date)) || parseTimeValue(a.time) - parseTimeValue(b.time));
+
+        return {
+          app: "lofi admin calendar",
+          visibleMonth: `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`,
+          selectedDate: selectedDateKey || "",
+          reservationCountInVisibleMonth: monthReservations.length,
+          reservations: monthReservations.slice(0, 120),
+          selectedReservations: Array.from(selectedReservationIds || []).slice(0, 40),
+        };
       }
 
       async function sendPcAiChat(message) {
@@ -1384,7 +1419,7 @@
             mode: "cors",
             cache: "no-store",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ messages: pcAiConversation, apply: pcAiApply.checked }),
+            body: JSON.stringify({ messages: pcAiConversation, apply: pcAiApply.checked, pageContext: buildPcAiPageContext() }),
           });
           const data = await response.json().catch(() => ({}));
           if (!response.ok || !data.ok) {

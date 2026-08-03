@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Lofi Instagram DM Importer",
-  "version": "1.10.7",
+  "version": "1.10.8",
   "description": "Scans Instagram Direct conversations and saves them to the local lofi esthetic dentistry admin server.",
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": [
@@ -19,6 +19,12 @@
     "service_worker": "background.js"
   },
   "content_scripts": [
+    {
+      "matches": ["https://www.instagram.com/direct/*"],
+      "js": ["instagram-inbox-bridge.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
     {
       "matches": ["https://www.instagram.com/direct/*"],
       "js": ["content.js"],

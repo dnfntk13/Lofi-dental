@@ -325,8 +325,106 @@ function normalizeAiMessages(value) {
 function normalizeDesktopAction(action) {
   const next = action && typeof action === "object" ? { ...action } : { action: "wait" };
   next.action = String(next.action || "wait").toLowerCase();
-  if (!["click", "type", "key", "wait", "done"].includes(next.action)) next.action = "wait";
+  if (next.action === "doubleclick") next.action = "double_click";
+  if (next.action === "rightclick") next.action = "right_click";
+  if (next.action === "elementclick") next.action = "element_click";
+  if (next.action === "elementtype") next.action = "element_type";
+  if (!["element_click", "element_type", "click", "double_click", "right_click", "drag", "scroll", "type", "key", "wait", "done"].includes(next.action)) next.action = "wait";
   return next;
+}
+
+async function getForegroundWindowInfo() {
+  if (process.platform !== "win32") {
+    throw new Error("PC AI desktop control can only run on the Windows computer where the agent is open");
+  }
+
+  const script = `
+$ErrorActionPreference = 'Stop'
+Add-Type @"
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+public class NativeMethods {
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+}
+public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+"@
+$handle = [NativeMethods]::GetForegroundWindow()
+if ($handle -eq [IntPtr]::Zero) { throw "No foreground window found." }
+$titleBuilder = New-Object System.Text.StringBuilder 512
+[NativeMethods]::GetWindowText($handle, $titleBuilder, $titleBuilder.Capacity) | Out-Null
+$rect = New-Object RECT
+[NativeMethods]::GetWindowRect($handle, [ref]$rect) | Out-Null
+[pscustomobject]@{ title = $titleBuilder.ToString(); left = $rect.Left; top = $rect.Top; right = $rect.Right; bottom = $rect.Bottom } | ConvertTo-Json -Compress
+`;
+  const output = await runPowerShell(script);
+  return output ? JSON.parse(output) : { title: "" };
+}
+
+async function getForegroundUiElements() {
+  if (process.platform !== "win32") return [];
+
+  const script = `
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+$root = [System.Windows.Automation.AutomationElement]::RootElement
+$window = [System.Windows.Automation.AutomationElement]::FocusedElement
+while ($window -and $window.Current.ControlType.ProgrammaticName -ne 'ControlType.Window') {
+  $window = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($window)
+}
+if (-not $window) { $window = [System.Windows.Automation.AutomationElement]::RootElement }
+$condition = [System.Windows.Automation.Condition]::TrueCondition
+$elements = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition)
+$items = New-Object System.Collections.Generic.List[object]
+$index = 0
+foreach ($element in $elements) {
+  if ($items.Count -ge 160) { break }
+  $rect = $element.Current.BoundingRectangle
+  if ($rect.Width -lt 2 -or $rect.Height -lt 2) { continue }
+  $name = [string]$element.Current.Name
+  $automationId = [string]$element.Current.AutomationId
+  $controlType = ([string]$element.Current.ControlType.ProgrammaticName).Replace('ControlType.', '')
+  $className = [string]$element.Current.ClassName
+  if ([string]::IsNullOrWhiteSpace($name) -and [string]::IsNullOrWhiteSpace($automationId) -and $controlType -notmatch 'Button|Edit|ComboBox|List|Tab|Menu|Calendar|DataGrid|Document|Pane') { continue }
+  $items.Add([pscustomobject]@{
+    id = $index
+    name = $name
+    automationId = $automationId
+    controlType = $controlType
+    className = $className
+    x = [Math]::Round($rect.X)
+    y = [Math]::Round($rect.Y)
+    width = [Math]::Round($rect.Width)
+    height = [Math]::Round($rect.Height)
+  })
+  $index++
+}
+$items | ConvertTo-Json -Compress -Depth 4
+`;
+
+  try {
+    const output = await runPowerShell(script);
+    const parsed = output ? JSON.parse(output) : [];
+    return Array.isArray(parsed) ? parsed : [parsed].filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function summarizeUiElements(elements) {
+  return (Array.isArray(elements) ? elements : [])
+    .slice(0, 120)
+    .map((element) => [
+      `#${element.id}`,
+      element.controlType || "Element",
+      element.name ? `name=${JSON.stringify(element.name).slice(0, 90)}` : "",
+      element.automationId ? `automationId=${JSON.stringify(element.automationId).slice(0, 70)}` : "",
+      `rect=${element.x},${element.y},${element.width},${element.height}`,
+    ].filter(Boolean).join(" "))
+    .join("\n");
 }
 
 async function askDentwebAi(task, screenshot) {
@@ -378,7 +476,7 @@ async function askDentwebAi(task, screenshot) {
   return normalizeDesktopAction(extractJsonObject(content));
 }
 
-async function askPcAiChat(messages, screenshot) {
+async function askPcAiChat(messages, screenshot, { uiElements = [], pageContext = null } = {}) {
   if (!openaiApiKey) {
     throw new Error("OPENAI_API_KEY is required for PC AI control");
   }
@@ -408,17 +506,18 @@ async function askPcAiChat(messages, screenshot) {
           role: "system",
           content: [
             "You are PC AI for lofi esthetic dentistry staff on the clinic Windows PC.",
-            "You can talk normally with staff and inspect the current Dentweb desktop program screenshot.",
-            "Your only controllable target is the Dentweb Windows desktop program, not the lofi website, admin calendar, Chrome, or any browser page.",
-            "If the screenshot does not show Dentweb, return action wait and tell the user to open or log in to Dentweb.",
-            "Help staff operate Dentweb only when the user asks or when it is the clear next step.",
+            "You can talk normally with staff and inspect the current full desktop screenshot, visible UI element tree, and any provided app context.",
+            "Understand the screen semantically first: for example, a calendar is dates, time slots, reservations, selected days, and patient events, not just colored boxes.",
+            "Prefer semantic UI actions using element_click or element_type with elementId from the UI element list. Use raw coordinates only when no suitable element exists.",
+            "Choose exactly one small next PC action at a time, like a careful human assistant using the mouse and keyboard.",
             "Return only JSON with keys: reply, action.",
             "reply is a concise natural-language chat answer in the user's language.",
-            "action is an object with keys: action, x, y, text, key, reason.",
-            "Allowed action values: click, type, key, wait, done.",
-            "Use absolute screen coordinates for click actions.",
+            "action is an object with keys: action, elementId, x, y, toX, toY, deltaY, text, key, reason.",
+            "Allowed action values: element_click, element_type, click, double_click, right_click, drag, scroll, type, key, wait, done.",
+            "Use absolute screen coordinates for mouse actions. For scroll, positive deltaY means scroll down.",
             "For type actions, provide the exact text to paste into the currently focused field.",
-            "Do not type passwords, delete records, cancel appointments, submit irreversible changes, or send messages without explicit staff confirmation.",
+            "Do not type passwords, payment details, secrets, or medical record content unless the staff explicitly provides that exact text in the current chat.",
+            "Do not delete records, cancel appointments, submit irreversible changes, purchase anything, send messages, or publish content without explicit staff confirmation in the current chat.",
             "If no PC operation is needed, use action wait or done.",
             "If the next operation is unclear or risky, use action wait and explain the concern in reply.",
           ].join(" "),
@@ -427,7 +526,15 @@ async function askPcAiChat(messages, screenshot) {
         {
           role: "user",
           content: [
-            { type: "text", text: `${lastMessage.content}\nScreenshot size: ${screenshot.width || "unknown"}x${screenshot.height || "unknown"}` },
+            {
+              type: "text",
+              text: [
+                lastMessage.content,
+                `Screenshot size: ${screenshot.width || "unknown"}x${screenshot.height || "unknown"}`,
+                `Visible UI elements:\n${summarizeUiElements(uiElements) || "No accessible UI elements were captured."}`,
+                pageContext ? `App context JSON:\n${JSON.stringify(pageContext).slice(0, 14000)}` : "App context JSON: none",
+              ].join("\n\n"),
+            },
             { type: "image_url", image_url: { url: `data:image/png;base64,${imageBase64}` } },
           ],
         },
@@ -447,19 +554,99 @@ async function askPcAiChat(messages, screenshot) {
   };
 }
 
-async function executeDesktopAction(action) {
+function getUiElementCenter(action, uiElements) {
+  const elementId = Number(action?.elementId);
+  if (!Number.isInteger(elementId)) throw new Error("AI element action requires elementId");
+  const element = (Array.isArray(uiElements) ? uiElements : []).find((item) => Number(item.id) === elementId);
+  if (!element) throw new Error(`UI element ${elementId} was not found in the current screen context`);
+  return {
+    element,
+    x: Number(element.x) + Number(element.width) / 2,
+    y: Number(element.y) + Number(element.height) / 2,
+  };
+}
+
+async function invokeUiElement(element) {
+  if (process.platform !== "win32") return { invoked: false, reason: "not windows" };
+  const script = `
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+$targetName = ${JSON.stringify(String(element?.name || ""))}
+$targetAutomationId = ${JSON.stringify(String(element?.automationId || ""))}
+$targetControlType = ${JSON.stringify(String(element?.controlType || ""))}
+$targetX = ${Math.round(Number(element?.x || 0))}
+$targetY = ${Math.round(Number(element?.y || 0))}
+$targetWidth = ${Math.round(Number(element?.width || 0))}
+$targetHeight = ${Math.round(Number(element?.height || 0))}
+$window = [System.Windows.Automation.AutomationElement]::FocusedElement
+while ($window -and $window.Current.ControlType.ProgrammaticName -ne 'ControlType.Window') {
+  $window = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($window)
+}
+if (-not $window) { throw "No focused window found." }
+$elements = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+$match = $null
+foreach ($candidate in $elements) {
+  $rect = $candidate.Current.BoundingRectangle
+  $name = [string]$candidate.Current.Name
+  $automationId = [string]$candidate.Current.AutomationId
+  $controlType = ([string]$candidate.Current.ControlType.ProgrammaticName).Replace('ControlType.', '')
+  $idMatches = -not [string]::IsNullOrWhiteSpace($targetAutomationId) -and $automationId -eq $targetAutomationId
+  $nameMatches = -not [string]::IsNullOrWhiteSpace($targetName) -and $name -eq $targetName -and $controlType -eq $targetControlType
+  $rectMatches = [Math]::Abs($rect.X - $targetX) -le 8 -and [Math]::Abs($rect.Y - $targetY) -le 8 -and [Math]::Abs($rect.Width - $targetWidth) -le 12 -and [Math]::Abs($rect.Height - $targetHeight) -le 12
+  if (($idMatches -or $nameMatches) -and ($rectMatches -or $idMatches)) { $match = $candidate; break }
+}
+if (-not $match) { Write-Output '{"invoked":false,"reason":"element not found"}'; exit 0 }
+$pattern = $null
+if ($match.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) {
+  $pattern.Invoke()
+  Write-Output '{"invoked":true,"method":"InvokePattern"}'
+  exit 0
+}
+try {
+  $match.SetFocus()
+  Write-Output '{"invoked":false,"focused":true,"reason":"no InvokePattern"}'
+} catch {
+  Write-Output '{"invoked":false,"focused":false,"reason":"no InvokePattern"}'
+}
+`;
+
+  try {
+    const output = await runPowerShell(script);
+    return output ? JSON.parse(output) : { invoked: false };
+  } catch (error) {
+    return { invoked: false, reason: error.message || "UI Automation invoke failed" };
+  }
+}
+
+async function executeDesktopAction(action, { requireDentwebFocus = true, uiElements = [] } = {}) {
   const type = String(action?.action || "").toLowerCase();
-  if (!["click", "type", "key", "wait", "done"].includes(type)) {
+  if (!["element_click", "element_type", "click", "double_click", "right_click", "drag", "scroll", "type", "key", "wait", "done"].includes(type)) {
     throw new Error(`Unsupported AI action: ${type}`);
   }
   if (type === "wait" || type === "done") return { executed: false, action: type };
+  if (type === "element_click" || type === "element_type") {
+    const target = getUiElementCenter(action, uiElements);
+    const invokeResult = await invokeUiElement(target.element);
+    const clickResult = invokeResult.invoked
+      ? { executed: true, action: "invoke", invokeResult }
+      : await executeDesktopAction({ action: "click", x: target.x, y: target.y }, { requireDentwebFocus: false, uiElements });
+    if (type === "element_click") return { ...clickResult, action: type, element: target.element, invokeResult };
+    const typeResult = await executeDesktopAction({ action: "type", text: action.text }, { requireDentwebFocus: false, uiElements });
+    return { executed: true, action: type, element: target.element, invokeResult, click: clickResult, type: typeResult };
+  }
 
-  const focusedWindow = await focusDentwebWindow();
 
-  if (type === "click") {
+  const focusedWindow = requireDentwebFocus ? await focusDentwebWindow() : await getForegroundWindowInfo();
+
+  if (["click", "double_click", "right_click"].includes(type)) {
     const x = Number(action.x);
     const y = Number(action.y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error("AI click action requires x and y");
+    const isRightClick = type === "right_click";
+    const clickCount = type === "double_click" ? 2 : 1;
+    const downFlag = isRightClick ? "0x0008" : "0x0002";
+    const upFlag = isRightClick ? "0x0010" : "0x0004";
     const script = `
 $ErrorActionPreference = 'Stop'
 Add-Type @"
@@ -471,13 +658,66 @@ public class NativeMethods {
 }
 "@
 [NativeMethods]::SetCursorPos(${Math.round(x)}, ${Math.round(y)}) | Out-Null
-Start-Sleep -Milliseconds 100
-[NativeMethods]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
-Start-Sleep -Milliseconds 70
-[NativeMethods]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
+for ($index = 0; $index -lt ${clickCount}; $index++) {
+  Start-Sleep -Milliseconds 80
+  [NativeMethods]::mouse_event(${downFlag}, 0, 0, 0, [UIntPtr]::Zero)
+  Start-Sleep -Milliseconds 60
+  [NativeMethods]::mouse_event(${upFlag}, 0, 0, 0, [UIntPtr]::Zero)
+}
 `;
     await runPowerShell(script);
     return { executed: true, action: type, x, y, focusedWindow };
+  }
+
+  if (type === "drag") {
+    const x = Number(action.x);
+    const y = Number(action.y);
+    const toX = Number(action.toX);
+    const toY = Number(action.toY);
+    if (![x, y, toX, toY].every(Number.isFinite)) throw new Error("AI drag action requires x, y, toX, and toY");
+    const script = `
+$ErrorActionPreference = 'Stop'
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class NativeMethods {
+  [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);
+  [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo);
+}
+"@
+[NativeMethods]::SetCursorPos(${Math.round(x)}, ${Math.round(y)}) | Out-Null
+Start-Sleep -Milliseconds 80
+[NativeMethods]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
+Start-Sleep -Milliseconds 120
+[NativeMethods]::SetCursorPos(${Math.round(toX)}, ${Math.round(toY)}) | Out-Null
+Start-Sleep -Milliseconds 120
+[NativeMethods]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
+`;
+    await runPowerShell(script);
+    return { executed: true, action: type, x, y, toX, toY, focusedWindow };
+  }
+
+  if (type === "scroll") {
+    const x = Number.isFinite(Number(action.x)) ? Number(action.x) : null;
+    const y = Number.isFinite(Number(action.y)) ? Number(action.y) : null;
+    const deltaY = Number.isFinite(Number(action.deltaY)) ? Number(action.deltaY) : 700;
+    const wheelDelta = -Math.round(deltaY);
+    const script = `
+$ErrorActionPreference = 'Stop'
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class NativeMethods {
+  [DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);
+  [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, uint dx, uint dy, int dwData, UIntPtr dwExtraInfo);
+}
+"@
+${x !== null && y !== null ? `[NativeMethods]::SetCursorPos(${Math.round(x)}, ${Math.round(y)}) | Out-Null` : ""}
+Start-Sleep -Milliseconds 80
+[NativeMethods]::mouse_event(0x0800, 0, 0, ${wheelDelta}, [UIntPtr]::Zero)
+`;
+    await runPowerShell(script);
+    return { executed: true, action: type, x, y, deltaY, focusedWindow };
   }
 
   if (type === "type") {
@@ -495,7 +735,7 @@ $shell.SendKeys('^v')
   }
 
   const key = String(action.key || "").trim();
-  const allowedKeys = new Set(["{TAB}", "{ENTER}", "{ESC}", "{UP}", "{DOWN}", "{LEFT}", "{RIGHT}", "^a", "^c", "^v"]);
+  const allowedKeys = new Set(["{TAB}", "{ENTER}", "{ESC}", "{UP}", "{DOWN}", "{LEFT}", "{RIGHT}", "{HOME}", "{END}", "{PGUP}", "{PGDN}", "{BACKSPACE}", "{DELETE}", "^a", "^c", "^v", "^x", "^z", "^y", "^f", "^l", "^s"]);
   if (!allowedKeys.has(key)) throw new Error(`Unsupported key action: ${key}`);
   const script = `
 $ErrorActionPreference = 'Stop'
@@ -512,17 +752,18 @@ async function runDentwebAiStep(task, { apply = false } = {}) {
   const focusedWindow = await focusDentwebWindow();
   const screenshot = await captureFullScreenScreenshot();
   const action = await askDentwebAi(task, screenshot);
-  const execution = apply ? await executeDesktopAction(action) : { executed: false, preview: true };
+  const execution = apply ? await executeDesktopAction(action, { requireDentwebFocus: true }) : { executed: false, preview: true };
   return { ok: true, task, screenshotPath: screenshot.path, focusedWindow, action, execution };
 }
 
-async function runPcAiChat(messages, { apply = false } = {}) {
+async function runPcAiChat(messages, { apply = false, pageContext = null } = {}) {
   await mkdir(screenshotDir, { recursive: true });
-  const focusedWindow = await focusDentwebWindow();
+  const focusedWindow = await getForegroundWindowInfo();
+  const uiElements = await getForegroundUiElements();
   const screenshot = await captureFullScreenScreenshot();
-  const result = await askPcAiChat(messages, screenshot);
-  const execution = apply ? await executeDesktopAction(result.action) : { executed: false, preview: true };
-  return { ok: true, screenshotPath: screenshot.path, focusedWindow, reply: result.reply, action: result.action, execution };
+  const result = await askPcAiChat(messages, screenshot, { uiElements, pageContext });
+  const execution = apply ? await executeDesktopAction(result.action, { requireDentwebFocus: false, uiElements }) : { executed: false, preview: true };
+  return { ok: true, screenshotPath: screenshot.path, focusedWindow, uiElementCount: uiElements.length, reply: result.reply, action: result.action, execution };
 }
 
 async function trySavePdfDialog(filePath) {
@@ -733,7 +974,7 @@ async function startDaemon() {
       try {
         const payload = await getJsonBody(request);
         const apply = Boolean(payload.apply);
-        const result = await runPcAiChat(payload.messages, { apply });
+        const result = await runPcAiChat(payload.messages, { apply, pageContext: payload.pageContext || null });
         sendJson(response, 200, result);
       } catch (error) {
         sendJson(response, 500, { ok: false, message: error.message || "PC AI chat failed" });
