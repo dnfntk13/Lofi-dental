@@ -109,6 +109,8 @@
       .action-label { font-weight: 900; color: var(--ink); }
       .action-meta { color: var(--soft); font-size: 0.85rem; }
       .action-details { white-space: pre-wrap; line-height: 1.55; }
+      .action-apply { justify-self: start; border: 1px solid var(--accent); border-radius: 999px; padding: 7px 11px; background: var(--accent); color: #fff; font: inherit; font-size: 0.82rem; font-weight: 900; cursor: pointer; }
+      .action-apply:disabled { opacity: 0.6; cursor: wait; }
       .dm-check-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
       .dm-check-list { display: grid; gap: 10px; margin-top: 12px; }
       .dm-check-card { padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,0.78); display: grid; gap: 6px; }
@@ -169,14 +171,14 @@
 
       <div class="header">
         <h1>AI Assistant</h1>
-        <p class="subtitle">Ask about schedules, patient messages, and Instagram DMs. Changes still stay under staff control.</p>
+        <p class="subtitle">Ask about schedules, patient messages, Instagram DMs, and staff-reviewed reservation changes.</p>
       </div>
 
       <main class="layout">
         <section class="panel chat-panel" aria-label="AI admin conversation">
           <div class="panel-head">
             <p class="panel-title">Admin conversation</p>
-            <p class="panel-note">The assistant can read recent Web, Email, and Instagram DM threads, then summarize, prioritize, and draft. It does not directly edit, delete, reschedule, or send.</p>
+            <p class="panel-note">The assistant can read recent Web, Email, and Instagram DM threads, then summarize, prioritize, draft, and prepare reservation changes for staff approval.</p>
             <div class="quick-row" aria-label="Quick prompts">
               <button class="quick-btn" type="button" data-prompt="오늘 일정과 확인해야 할 메시지를 요약해줘.">Today summary</button>
               <button class="quick-btn" type="button" data-prompt="답장이 필요한 환자 메시지를 우선순위로 정리해줘.">Message follow-ups</button>
@@ -284,19 +286,51 @@
         element.innerHTML = values.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
       }
 
-      function renderActions(actions) {
+      function describeReservationAction(action) {
+        const payload = action?.payload || {};
+        const parts = [
+          action?.id ? `ID: ${action.id}` : "",
+          payload.date ? `Date: ${payload.date}` : "",
+          payload.time ? `Time: ${payload.time}` : "",
+          payload.name ? `Name: ${payload.name}` : "",
+          payload.phone ? `Phone: ${payload.phone}` : "",
+          payload.email ? `Email: ${payload.email}` : "",
+          payload.visitingFrom ? `From: ${payload.visitingFrom}` : "",
+          payload.concerns ? `Concerns: ${payload.concerns}` : "",
+          action?.reason ? `Reason: ${action.reason}` : "",
+        ].filter(Boolean);
+        return parts.join("\n");
+      }
+
+      function renderActions(actions, reservationActions = []) {
         const values = Array.isArray(actions) ? actions.filter((action) => action.label || action.details) : [];
+        const reservations = Array.isArray(reservationActions)
+          ? reservationActions.filter((action) => action.type && (action.label || action.reason || action.id || action.payload))
+          : [];
         if (!values.length) {
-          suggestedActionsEl.innerHTML = '<p class="empty">No suggested actions yet.</p>';
-          return;
+          suggestedActionsEl.innerHTML = reservations.length ? "" : '<p class="empty">No suggested actions yet.</p>';
+        } else {
+          suggestedActionsEl.innerHTML = values.map((action) => `
+            <div class="action-card">
+              <div class="action-label">${escapeHtml(action.label || "Suggested action")}</div>
+              <div class="action-meta">${escapeHtml([action.type, action.target].filter(Boolean).join(" · "))}</div>
+              <div class="action-details">${escapeHtml(action.details || "")}</div>
+            </div>
+          `).join("");
         }
-        suggestedActionsEl.innerHTML = values.map((action) => `
+
+        suggestedActionsEl.insertAdjacentHTML("beforeend", reservations.map((action, index) => `
           <div class="action-card">
-            <div class="action-label">${escapeHtml(action.label || "Suggested action")}</div>
-            <div class="action-meta">${escapeHtml([action.type, action.target].filter(Boolean).join(" · "))}</div>
-            <div class="action-details">${escapeHtml(action.details || "")}</div>
+            <div class="action-label">${escapeHtml(action.label || `Reservation ${action.type}`)}</div>
+            <div class="action-meta">${escapeHtml(`reservation · ${action.type}`)}</div>
+            <div class="action-details">${escapeHtml(describeReservationAction(action))}</div>
+            <button class="action-apply" type="button" data-reservation-action-index="${index}">Apply reservation ${escapeHtml(action.type)}</button>
           </div>
-        `).join("");
+        `).join(""));
+
+        suggestedActionsEl.querySelectorAll("[data-reservation-action-index]").forEach((button) => {
+          button.addEventListener("click", () => applyReservationAction(reservations[Number(button.dataset.reservationActionIndex)], button));
+        });
       }
 
       function renderInstagramCheck(check) {
@@ -333,7 +367,34 @@
         addBubble("assistant", answer);
         renderList(scheduleNotesEl, reply.scheduleNotes);
         renderList(messageNotesEl, reply.messageNotes);
-        renderActions(reply.suggestedActions);
+        renderActions(reply.suggestedActions, reply.reservationActions);
+      }
+
+      async function applyReservationAction(action, button) {
+        if (!action?.type) return;
+        const label = action.label || `Apply reservation ${action.type}`;
+        if (!confirm(`${label}\n\n${describeReservationAction(action)}\n\nApply this reservation change?`)) return;
+
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = "Applying...";
+        try {
+          const response = await fetch("/api/admin/ai-console/actions", {
+            method: "POST",
+            headers: { "Accept": "application/json", "Content-Type": "application/json" },
+            body: JSON.stringify({ action }),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data.ok) throw new Error(data.message || "Failed to apply reservation action.");
+          button.textContent = "Applied";
+          statusText.textContent = "Reservation action applied.";
+          conversation.push({ role: "assistant", content: `Applied reservation ${action.type}: ${label}` });
+        } catch (error) {
+          button.disabled = false;
+          button.textContent = originalText;
+          statusText.textContent = error.message || "Failed to apply reservation action.";
+          addBubble("assistant", statusText.textContent, true);
+        }
       }
 
       async function sendPrompt(prompt) {
@@ -433,7 +494,7 @@
 
       renderList(scheduleNotesEl, []);
       renderList(messageNotesEl, []);
-      renderActions([]);
+      renderActions([], []);
       addBubble("assistant", "Ask me about today's reservations, Web/Email/Instagram messages that need follow-up, or reply drafts. I can organize the work, but staff still applies changes in Calendar or Patients.");
     </script>
   </body>

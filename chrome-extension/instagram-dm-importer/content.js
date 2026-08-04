@@ -535,11 +535,14 @@ async function openThreadRowSnapshot(snapshot, maxListScrolls = 20) {
     history.pushState({}, "", `/direct/t/${threadId}/`);
     window.dispatchEvent(new PopStateEvent("popstate", { state: history.state }));
 
-    for (let attempt = 0; attempt < 32; attempt += 1) {
-      await sleep(250);
+    let routeMatchedAt = 0;
+    for (let attempt = 0; attempt < 24; attempt += 1) {
+      await sleep(150);
       if (getThreadIdFromUrl(location.href) === threadId) {
-        await sleep(1000);
-        return true;
+        routeMatchedAt ||= Date.now();
+        const conversation = collectCurrentConversation();
+        if (cleanText(conversation?.text).length >= 20) return true;
+        if (Date.now() - routeMatchedAt > 1200) return true;
       }
     }
     return false;
@@ -768,6 +771,17 @@ function extractConversationMessages() {
   }
 
   return uniqueLines.map((text) => ({ text })).slice(-1000);
+}
+
+function extractVisibleConversationMessages() {
+  const seen = new Set();
+  return extractConversationMessages()
+    .map((message) => ({ text: cleanText(message.text) }))
+    .filter((message) => {
+      if (!message.text || seen.has(message.text)) return false;
+      seen.add(message.text);
+      return true;
+    });
 }
 
 function firstMatch(text, patterns) {
@@ -1071,9 +1085,14 @@ async function scanInstagramDms(options = {}, onProgress) {
       const threadId = getThreadIdFromUrl(currentUrl);
 
       try {
-        messages = await extractConversationMessagesByScrolling(maxMessageScrolls, onProgress);
-        title = extractConversationTitle() || row.title;
+        messages = extractVisibleConversationMessages();
         text = messages.map((message) => message.text).join("\n");
+        if (cleanText(text).length < 20) {
+          onProgress?.(`Reading more messages for ${row.title}...`);
+          messages = await extractConversationMessagesByScrolling(maxMessageScrolls, onProgress);
+          text = messages.map((message) => message.text).join("\n");
+        }
+        title = extractConversationTitle() || row.title;
       } catch (error) {
         onProgress?.(error.message || `Skipped ${row.title}`);
         continue;

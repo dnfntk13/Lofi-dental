@@ -1340,6 +1340,7 @@ async function generateTrafficAiAssist(summary) {
 
 function normalizeAdminAiConsolePayload(value) {
   const actions = Array.isArray(value?.suggestedActions) ? value.suggestedActions : [];
+  const reservationActions = Array.isArray(value?.reservationActions) ? value.reservationActions : [];
   return {
     answer: String(value?.answer || "").trim().slice(0, 2400),
     scheduleNotes: Array.isArray(value?.scheduleNotes) ? value.scheduleNotes.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 8) : [],
@@ -1350,8 +1351,134 @@ function normalizeAdminAiConsolePayload(value) {
       target: String(action?.target || "").trim().slice(0, 160),
       details: String(action?.details || "").trim().slice(0, 900),
     })).filter((action) => action.label || action.details).slice(0, 8),
+    reservationActions: reservationActions.map((action) => {
+      const type = String(action?.type || "").trim().toLowerCase();
+      const payload = action?.payload && typeof action.payload === "object" ? action.payload : action || {};
+      return {
+        type: ["create", "update", "delete"].includes(type) ? type : "",
+        label: String(action?.label || "").trim().slice(0, 140),
+        reason: String(action?.reason || action?.details || "").trim().slice(0, 900),
+        id: String(action?.id || payload.id || "").trim().slice(0, 100),
+        payload: {
+          date: String(payload.date || "").trim().slice(0, 40),
+          time: String(payload.time || "").trim().slice(0, 80),
+          name: String(payload.name || "").trim().slice(0, 120),
+          email: String(payload.email || "").trim().toLowerCase().slice(0, 140),
+          phone: String(payload.phone || "").trim().slice(0, 80),
+          visitingFrom: String(payload.visitingFrom || "").trim().slice(0, 140),
+          concerns: String(payload.concerns || "").trim().slice(0, 900),
+        },
+      };
+    }).filter((action) => action.type && (action.type === "create" || action.id)).slice(0, 6),
     needsHumanReview: value?.needsHumanReview !== false,
   };
+}
+
+async function findInboxRecordById(id) {
+  const normalizedId = String(id || "").trim();
+  if (!normalizedId) return null;
+  const collection = await getInboxCollection();
+  if (collection) return collection.findOne({ id: normalizedId }, { projection: { _id: 0 } });
+  const inbox = await readInbox();
+  return inbox.find((record) => String(record?.id || "") === normalizedId) || null;
+}
+
+function normalizeAdminAiReservationFields(fields, existing = {}) {
+  const source = fields && typeof fields === "object" ? fields : {};
+  const date = normalizeReservationDate(source.date || existing.date || "");
+  const time = normalizeReservationTime(source.time || existing.time || "");
+  const email = String(source.email || existing.email || "").trim().toLowerCase();
+  const name = String(source.name || existing.name || "").trim().slice(0, 120);
+  const phone = String(source.phone || existing.phone || "").trim().slice(0, 80);
+  const visitingFrom = String(source.visitingFrom || existing.visitingFrom || "").trim().slice(0, 140);
+  const concerns = String(source.concerns || existing.concerns || "").trim().slice(0, 900);
+
+  if (!date) throw new Error("A valid reservation date is required");
+  if (!time) throw new Error("A valid reservation time is required");
+  if (!name) throw new Error("Reservation name is required");
+  if (email && !isValidEmail(email)) throw new Error("A valid email is required");
+
+  return { date, time, email, name, phone, visitingFrom, concerns };
+}
+
+async function createAdminAiReservation(fields) {
+  const now = new Date().toISOString();
+  const normalized = normalizeAdminAiReservationFields(fields);
+  const record = {
+    id: `admin-ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    date: normalized.date,
+    time: normalized.time,
+    name: normalized.name,
+    source: "admin-ai",
+    createdAt: now,
+  };
+  if (normalized.email) record.email = normalized.email;
+  if (normalized.phone) record.phone = normalized.phone;
+  if (normalized.visitingFrom) record.visitingFrom = normalized.visitingFrom;
+  if (normalized.concerns) record.concerns = normalized.concerns;
+
+  await addInboxRecord(record);
+  await saveOrUpdatePatient(record, { name: record.name, phone: record.phone || null });
+  try {
+    await saveOrUpdateEmailThread(getPatientThreadEmail(record), record.id, {
+      type: "reservation",
+      sentAt: record.createdAt,
+      date: record.date,
+      time: record.time,
+      concerns: record.concerns || `Scheduled appointment for ${record.name}`,
+      id: record.id,
+      source: "admin-ai",
+      channel: "admin-ai",
+    });
+  } catch (error) {
+    console.error("Failed to save email thread (admin AI create)", error);
+  }
+  return record;
+}
+
+async function updateAdminAiReservation(id, fields) {
+  const existing = await findInboxRecordById(id);
+  if (!existing) throw new Error("Reservation not found");
+  const normalized = normalizeAdminAiReservationFields(fields, existing);
+  const record = {
+    ...existing,
+    date: normalized.date,
+    time: normalized.time,
+    name: normalized.name,
+    updatedAt: new Date().toISOString(),
+  };
+  if (normalized.email) record.email = normalized.email;
+  else delete record.email;
+  if (normalized.phone) record.phone = normalized.phone;
+  else delete record.phone;
+  if (normalized.visitingFrom) record.visitingFrom = normalized.visitingFrom;
+  else delete record.visitingFrom;
+  if (normalized.concerns) record.concerns = normalized.concerns;
+  else delete record.concerns;
+
+  const saved = await upsertInboxRecord(record);
+  await saveOrUpdatePatient(saved, { name: saved.name || null, phone: saved.phone || null });
+  return saved;
+}
+
+async function applyAdminAiReservationAction(action) {
+  const type = String(action?.type || "").trim().toLowerCase();
+  if (type === "create") {
+    const record = await createAdminAiReservation(action.payload || {});
+    return { type, ok: true, record };
+  }
+  if (type === "update") {
+    const record = await updateAdminAiReservation(action.id, action.payload || {});
+    return { type, ok: true, record };
+  }
+  if (type === "delete") {
+    const existing = await findInboxRecordById(action.id);
+    if (!existing) throw new Error("Reservation not found");
+    const deleted = await deleteInboxRecord(action.id);
+    if (!deleted) throw new Error("Reservation not found");
+    return { type, ok: true, record: existing };
+  }
+  throw new Error("Unsupported reservation action");
 }
 
 function normalizeInstagramDmCheckPayload(value) {
@@ -1558,7 +1685,7 @@ async function generateAdminAiConsoleReply({ messages }) {
       messages: [
         {
           role: "system",
-          content: "You are the admin copilot for lofi esthetic dentistry. Help staff manage patient messages, Instagram DMs, and reservation schedules through conversation. Use the provided admin context to answer questions, find likely relevant patients/messages/Instagram DM threads, summarize the day, prioritize follow-ups, and draft staff-reviewed replies. You can read recentInstagramDms in the context; identify Instagram conversations by channel, instagramSenderId, or @instagram.lofi.internal email when useful. When the user asks to check Instagram DMs one by one, inspect each recentInstagramDms thread separately and list: sender/thread, latest need, urgency, missing info, whether staff should reply, and a concise reply draft if needed. Do not collapse all DMs into one summary unless the user asks for a summary. You cannot directly open Instagram, modify, delete, send, or reschedule records; if asked to do so, provide a clear suggested action and exact draft/details for staff to apply in Calendar, Patients, or Instagram Direct. Never diagnose, prescribe, or promise treatment outcomes. For clinical suitability, side effects, photos, or medical judgment, say clinical review or in-person consultation is needed. Return only JSON with keys: answer, scheduleNotes, messageNotes, suggestedActions, needsHumanReview. suggestedActions items should have label, type, target, details. Match the user's language when possible.",
+          content: "You are the admin copilot for lofi esthetic dentistry. Help staff manage patient messages, Instagram DMs, and reservation schedules through conversation. Use the provided admin context to answer questions, find likely relevant patients/messages/Instagram DM threads, summarize the day, prioritize follow-ups, draft staff-reviewed replies, and prepare reservation changes when asked. You can read recentInstagramDms in the context; identify Instagram conversations by channel, instagramSenderId, or @instagram.lofi.internal email when useful. When the user asks to check Instagram DMs one by one, inspect each recentInstagramDms thread separately and list: sender/thread, latest need, urgency, missing info, whether staff should reply, and a concise reply draft if needed. Do not collapse all DMs into one summary unless the user asks for a summary. You may propose reservationActions for staff to apply. Use reservationActions only when the user clearly asks to add, update, reschedule, or delete a reservation and the needed fields are available. For update/delete, use an exact id from upcomingReservations or recentUndatedReservations. For create, include date, time, and name. Return reservationActions items with keys: type (create/update/delete), label, reason, id, payload. payload may include date, time, name, email, phone, visitingFrom, concerns. Do not send messages, open Instagram, or claim an action was applied until staff applies it. Never diagnose, prescribe, or promise treatment outcomes. For clinical suitability, side effects, photos, or medical judgment, say clinical review or in-person consultation is needed. Return only JSON with keys: answer, scheduleNotes, messageNotes, suggestedActions, reservationActions, needsHumanReview. suggestedActions items should have label, type, target, details. Match the user's language when possible.",
         },
         { role: "user", content: JSON.stringify({ adminContext: context, conversation }) },
       ],
@@ -4934,6 +5061,30 @@ createServer(async (request, response) => {
         "Cache-Control": "no-store",
       });
       response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : error instanceof Error ? error.message : "Failed to generate admin AI reply" }));
+    }
+    return;
+  }
+
+  if (pathname === "/api/admin/ai-console/actions" && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+
+    try {
+      const payload = await getJsonBody(request);
+      const action = normalizeAdminAiConsolePayload({ reservationActions: [payload.action] }).reservationActions[0];
+      if (!action) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+        response.end(JSON.stringify({ message: "Valid reservation action is required" }));
+        return;
+      }
+      const result = await applyAdminAiReservationAction(action);
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      response.end(JSON.stringify({ ok: true, result }));
+    } catch (error) {
+      console.error("Failed to apply admin AI reservation action", error);
+      const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
+      const statusCode = isPayloadError ? 400 : /not found/i.test(String(error?.message || "")) ? 404 : 400;
+      response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : error instanceof Error ? error.message : "Failed to apply reservation action" }));
     }
     return;
   }
