@@ -197,6 +197,13 @@
         border-radius: 20px;
         background: #eef3ff;
         box-shadow: 0 18px 34px rgba(31, 45, 102, 0.12);
+        cursor: ew-resize;
+        touch-action: none;
+      }
+
+      .hero-case-compare:focus-visible {
+        outline: 2px solid var(--soft-ink);
+        outline-offset: 3px;
       }
 
       .hero-case-compare img {
@@ -205,6 +212,9 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
+        user-select: none;
+        -webkit-user-drag: none;
+        pointer-events: none;
       }
 
       .hero-case-before {
@@ -220,6 +230,24 @@
         transform: translateX(-50%);
         background: rgba(255, 255, 255, 0.96);
         box-shadow: 0 0 0 1px rgba(31, 45, 102, 0.12);
+      }
+
+      .hero-case-divider::after {
+        content: "↔";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 36px;
+        height: 36px;
+        border-radius: 999px;
+        transform: translate(-50%, -50%);
+        display: grid;
+        place-items: center;
+        background: rgba(255, 255, 255, 0.94);
+        border: 1px solid rgba(31, 45, 102, 0.18);
+        color: var(--ink);
+        font-size: 0.9rem;
+        font-weight: 700;
       }
 
       .hero-case-label {
@@ -524,7 +552,7 @@
             </div>
             <a class="hero-case-link" href="/before-after-en.html" aria-label="View Case 4 before and after photos">
               <figure class="hero-case">
-                <div class="hero-case-compare" aria-hidden="true">
+                <div class="hero-case-compare" tabindex="0" data-start="50" aria-label="Slide to compare Case 4 before and after photos">
                   <img src="/assets/before-after/case-04-after.jpg" alt="" />
                   <img class="hero-case-before" src="/assets/before-after/case-04-before.jpg" alt="" />
                   <span class="hero-case-label before">BEFORE</span>
@@ -596,6 +624,81 @@
 
       <a class="btn btn-primary sticky-appointment" href="/reservation/index.html">Book your appointment</a>
     </div>
+    <script>
+      (function () {
+        const compare = document.querySelector(".hero-case-compare");
+        const link = document.querySelector(".hero-case-link");
+        if (!compare) return;
+
+        const beforeImage = compare.querySelector(".hero-case-before");
+        const divider = compare.querySelector(".hero-case-divider");
+        let isDragging = false;
+        let didDrag = false;
+        let currentPercent = Number(compare.dataset.start) || 50;
+
+        const applySplit = (percent) => {
+          currentPercent = Math.min(100, Math.max(0, percent));
+          beforeImage.style.clipPath = `inset(0 ${100 - currentPercent}% 0 0)`;
+          divider.style.left = `${currentPercent}%`;
+        };
+
+        const getClientX = (event) => {
+          if (event.touches && event.touches.length) return event.touches[0].clientX;
+          if (event.changedTouches && event.changedTouches.length) return event.changedTouches[0].clientX;
+          return event.clientX;
+        };
+
+        const updateFromEvent = (event) => {
+          const rect = compare.getBoundingClientRect();
+          if (!rect.width) return;
+          applySplit(((getClientX(event) - rect.left) / rect.width) * 100);
+        };
+
+        const startDrag = (event) => {
+          isDragging = true;
+          didDrag = false;
+          try { compare.setPointerCapture?.(event.pointerId); } catch {}
+          updateFromEvent(event);
+          event.preventDefault();
+        };
+
+        const moveDrag = (event) => {
+          if (!isDragging) return;
+          didDrag = true;
+          updateFromEvent(event);
+          event.preventDefault();
+        };
+
+        const endDrag = () => {
+          isDragging = false;
+        };
+
+        compare.addEventListener("pointerdown", startDrag);
+        compare.addEventListener("pointermove", moveDrag);
+        compare.addEventListener("pointerup", endDrag);
+        compare.addEventListener("pointercancel", endDrag);
+        compare.addEventListener("mousedown", startDrag);
+        compare.addEventListener("touchstart", startDrag, { passive: false });
+        window.addEventListener("mousemove", moveDrag);
+        window.addEventListener("touchmove", moveDrag, { passive: false });
+        window.addEventListener("mouseup", endDrag);
+        window.addEventListener("touchend", endDrag);
+        compare.addEventListener("keydown", (event) => {
+          if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+          event.preventDefault();
+          if (event.key === "Home") applySplit(0);
+          else if (event.key === "End") applySplit(100);
+          else applySplit(currentPercent + (event.key === "ArrowRight" ? 5 : -5));
+        });
+        link?.addEventListener("click", (event) => {
+          if (!didDrag) return;
+          event.preventDefault();
+          didDrag = false;
+        });
+
+        applySplit(currentPercent);
+      })();
+    </script>
     <script src="/assets/consult-chat.js" defer></script>
   </body>
 </html>
