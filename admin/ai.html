@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Assistant | lofi esthetic dentistry admin</title>
+    <title>Admin AI | lofi esthetic dentistry admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -109,8 +109,12 @@
       .action-label { font-weight: 900; color: var(--ink); }
       .action-meta { color: var(--soft); font-size: 0.85rem; }
       .action-details { white-space: pre-wrap; line-height: 1.55; }
-      .action-apply { justify-self: start; border: 1px solid var(--accent); border-radius: 999px; padding: 7px 11px; background: var(--accent); color: #fff; font: inherit; font-size: 0.82rem; font-weight: 900; cursor: pointer; }
-      .action-apply:disabled { opacity: 0.6; cursor: wait; }
+  .action-apply,
+      .action-run { justify-self: start; margin-top: 4px; border: 1px solid var(--accent); border-radius: 999px; padding: 7px 11px; background: var(--accent); color: #fff; font: inherit; font-size: 0.82rem; font-weight: 900; cursor: pointer; }
+  .action-apply:disabled,
+      .action-run:disabled { opacity: 0.58; cursor: wait; }
+      .action-result { color: var(--soft); font-size: 0.84rem; line-height: 1.45; white-space: pre-wrap; }
+      .action-result.error { color: #a32626; }
       .dm-check-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
       .dm-check-list { display: grid; gap: 10px; margin-top: 12px; }
       .dm-check-card { padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,0.78); display: grid; gap: 6px; }
@@ -161,7 +165,7 @@
           <img src="../assets/영문로고.png" alt="lofi esthetic dentistry" class="logo-img" />
         </a>
         <nav class="nav-links" aria-label="Admin navigation">
-          <a class="nav-link active" href="/admin/ai">AI Assistant</a>
+          <a class="nav-link active" href="/admin/ai">Admin AI</a>
           <a class="nav-link" href="/admin/calendar">Calendar</a>
           <a class="nav-link" href="/admin/patients">Patients</a>
           <a class="nav-link" href="/admin/insights">Insights</a>
@@ -170,15 +174,15 @@
       </header>
 
       <div class="header">
-        <h1>AI Assistant</h1>
-        <p class="subtitle">Ask about schedules, patient messages, Instagram DMs, and staff-reviewed reservation changes.</p>
+        <h1>Admin AI</h1>
+        <p class="subtitle">Ask about schedules, patient messages, Instagram DMs, and website content. Approved actions can update admin records.</p>
       </div>
 
       <main class="layout">
         <section class="panel chat-panel" aria-label="AI admin conversation">
           <div class="panel-head">
             <p class="panel-title">Admin conversation</p>
-            <p class="panel-note">The assistant can read recent Web, Email, and Instagram DM threads, then summarize, prioritize, draft, and prepare reservation changes for staff approval.</p>
+            <p class="panel-note">Admin AI can read website/admin context and prepare edits. Executable actions require staff confirmation before records are changed.</p>
             <div class="quick-row" aria-label="Quick prompts">
               <button class="quick-btn" type="button" data-prompt="오늘 일정과 확인해야 할 메시지를 요약해줘.">Today summary</button>
               <button class="quick-btn" type="button" data-prompt="답장이 필요한 환자 메시지를 우선순위로 정리해줘.">Message follow-ups</button>
@@ -307,18 +311,18 @@
         const reservations = Array.isArray(reservationActions)
           ? reservationActions.filter((action) => action.type && (action.label || action.reason || action.id || action.payload))
           : [];
-        if (!values.length) {
-          suggestedActionsEl.innerHTML = reservations.length ? "" : '<p class="empty">No suggested actions yet.</p>';
-        } else {
-          suggestedActionsEl.innerHTML = values.map((action) => `
-            <div class="action-card">
-              <div class="action-label">${escapeHtml(action.label || "Suggested action")}</div>
-              <div class="action-meta">${escapeHtml([action.type, action.target].filter(Boolean).join(" · "))}</div>
-              <div class="action-details">${escapeHtml(action.details || "")}</div>
-            </div>
-          `).join("");
+        if (!values.length && !reservations.length) {
+          suggestedActionsEl.innerHTML = '<p class="empty">No suggested actions yet.</p>';
+          return;
         }
-
+        suggestedActionsEl.innerHTML = values.map((action, index) => `
+          <div class="action-card" data-action-index="${index}">
+            <div class="action-label">${escapeHtml(action.label || "Suggested action")}</div>
+            <div class="action-meta">${escapeHtml([action.type, action.target, action.dangerLevel ? `risk: ${action.dangerLevel}` : ""].filter(Boolean).join(" · "))}</div>
+            <div class="action-details">${escapeHtml(action.details || "")}</div>
+            ${action.executable && action.operation ? `<button class="action-run" type="button" data-action-index="${index}">Run action</button><div class="action-result" data-action-result="${index}"></div>` : ""}
+          </div>
+        `).join("");
         suggestedActionsEl.insertAdjacentHTML("beforeend", reservations.map((action, index) => `
           <div class="action-card">
             <div class="action-label">${escapeHtml(action.label || `Reservation ${action.type}`)}</div>
@@ -331,6 +335,40 @@
         suggestedActionsEl.querySelectorAll("[data-reservation-action-index]").forEach((button) => {
           button.addEventListener("click", () => applyReservationAction(reservations[Number(button.dataset.reservationActionIndex)], button));
         });
+        suggestedActionsEl.querySelectorAll(".action-run").forEach((button) => {
+          button.addEventListener("click", () => runSuggestedAction(values[Number(button.dataset.actionIndex)], button));
+        });
+      }
+
+      async function runSuggestedAction(action, button) {
+        if (!action?.operation) return;
+        const resultEl = suggestedActionsEl.querySelector(`[data-action-result="${button.dataset.actionIndex}"]`);
+        const confirmText = `${action.label || action.operation}\n\n${action.details || ""}\n\nRun this Admin AI action?`;
+        if (action.requiresConfirmation !== false && !confirm(confirmText)) return;
+        button.disabled = true;
+        if (resultEl) {
+          resultEl.className = "action-result";
+          resultEl.textContent = "Running...";
+        }
+        try {
+          const response = await fetch("/api/admin/ai-action", {
+            method: "POST",
+            headers: { "Accept": "application/json", "Content-Type": "application/json" },
+            body: JSON.stringify({ operation: action.operation, payload: action.payload || {} }),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.message || "Action failed.");
+          if (resultEl) resultEl.textContent = `Done: ${data.operation || action.operation}`;
+          statusText.textContent = "Action complete";
+        } catch (error) {
+          if (resultEl) {
+            resultEl.className = "action-result error";
+            resultEl.textContent = error.message || "Action failed.";
+          }
+          statusText.textContent = error.message || "Action failed.";
+        } finally {
+          button.disabled = false;
+        }
       }
 
       function renderInstagramCheck(check) {
@@ -495,7 +533,7 @@
       renderList(scheduleNotesEl, []);
       renderList(messageNotesEl, []);
       renderActions([], []);
-      addBubble("assistant", "Ask me about today's reservations, Web/Email/Instagram messages that need follow-up, or reply drafts. I can organize the work, but staff still applies changes in Calendar or Patients.");
+      addBubble("assistant", "Ask me about today's reservations, Web/Email/Instagram messages, website information, or edits you want prepared. I can run approved admin actions after staff confirmation.");
     </script>
   </body>
 </html>
