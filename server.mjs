@@ -1769,63 +1769,34 @@ async function executeAdminAiAction(operation, rawPayload) {
   const now = new Date().toISOString();
 
   if (operation === "createReservation") {
-    const date = String(payload.date || "").trim();
-    const time = String(payload.time || "").trim();
-    const name = String(payload.name || "").trim();
-    const email = String(payload.email || "").trim().toLowerCase();
-    const phone = String(payload.phone || "").trim();
-    const concerns = String(payload.concerns || "").trim();
-    if (!date || !time || !name) throw Object.assign(new Error("date, time, and name are required"), { statusCode: 400 });
-    if (email && !isValidEmail(email)) throw Object.assign(new Error("Valid email is required"), { statusCode: 400 });
-    const record = {
-      id: `admin-ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      date,
-      time,
-      email,
-      name,
-      phone,
-      concerns,
-      source: "admin-ai",
-      createdAt: now,
-      updatedAt: now,
-    };
-    const saved = await upsertInboxRecord(record);
-    await saveOrUpdatePatient(saved, { name: name || null, phone: phone || null });
-    return { ok: true, operation, record: saved };
+    try {
+      const record = await createAdminAiReservation(payload);
+      return { ok: true, operation, record };
+    } catch (error) {
+      throw Object.assign(error instanceof Error ? error : new Error("Failed to create reservation"), { statusCode: 400 });
+    }
   }
 
   if (operation === "updateReservation") {
     const id = String(payload.id || "").trim();
     if (!id) throw Object.assign(new Error("Reservation id is required"), { statusCode: 400 });
-    const inbox = await readInbox();
-    const existing = inbox.find((record) => String(record.id || "") === id);
-    if (!existing) throw Object.assign(new Error("Reservation not found"), { statusCode: 404 });
-    const email = payload.email !== undefined ? String(payload.email || "").trim().toLowerCase() : existing.email;
-    if (email && !isValidEmail(email)) throw Object.assign(new Error("Valid email is required"), { statusCode: 400 });
-    const next = {
-      ...existing,
-      id,
-      date: payload.date !== undefined ? String(payload.date || "").trim() : existing.date,
-      time: payload.time !== undefined ? String(payload.time || "").trim() : existing.time,
-      email,
-      name: payload.name !== undefined ? String(payload.name || "").trim() : existing.name,
-      phone: payload.phone !== undefined ? String(payload.phone || "").trim() : existing.phone,
-      concerns: payload.concerns !== undefined ? String(payload.concerns || "").trim() : existing.concerns,
-      visitingFrom: payload.visitingFrom !== undefined ? String(payload.visitingFrom || "").trim() : existing.visitingFrom,
-      updatedAt: now,
-    };
-    if (!next.date || !next.time) throw Object.assign(new Error("date and time are required"), { statusCode: 400 });
-    const saved = await upsertInboxRecord(next);
-    await saveOrUpdatePatient(saved, { name: saved.name || null, phone: saved.phone || null });
-    return { ok: true, operation, record: saved };
+    try {
+      const record = await updateAdminAiReservation(id, payload);
+      return { ok: true, operation, record };
+    } catch (error) {
+      const statusCode = /not found/i.test(String(error?.message || "")) ? 404 : 400;
+      throw Object.assign(error instanceof Error ? error : new Error("Failed to update reservation"), { statusCode });
+    }
   }
 
   if (operation === "deleteReservation") {
     const id = String(payload.id || "").trim();
     if (!id) throw Object.assign(new Error("Reservation id is required"), { statusCode: 400 });
+    const existing = await findInboxRecordById(id);
+    if (!existing) throw Object.assign(new Error("Reservation not found"), { statusCode: 404 });
     const deleted = await deleteInboxRecord(id);
     if (!deleted) throw Object.assign(new Error("Reservation not found"), { statusCode: 404 });
-    return { ok: true, operation, deleted: true, id };
+    return { ok: true, operation, deleted: true, id, record: existing };
   }
 
   if (operation === "updatePatientName") {
@@ -1855,13 +1826,20 @@ async function executeAdminAiAction(operation, rawPayload) {
       || email.endsWith("@chat.lofi.internal")
       || email.endsWith("@instagram.lofi.internal");
     if (!hasAnyMailConfig() && !isStoredOnlyReply) throw Object.assign(new Error("Email provider is not configured"), { statusCode: 503 });
+    let deliveryResult = null;
     if (!isStoredOnlyReply) {
-      await sendMailWithFallback({ from: smtpFrom, to: email, subject: String(payload.subject || "Reply from lofi dental"), text: content });
+      deliveryResult = await sendMailWithFallback({ from: smtpFrom, to: email, subject: String(payload.subject || "Reply from lofi dental"), text: content });
     }
     const storedChannel = channel.startsWith("instagram") || email.endsWith("@instagram.lofi.internal") ? "instagram" : isStoredOnlyReply ? "web" : "email";
     const message = { type: "admin-reply", sentAt: now, content, source: storedChannel === "instagram" ? "instagram" : storedChannel === "web" ? "consult-chat" : "email", channel: storedChannel };
-    await saveOrUpdateEmailThread(email, reservationId, message);
-    return { ok: true, operation, message, reservationId, delivered: isStoredOnlyReply ? "stored" : "email" };
+    try {
+      await saveOrUpdateEmailThread(email, reservationId, message);
+      return { ok: true, operation, message, reservationId, delivered: isStoredOnlyReply ? "stored" : "email", deliveryResult, threadSaved: true };
+    } catch (error) {
+      if (isStoredOnlyReply) throw error;
+      console.error("Admin AI reply email sent, but thread save failed", error);
+      return { ok: true, operation, message, reservationId, delivered: "email", deliveryResult, threadSaved: false, warning: "Email was sent, but saving it to the patient thread failed." };
+    }
   }
 
   if (operation === "deleteThreadMessage") {
@@ -2602,7 +2580,7 @@ async function deletePatientRecord(email) {
   const normalizedEmail = normalizePatientEmail(email);
   if (!normalizedEmail) return { deleted: false, removedReservations: 0, removedThread: false };
   const collection = await getPatientsCollection();
-  let patient = null;
+  let matchedPatients = [];
   let deleted = false;
 
   if (collection) {
@@ -2615,32 +2593,48 @@ async function deletePatientRecord(email) {
         { "reservations.email": normalizedEmail },
       ],
     };
-    patient = await collection.findOne(query, { projection: { _id: 0 } });
-    const result = await collection.deleteOne(query);
+    matchedPatients = await collection.find(query, { projection: { _id: 0 } }).toArray();
+    const result = await collection.deleteMany(query);
     deleted = result.deletedCount > 0;
   } else {
     const patients = await readPatients();
-    const index = patients.findIndex((item) => getPatientEmailKeys(item).has(normalizedEmail));
-    if (index >= 0) {
-      patient = patients[index];
-      patients.splice(index, 1);
+    matchedPatients = patients.filter((item) => getPatientEmailKeys(item).has(normalizedEmail));
+    if (matchedPatients.length) {
+      const remainingPatients = patients.filter((item) => !getPatientEmailKeys(item).has(normalizedEmail));
       await mkdir(dataDir, { recursive: true });
-      await writeFile(patientsPath, JSON.stringify(patients, null, 2), "utf-8");
+      await writeFile(patientsPath, JSON.stringify(remainingPatients, null, 2), "utf-8");
       deleted = true;
     }
   }
 
-  const reservationIds = Array.isArray(patient?.reservationIds) ? patient.reservationIds.filter(Boolean) : [];
+  const patientEmailKeys = new Set([normalizedEmail]);
+  const reservationIds = new Set();
+  matchedPatients.forEach((patient) => {
+    getPatientEmailKeys(patient).forEach((key) => patientEmailKeys.add(key));
+    if (Array.isArray(patient?.reservationIds)) patient.reservationIds.filter(Boolean).forEach((id) => reservationIds.add(id));
+    if (Array.isArray(patient?.reservations)) patient.reservations.map((reservation) => reservation?.id).filter(Boolean).forEach((id) => reservationIds.add(id));
+  });
+
   let removedReservations = 0;
-  for (const id of reservationIds) {
+  const inbox = await readInbox();
+  const linkedReservationIds = new Set([...reservationIds]);
+  inbox.forEach((record) => {
+    const recordEmail = normalizePatientEmail(record?.email);
+    const threadEmail = normalizePatientEmail(getPatientThreadEmail(record));
+    if ((recordEmail && patientEmailKeys.has(recordEmail)) || (threadEmail && patientEmailKeys.has(threadEmail))) {
+      if (record?.id) linkedReservationIds.add(record.id);
+    }
+  });
+  for (const id of linkedReservationIds) {
     if (await deleteInboxRecord(id)) removedReservations += 1;
   }
-  const threadEmails = [...new Set([normalizedEmail, ...Array.from(getPatientEmailKeys(patient || {}))].filter(Boolean))];
+
+  const threadEmails = [...patientEmailKeys].filter(Boolean);
   let removedThread = false;
   for (const threadEmail of threadEmails) {
     if (await deleteEmailThread(threadEmail)) removedThread = true;
   }
-  return { deleted, removedReservations, removedThread };
+  return { deleted: deleted || removedReservations > 0 || removedThread, removedPatients: matchedPatients.length, removedReservations, removedThread };
 }
 
 function extractPatientInfo(text) {

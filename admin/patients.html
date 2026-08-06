@@ -774,6 +774,7 @@
         }
 
         list.innerHTML = patients.map(p => {
+          const actionEmail = getPatientActionEmail(p);
           const reservations = Array.isArray(p.reservations) ? [...p.reservations] : [];
           reservations.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
           const latestReservation = p.latestReservation || (reservations.length ? reservations[0] : null);
@@ -791,10 +792,10 @@
           <div class="patient-card">
             <div>
               <div class="patient-name-row">
-                <p class="patient-name" data-email="${esc(p.email)}" data-name="${esc(p.name || "")}" title="Right-click to edit">${p.name ? esc(p.name) : '<span class="no-name">Name unknown</span>'}</p>
+                <p class="patient-name" data-email="${esc(actionEmail)}" data-name="${esc(p.name || "")}" title="Right-click to edit">${p.name ? esc(p.name) : '<span class="no-name">Name unknown</span>'}</p>
                 <div class="patient-actions">
-                  <button class="message-icon" type="button" data-email="${esc(p.email)}" aria-label="Open message threads for ${esc(p.name || "this patient")}">💬</button>
-                  <button class="delete-patient-btn" type="button" data-email="${esc(p.email)}" data-name="${esc(p.name || p.realEmail || p.email || "this patient")}" aria-label="Delete ${esc(p.name || "this patient")}">×</button>
+                  <button class="message-icon" type="button" data-email="${esc(actionEmail)}" aria-label="Open message threads for ${esc(p.name || "this patient")}">💬</button>
+                  <button class="delete-patient-btn" type="button" data-email="${esc(actionEmail)}" data-name="${esc(p.name || p.realEmail || actionEmail || "this patient")}" aria-label="Delete ${esc(p.name || "this patient")}">×</button>
                 </div>
               </div>
               <div class="patient-meta">
@@ -857,6 +858,17 @@
           ...(Array.isArray(patient?.reservations) ? patient.reservations.map((reservation) => reservation?.email) : []),
         ];
         return emails.some((value) => String(value || "").toLowerCase() === normalizedEmail);
+      }
+
+      function getPatientActionEmail(patient) {
+        const emails = [
+          patient?.email,
+          patient?.realEmail,
+          patient?.latestReservation?.email,
+          ...(Array.isArray(patient?.threadEmails) ? patient.threadEmails : []),
+          ...(Array.isArray(patient?.reservations) ? patient.reservations.map((reservation) => reservation?.email) : []),
+        ].map((value) => String(value || "").trim()).filter(Boolean);
+        return emails.find((email) => !email.endsWith(".lofi.internal")) || emails[0] || "";
       }
 
       async function deletePatient(email, name, button = null) {
