@@ -130,6 +130,15 @@
         backdrop-filter: blur(7px);
         box-shadow: 0 18px 40px rgba(27, 39, 35, 0.08);
         animation: rise 720ms ease both;
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(300px, 0.82fr);
+        gap: 34px;
+        align-items: center;
+        overflow: hidden;
+      }
+
+      .hero-copy {
+        min-width: 0;
       }
 
       h1 {
@@ -167,6 +176,67 @@
         gap: 12px;
         flex-wrap: wrap;
       }
+
+      .hero-case-link {
+        display: block;
+        color: inherit;
+        text-decoration: none;
+        justify-self: end;
+        width: min(430px, 100%);
+      }
+
+      .hero-case {
+        margin: 0;
+      }
+
+      .hero-case-compare {
+        position: relative;
+        overflow: hidden;
+        aspect-ratio: 1.58 / 1;
+        border: 1px solid rgba(90, 111, 218, 0.22);
+        border-radius: 20px;
+        background: #eef3ff;
+        box-shadow: 0 18px 34px rgba(31, 45, 102, 0.12);
+      }
+
+      .hero-case-compare img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .hero-case-before {
+        clip-path: inset(0 50% 0 0);
+      }
+
+      .hero-case-divider {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 2px;
+        transform: translateX(-50%);
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 0 0 1px rgba(31, 45, 102, 0.12);
+      }
+
+      .hero-case-label {
+        position: absolute;
+        top: 12px;
+        z-index: 1;
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: rgba(31, 45, 102, 0.74);
+        color: #ffffff;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+      }
+
+      .hero-case-label.before { left: 12px; }
+      .hero-case-label.after { right: 12px; }
 
       .btn {
         text-decoration: none;
@@ -355,6 +425,12 @@
 
         .hero-main {
           padding: 36px;
+          grid-template-columns: 1fr;
+        }
+
+        .hero-case-link {
+          justify-self: start;
+          width: min(520px, 100%);
         }
 
         .hero-quote {
@@ -435,15 +511,28 @@
       <main>
         <section class="hero">
           <article class="hero-main">
-            <h1 class="hero-quote">
-              <span class="quote-line">&ldquo;The smile you&rsquo;ve</span>
-              <span class="quote-line">always wanted&mdash;</span>
-              <span class="quote-line">in just 2 days.&rdquo;</span>
-            </h1>
-            <div class="cta-row">
-              <a class="btn btn-secondary" href="/meetdrkim.html">Meet Dr. Ryan Kim</a>
-              <a class="btn btn-secondary" href="/reservation/?priceGuide=1">Price Guide</a>
+            <div class="hero-copy">
+              <h1 class="hero-quote">
+                <span class="quote-line">&ldquo;The smile you&rsquo;ve</span>
+                <span class="quote-line">always wanted&mdash;</span>
+                <span class="quote-line">in just 2 days.&rdquo;</span>
+              </h1>
+              <div class="cta-row">
+                <a class="btn btn-secondary" href="/meetdrkim.html">Meet Dr. Ryan Kim</a>
+                <a class="btn btn-secondary" href="/reservation/?priceGuide=1">Price Guide</a>
+              </div>
             </div>
+            <a class="hero-case-link" href="/before-after-en.html" aria-label="View Case 4 before and after photos">
+              <figure class="hero-case">
+                <div class="hero-case-compare" aria-hidden="true">
+                  <img src="/assets/before-after/case-04-after.jpg" alt="" />
+                  <img class="hero-case-before" src="/assets/before-after/case-04-before.jpg" alt="" />
+                  <span class="hero-case-label before">BEFORE</span>
+                  <span class="hero-case-label after">AFTER</span>
+                  <span class="hero-case-divider"></span>
+                </div>
+              </figure>
+            </a>
           </article>
         </section>
 
