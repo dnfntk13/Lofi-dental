@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Lofi Dentweb Browser Controller",
+  "version": "1.0.0",
+  "description": "Lets the Lofi admin Browser AI operate Dentweb through a Chrome Remote Desktop tab.",
+  "permissions": ["debugger", "tabs"],
+  "host_permissions": [
+    "https://remotedesktop.google.com/*",
+    "https://lofiesthetic.com/*",
+    "https://www.lofiesthetic.com/*",
+    "https://www.lofidental.cc/*",
+    "https://lofi-dental.onrender.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Dentweb Browser Controller",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://lofiesthetic.com/*",
+        "https://www.lofiesthetic.com/*",
+        "https://www.lofidental.cc/*",
+        "https://lofi-dental.onrender.com/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": ["admin-bridge.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

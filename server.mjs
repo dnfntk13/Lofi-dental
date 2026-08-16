@@ -554,6 +554,174 @@ async function analyzeDentwebBrowserScreenshot({ imageDataUrl, instruction, fall
   };
 }
 
+function normalizeDentwebControlAction(value) {
+  const allowedTypes = new Set(["click", "double_click", "scroll", "type", "key", "hotkey", "wait", "done"]);
+  const type = allowedTypes.has(String(value?.type || "").toLowerCase())
+    ? String(value.type).toLowerCase()
+    : "wait";
+  const action = {
+    type,
+    reason: String(value?.reason || "").trim().slice(0, 500),
+    target: String(value?.target || "").trim().slice(0, 200),
+    confidence: Math.max(0, Math.min(1, Number(value?.confidence) || 0)),
+  };
+
+  if (["click", "double_click", "scroll", "type", "key", "hotkey"].includes(type) && (!action.target || action.confidence < 0.8)) {
+    return { type: "wait", reason: "The visible target was not reliable enough to operate.", target: action.target, confidence: action.confidence };
+  }
+
+  if (type === "click" || type === "double_click") {
+    const x = Number(value?.x);
+    const y = Number(value?.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return { type: "wait", reason: "The target position was not reliable." };
+    action.x = Math.max(0, Math.min(1, x));
+    action.y = Math.max(0, Math.min(1, y));
+  } else if (type === "scroll") {
+    const deltaY = Number(value?.deltaY);
+    action.deltaY = Math.max(-1200, Math.min(1200, Number.isFinite(deltaY) ? deltaY : 600));
+  } else if (type === "type") {
+    action.text = String(value?.text || "").slice(0, 1000);
+    if (!action.text) return { type: "wait", reason: "No text was provided for typing." };
+  } else if (type === "key") {
+    const allowedKeys = new Set(["ENTER", "TAB", "ESCAPE", "BACKSPACE", "DELETE", "ARROWUP", "ARROWDOWN", "ARROWLEFT", "ARROWRIGHT", "HOME", "END", "PAGEUP", "PAGEDOWN"]);
+    const key = String(value?.key || "").toUpperCase();
+    if (!allowedKeys.has(key)) return { type: "wait", reason: "The requested key is not allowed." };
+    action.key = key;
+  } else if (type === "hotkey") {
+    const hotkey = String(value?.hotkey || "").toUpperCase().replace(/\s+/g, "");
+    if (hotkey !== "CTRL+A") return { type: "wait", reason: "The requested hotkey is not allowed." };
+    action.hotkey = hotkey;
+  }
+
+  return action;
+}
+
+function normalizeDentwebControlContext(value) {
+  if (String(value?.workflow || "") !== "reservation_range_search") return null;
+  const startDate = normalizeReservationDate(value?.startDate);
+  const endDate = normalizeReservationDate(value?.endDate);
+  if (!startDate || !endDate) {
+    const error = new Error("Valid start and end dates are required");
+    error.statusCode = 400;
+    throw error;
+  }
+  const startTime = new Date(`${startDate}T00:00:00Z`).getTime();
+  const endTime = new Date(`${endDate}T00:00:00Z`).getTime();
+  const rangeDays = Math.round((endTime - startTime) / 86400000);
+  if (rangeDays < 0) {
+    const error = new Error("End date must be on or after start date");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (rangeDays > 366) {
+    const error = new Error("Dentweb reservation search range cannot exceed 366 days");
+    error.statusCode = 400;
+    throw error;
+  }
+  return { workflow: "reservation_range_search", startDate, endDate };
+}
+
+async function planDentwebBrowserControlStep({ imageDataUrl, screenshotWidth, screenshotHeight, task, history, controlContext }) {
+  if (!openaiApiKey) {
+    const error = new Error("OpenAI API key is not configured");
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const imageMatch = String(imageDataUrl || "").match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/);
+  if (!imageMatch) {
+    const error = new Error("A PNG, JPEG, or WebP screenshot is required");
+    error.statusCode = 400;
+    throw error;
+  }
+  const imageBuffer = Buffer.from(imageMatch[2], "base64");
+  if (!imageBuffer.length || imageBuffer.length > 6 * 1024 * 1024) {
+    const error = new Error("Screenshot is too large");
+    error.statusCode = 413;
+    throw error;
+  }
+  const width = Number(screenshotWidth);
+  const height = Number(screenshotHeight);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width < 640 || height < 360) {
+    const error = new Error("The shared Remote Desktop frame is too small to control safely");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const recentHistory = (Array.isArray(history) ? history : [])
+    .slice(-12)
+    .map((item) => ({
+      action: String(item?.action || "").slice(0, 40),
+      result: String(item?.result || "").slice(0, 300),
+    }));
+  const rangeWorkflow = controlContext?.workflow === "reservation_range_search"
+    ? [
+        `Structured workflow: Load the Dentweb reservation list from ${controlContext.startDate} through ${controlContext.endDate}, inclusive.`,
+        "Use this exact workflow: open the visible 예약 검색 or 예약검색 control; choose 특정기간; replace the start-date field; replace the end-date field; click the visible 검색 or 조회 control; verify that the result list is visible.",
+        "Date values must exactly represent the structured startDate and endDate. Adapt separators only if the visible Dentweb field clearly requires another date format.",
+        "To replace an existing date, click that exact date field, use hotkey CTRL+A, then type the new value in separate inspected steps.",
+        "Do not mark the task complete until the reservation result list is visibly loaded for the requested range.",
+      ].join(" ")
+    : "";
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${openaiApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: openaiModel,
+      temperature: 0,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You operate only the Dentweb Windows application visible inside a Chrome Remote Desktop browser tab.",
+            "Inspect the screenshot and choose exactly one next action toward the user's task.",
+            "Return only JSON with keys: reply, screenRecognized, taskComplete, action, warnings.",
+            "action must have type click, double_click, scroll, type, key, hotkey, wait, or done, plus reason, target, and confidence from 0 to 1.",
+            "For click and double_click, x and y are normalized fractions from 0 to 1 across the full screenshot.",
+            "For scroll, use deltaY from -1200 to 1200. For type, include text. For key, use ENTER, TAB, ESCAPE, BACKSPACE, DELETE, arrow keys, HOME, END, PAGEUP, or PAGEDOWN. The only allowed hotkey is CTRL+A.",
+            "Choose only targets that are clearly visible. Never guess coordinates or interact outside the remote Dentweb content.",
+            "For every executable action, target must name the exact visible label, field, or distinctive control and confidence must be at least 0.8. Otherwise return wait.",
+            "Use one step at a time: click a field before typing into it, then inspect the next screenshot.",
+            "Never delete or cancel a reservation, save changed clinical data, send a message, or confirm an irreversible dialog unless the exact user task explicitly requests it.",
+            "If Dentweb is not visible, a target is ambiguous, or a confirmation is needed, return wait and explain what staff should show or confirm.",
+            "When the task is visibly complete, return done and set taskComplete true.",
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: `Task: ${String(task || "").slice(0, 1500)}\n${rangeWorkflow}\nStructured context: ${JSON.stringify(controlContext || null)}\nScreenshot: ${width}x${height}\nRecent executed steps: ${JSON.stringify(recentHistory)}` },
+            { type: "image_url", image_url: { url: imageDataUrl, detail: "high" } },
+          ],
+        },
+      ],
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data?.error?.message || "OpenAI vision request failed");
+    error.statusCode = response.status;
+    throw error;
+  }
+
+  let parsed = {};
+  try { parsed = JSON.parse(data?.choices?.[0]?.message?.content || "{}"); } catch { parsed = {}; }
+  return {
+    reply: String(parsed?.reply || "").trim().slice(0, 1200),
+    screenRecognized: parsed?.screenRecognized === true,
+    taskComplete: parsed?.taskComplete === true,
+    action: normalizeDentwebControlAction(parsed?.action),
+    warnings: Array.isArray(parsed?.warnings)
+      ? parsed.warnings.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 10)
+      : [],
+  };
+}
+
 async function importDentwebReservations(rows, { fileName = "dentweb.pdf", dryRun = false } = {}) {
   const existingRecords = await readInbox();
   const existingSlots = new Set(existingRecords.map((record) => `${normalizeReservationDate(record?.date)}|${normalizeReservationTime(record?.time)}`));
@@ -5112,6 +5280,37 @@ createServer(async (request, response) => {
       const statusCode = Number(error?.statusCode) || (error?.message === "Payload too large" ? 413 : 500);
       response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ message: error?.message || "Failed to scan Dentweb browser screenshot" }));
+    }
+    return;
+  }
+
+  if (pathname === "/api/admin/dentweb/browser-control" && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+
+    try {
+      const payload = await getJsonBody(request, 8 * 1024 * 1024);
+      const task = String(payload.task || "").trim();
+      if (!task) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "A Dentweb task is required" }));
+        return;
+      }
+      const controlContext = normalizeDentwebControlContext(payload.controlContext);
+      const plan = await planDentwebBrowserControlStep({
+        imageDataUrl: payload.imageDataUrl,
+        screenshotWidth: payload.screenshotWidth,
+        screenshotHeight: payload.screenshotHeight,
+        task,
+        history: payload.history,
+        controlContext,
+      });
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ ok: true, model: openaiModel, ...plan }));
+    } catch (error) {
+      console.error("Failed to plan Dentweb browser control", error);
+      const statusCode = Number(error?.statusCode) || (error?.message === "Payload too large" ? 413 : 500);
+      response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: error?.message || "Failed to plan Dentweb browser control" }));
     }
     return;
   }

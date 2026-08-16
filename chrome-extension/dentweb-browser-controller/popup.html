@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Dentweb Browser Controller</title>
+    <style>
+      body { width: 310px; margin: 0; padding: 16px; color: #172033; background: #f7faf8; font: 14px/1.45 Georgia, serif; }
+      h1 { margin: 0 0 8px; font-size: 18px; }
+      p { margin: 8px 0; }
+      .status { padding: 10px; border: 1px solid #ccd9d1; border-radius: 6px; background: #fff; }
+      .ok { color: #14633f; }
+      .error { color: #9b2c2c; }
+      button { width: 100%; margin-top: 12px; padding: 9px 12px; border: 0; border-radius: 6px; color: #fff; background: #285c4d; cursor: pointer; font: inherit; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <h1>Dentweb Browser Controller</h1>
+    <div class="status" id="status">Checking Chrome Remote Desktop...</div>
+    <p>Keep Dentweb visible in a Chrome Remote Desktop tab. Actions are initiated from the Lofi admin calendar.</p>
+    <button id="openRemote" type="button">Open Chrome Remote Desktop</button>
+    <script src="popup.js"></script>
+  </body>
+</html>

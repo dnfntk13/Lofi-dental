@@ -903,12 +903,50 @@
 
       .pc-ai-input:focus { border-color: var(--accent); }
 
+      .dentweb-range {
+        display: grid;
+        grid-template-columns: minmax(130px, 1fr) minmax(130px, 1fr) auto;
+        gap: 10px;
+        align-items: end;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f7faf8;
+      }
+
+      .dentweb-range-field {
+        display: grid;
+        gap: 5px;
+        min-width: 0;
+      }
+
+      .dentweb-range-field label {
+        color: var(--soft-ink);
+        font-size: 0.76rem;
+        font-weight: 800;
+      }
+
+      .dentweb-range-field input {
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 9px;
+        color: var(--ink);
+        background: #fff;
+        font: inherit;
+      }
+
       .pc-ai-actions {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 10px;
         flex-wrap: wrap;
+      }
+
+      @media (max-width: 620px) {
+        .dentweb-range { grid-template-columns: 1fr 1fr; }
+        .dentweb-range .btn-small { grid-column: 1 / -1; }
       }
 
       .pc-ai-toggle {
@@ -1003,7 +1041,7 @@
           <button class="cal-nav-btn" id="nextBtn" aria-label="Next month">&#8250;</button>
           <button class="btn-today" id="todayBtn">Today</button>
           <button class="btn-today btn-undo" id="undoBtn" disabled>Undo</button>
-          <button class="btn-today btn-sync" id="dentwebSyncBtn" type="button">Read Dentweb screen</button>
+          <button class="btn-today btn-sync" id="dentwebSyncBtn" type="button">Control Dentweb</button>
           <button class="btn-today" id="pcAiBtn" type="button">Browser AI</button>
         </div>
       </div>
@@ -1126,10 +1164,22 @@
         </div>
         <div class="pc-ai-messages" id="pcAiMessages"></div>
         <form class="pc-ai-form" id="pcAiForm">
-          <textarea class="pc-ai-input" id="pcAiInput" placeholder="예: 화면에 보이는 이번 주 예약을 모두 읽어줘."></textarea>
+          <div class="dentweb-range">
+            <div class="dentweb-range-field">
+              <label for="dentwebRangeStart">From</label>
+              <input id="dentwebRangeStart" type="date" required />
+            </div>
+            <div class="dentweb-range-field">
+              <label for="dentwebRangeEnd">To</label>
+              <input id="dentwebRangeEnd" type="date" required />
+            </div>
+            <button class="btn-small primary" id="dentwebRangeRun" type="button">Load reservation range</button>
+          </div>
+          <textarea class="pc-ai-input" id="pcAiInput" placeholder="예: 8월 20일 예약 화면을 열어줘."></textarea>
           <div class="pc-ai-actions">
-            <button class="btn-small" id="pcAiShare" type="button">Change shared tab</button>
-            <button class="pc-ai-send" id="pcAiSend" type="submit">Read screen</button>
+            <button class="btn-small" id="pcAiShare" type="button">Check controller</button>
+            <label class="pc-ai-toggle"><input id="pcAiAuto" type="checkbox" /> Auto-run (max 12 steps)</label>
+            <button class="pc-ai-send" id="pcAiSend" type="submit">Start task</button>
           </div>
         </form>
       </div>
@@ -1249,11 +1299,19 @@
       const pcAiForm = document.getElementById("pcAiForm");
       const pcAiInput = document.getElementById("pcAiInput");
       const pcAiShare = document.getElementById("pcAiShare");
+      const pcAiAuto = document.getElementById("pcAiAuto");
       const pcAiSend = document.getElementById("pcAiSend");
+      const dentwebRangeStart = document.getElementById("dentwebRangeStart");
+      const dentwebRangeEnd = document.getElementById("dentwebRangeEnd");
+      const dentwebRangeRun = document.getElementById("dentwebRangeRun");
       const instagramStatus = document.getElementById("instagramStatus");
       const instagramOpen = document.getElementById("instagramOpen");
 
       const today = new Date();
+      const defaultDentwebRangeEnd = new Date(today);
+      defaultDentwebRangeEnd.setDate(defaultDentwebRangeEnd.getDate() + 7);
+      dentwebRangeStart.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      dentwebRangeEnd.value = `${defaultDentwebRangeEnd.getFullYear()}-${String(defaultDentwebRangeEnd.getMonth() + 1).padStart(2, "0")}-${String(defaultDentwebRangeEnd.getDate()).padStart(2, "0")}`;
       let viewYear = today.getFullYear();
       let viewMonth = today.getMonth();
       let allReservations = [];
@@ -1263,7 +1321,9 @@
       let editingReservationId = null;
       let statusTimer = null;
       const pcAiConversation = [];
-      let dentwebCaptureStream = null;
+      let dentwebControlTask = "";
+      let dentwebControlHistory = [];
+      let dentwebControlRunning = false;
       const undoStack = [];
       const maxUndoStack = 30;
       const selectedReservationIds = new Set();
@@ -1305,26 +1365,24 @@
       }
 
       async function syncWithDentweb() {
-        const originalText = dentwebSyncBtn.textContent;
-        dentwebSyncBtn.disabled = true;
-        dentwebSyncBtn.textContent = "Reading...";
         openPcAi();
-
         try {
-          await sendPcAiChat("Read every clearly visible reservation on the current Dentweb screen.");
+          const status = await dentwebExtensionRequest("status");
+          appendPcAiMessage(
+            status.connected ? "assistant" : "assistant error",
+            status.connected
+              ? `Controller connected to: ${status.tab?.title || "Chrome Remote Desktop"}. Enter a Dentweb task below.`
+              : "Dentweb Controller extension is installed, but no Chrome Remote Desktop tab is open.",
+          );
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Dentweb browser scan failed.";
-          flashStatus(message, 5200);
-        } finally {
-          dentwebSyncBtn.disabled = false;
-          dentwebSyncBtn.textContent = originalText;
+          appendPcAiMessage("assistant error", "Install or reload the Lofi Dentweb Browser Controller extension, then reload this page.");
         }
       }
 
       function openPcAi() {
         pcAiOverlay.classList.add("open");
         if (!pcAiConversation.length) {
-          appendPcAiMessage("assistant", "Open Dentweb in Chrome Remote Desktop, then share that browser tab. I will read the visible reservation screen. Nothing is saved until you review the result and press Import.");
+          appendPcAiMessage("assistant", "Keep Dentweb visible in a Chrome Remote Desktop tab. Browser AI will inspect that tab and operate Dentweb one step at a time. Auto-run is off by default.");
           pcAiConversation.push({ role: "assistant", content: "ready" });
         }
         pcAiInput.focus();
@@ -1349,135 +1407,138 @@
         return bubble;
       }
 
-      function stopDentwebCapture() {
-        if (!dentwebCaptureStream) return;
-        dentwebCaptureStream.getTracks().forEach((track) => track.stop());
-        dentwebCaptureStream = null;
-      }
+      function dentwebExtensionRequest(command, action = null, timeoutMs = 8000) {
+        return new Promise((resolve, reject) => {
+          const requestId = `dentweb-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+          const timer = setTimeout(() => {
+            window.removeEventListener("message", handleResponse);
+            reject(new Error("Dentweb Controller extension did not respond"));
+          }, timeoutMs);
 
-      async function ensureDentwebCapture(forceNew = false) {
-        if (forceNew) stopDentwebCapture();
-        const activeTrack = dentwebCaptureStream?.getVideoTracks()?.[0];
-        if (activeTrack?.readyState === "live") return dentwebCaptureStream;
-        if (!navigator.mediaDevices?.getDisplayMedia) {
-          throw new Error("This browser does not support tab sharing. Use the latest Chrome over HTTPS or localhost.");
-        }
+          function handleResponse(event) {
+            if (event.source !== window || event.data?.channel !== "lofi-dentweb-browser-controller" || event.data?.direction !== "response" || event.data?.requestId !== requestId) return;
+            clearTimeout(timer);
+            window.removeEventListener("message", handleResponse);
+            const response = event.data.response || {};
+            if (!response.ok) reject(new Error(response.message || "Dentweb Controller failed"));
+            else resolve(response);
+          }
 
-        dentwebCaptureStream = await navigator.mediaDevices.getDisplayMedia({
-          video: { displaySurface: "browser" },
-          audio: false,
-          preferCurrentTab: false,
-          selfBrowserSurface: "exclude",
-          surfaceSwitching: "include",
+          window.addEventListener("message", handleResponse);
+          window.postMessage({
+            channel: "lofi-dentweb-browser-controller",
+            direction: "request",
+            requestId,
+            command,
+            action,
+          }, location.origin);
         });
-        const track = dentwebCaptureStream.getVideoTracks()[0];
-        track.addEventListener("ended", () => {
-          dentwebCaptureStream = null;
-          appendPcAiMessage("assistant", "Screen sharing stopped. Share the Chrome Remote Desktop tab again to continue.");
-        }, { once: true });
-        return dentwebCaptureStream;
       }
 
-      async function captureDentwebFrame(forceNew = false) {
-        const stream = await ensureDentwebCapture(forceNew);
-        const video = document.createElement("video");
-        video.srcObject = stream;
-        video.muted = true;
-        video.playsInline = true;
-        await video.play();
-        if (!video.videoWidth || !video.videoHeight) {
-          await new Promise((resolve) => video.addEventListener("loadedmetadata", resolve, { once: true }));
+      function describeDentwebAction(action) {
+        const type = String(action?.type || "wait");
+        if (type === "click" || type === "double_click") {
+          return `${type === "double_click" ? "Double click" : "Click"} at ${Math.round(Number(action.x) * 100)}%, ${Math.round(Number(action.y) * 100)}%`;
         }
-
-        const maxWidth = 2560;
-        const scale = Math.min(1, maxWidth / video.videoWidth);
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-        canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-        canvas.getContext("2d", { alpha: false }).drawImage(video, 0, 0, canvas.width, canvas.height);
-        video.pause();
-        video.srcObject = null;
-        return canvas.toDataURL("image/jpeg", 0.9);
+        if (type === "scroll") return `Scroll ${Number(action.deltaY) < 0 ? "up" : "down"}`;
+        if (type === "type") return `Type: ${String(action.text || "").slice(0, 120)}`;
+        if (type === "key") return `Press ${action.key}`;
+        if (type === "hotkey") return `Press ${action.hotkey}`;
+        if (type === "done") return "Task complete";
+        return "Wait for staff";
       }
 
-      function formatDentwebScan(data) {
-        const rows = Array.isArray(data.reservations) ? data.reservations : [];
-        const lines = rows.map((row) => `${row.date} ${row.time}  ${row.name}${row.phone ? `  ${row.phone}` : ""}`);
-        const warnings = Array.isArray(data.warnings) && data.warnings.length
-          ? `\n\nCheck carefully:\n${data.warnings.map((warning) => `- ${warning}`).join("\n")}`
-          : "";
-        const range = data.visibleDateRange ? `\nVisible range: ${data.visibleDateRange}` : "";
-        const result = lines.length ? `\n\n${lines.join("\n")}` : "\n\nNo clearly readable reservations found.";
-        return `${data.summary || "Dentweb screen checked."}${range}${result}${warnings}`;
-      }
-
-      async function importDentwebBrowserRows(rows, button) {
-        if (!Array.isArray(rows) || !rows.length) return;
-        if (!window.confirm(`Import ${rows.length} reviewed Dentweb reservation(s)? Existing time slots will be skipped.`)) return;
-        button.disabled = true;
-        button.textContent = "Importing...";
+      async function executeDentwebAction(action, task, controlContext, bubble, autoStep = 0) {
+        const actionLabel = describeDentwebAction(action);
         try {
-          const response = await fetch("/api/admin/dentweb/browser-scan", {
-            method: "POST",
-            cache: "no-store",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ apply: true, rows, year: new Date().getFullYear() }),
-          });
-          const data = await response.json().catch(() => ({}));
-          if (!response.ok || !data.ok) throw new Error(data.message || "Dentweb import failed.");
-          button.textContent = `Imported ${data.imported || 0}; skipped ${data.skipped || 0}`;
-          await loadReservations();
-          flashStatus(`Dentweb import complete: ${data.imported || 0} imported, ${data.skipped || 0} skipped.`, 5200);
+          const result = await dentwebExtensionRequest("execute", action);
+          dentwebControlHistory.push({ action: actionLabel, result: `Executed on ${result.title || "Chrome Remote Desktop"}` });
+          const note = document.createElement("span");
+          note.className = "pc-ai-action-note";
+          note.textContent = `Executed: ${actionLabel}`;
+          bubble.appendChild(note);
+          await new Promise((resolve) => setTimeout(resolve, 900));
+
+          if (pcAiAuto.checked && autoStep < 11) {
+            await planDentwebControlStep(task, controlContext, autoStep + 1);
+          } else if (pcAiAuto.checked && autoStep >= 11) {
+            appendPcAiMessage("assistant", "Auto-run stopped after 12 steps. Review the current Dentweb screen before continuing.");
+          } else {
+            await planDentwebControlStep(task, controlContext, 0);
+          }
         } catch (error) {
-          button.disabled = false;
-          button.textContent = "Try import again";
-          appendPcAiMessage("assistant error", error instanceof Error ? error.message : "Dentweb import failed.");
+          appendPcAiMessage("assistant error", error instanceof Error ? error.message : "Could not control Chrome Remote Desktop.");
         }
       }
 
-      async function sendPcAiChat(message) {
-        appendPcAiMessage("user", message);
-
+      async function planDentwebControlStep(task, controlContext = null, autoStep = 0) {
+        if (dentwebControlRunning) return;
+        dentwebControlRunning = true;
         pcAiSend.disabled = true;
         const pending = appendPcAiMessage("assistant", "Capturing the shared Chrome Remote Desktop tab...");
 
         try {
-          const imageDataUrl = await captureDentwebFrame();
-          pending.textContent = "Reading the visible Dentweb reservation screen...";
-          const response = await fetch("/api/admin/dentweb/browser-scan", {
+          const extensionStatus = await dentwebExtensionRequest("status");
+          if (!extensionStatus.connected) throw new Error("Open Chrome Remote Desktop in another tab first");
+          const frame = await dentwebExtensionRequest("capture", null, 15000);
+          pending.textContent = "Planning the next Dentweb action...";
+          const response = await fetch("/api/admin/dentweb/browser-control", {
             method: "POST",
             cache: "no-store",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              imageDataUrl,
-              instruction: message,
-              year: new Date().getFullYear(),
+              imageDataUrl: frame.imageDataUrl,
+              screenshotWidth: frame.width,
+              screenshotHeight: frame.height,
+              task,
+              history: dentwebControlHistory,
+              controlContext,
             }),
           });
           const data = await response.json().catch(() => ({}));
-          if (!response.ok || !data.ok) {
-            throw new Error(data.message || "Dentweb browser scan failed.");
-          }
+          if (!response.ok || !data.ok) throw new Error(data.message || "Dentweb Browser AI failed.");
 
-          pending.textContent = formatDentwebScan(data);
-          if (data.screenRecognized && Array.isArray(data.reservations) && data.reservations.length) {
-            const importButton = document.createElement("button");
-            importButton.className = "btn-small primary";
-            importButton.type = "button";
-            importButton.textContent = `Import ${data.reservations.length} reservation(s)`;
-            importButton.addEventListener("click", () => importDentwebBrowserRows(data.reservations, importButton));
-            pending.appendChild(importButton);
+          const action = data.action || { type: "wait" };
+          const warnings = Array.isArray(data.warnings) && data.warnings.length ? `\n${data.warnings.map((item) => `- ${item}`).join("\n")}` : "";
+          pending.textContent = `${data.reply || action.reason || "I checked the Dentweb screen."}${warnings}`;
+          const actionNote = document.createElement("span");
+          actionNote.className = "pc-ai-action-note";
+          actionNote.textContent = `${describeDentwebAction(action)}${action.reason ? `: ${action.reason}` : ""}`;
+          pending.appendChild(actionNote);
+
+          const executable = ["click", "double_click", "scroll", "type", "key", "hotkey"].includes(action.type);
+          if (executable && data.screenRecognized) {
+            if (pcAiAuto.checked) {
+              dentwebControlRunning = false;
+              await executeDentwebAction(action, task, controlContext, pending, autoStep);
+              return;
+            }
+            const runButton = document.createElement("button");
+            runButton.className = "btn-small primary";
+            runButton.type = "button";
+            runButton.textContent = "Run action";
+            runButton.addEventListener("click", async () => {
+              runButton.disabled = true;
+              await executeDentwebAction(action, task, controlContext, pending, autoStep);
+            });
+            pending.appendChild(runButton);
           }
-          flashStatus(`Browser AI read ${data.reservations?.length || 0} visible reservation(s).`, 4200);
+          if (data.taskComplete || action.type === "done") flashStatus("Dentweb Browser AI task complete.", 4200);
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Dentweb browser scan failed.";
+          const message = error instanceof Error ? error.message : "Dentweb Browser AI failed.";
           pending.className = "pc-ai-bubble assistant error";
-          pending.textContent = message.includes("Permission denied") || message.includes("not allowed")
-            ? "Screen sharing was canceled. Try again and choose the Chrome Remote Desktop tab."
-            : message;
+          pending.textContent = message;
         } finally {
+          dentwebControlRunning = false;
           pcAiSend.disabled = false;
         }
+      }
+
+      async function sendPcAiChat(message, controlContext = null) {
+        dentwebControlTask = message;
+        dentwebControlHistory = [];
+        appendPcAiMessage("user", message);
+        await planDentwebControlStep(message, controlContext, 0);
       }
 
       function pushUndo(action) {
@@ -2499,11 +2560,35 @@
       pcAiBtn.addEventListener("click", openPcAi);
       pcAiShare.addEventListener("click", async () => {
         try {
-          await ensureDentwebCapture(true);
-          appendPcAiMessage("assistant", "Chrome Remote Desktop tab connected. Press Read screen when the Dentweb reservation view is ready.");
+          const status = await dentwebExtensionRequest("status");
+          appendPcAiMessage(
+            status.connected ? "assistant" : "assistant error",
+            status.connected
+              ? `Controller connected to: ${status.tab?.title || "Chrome Remote Desktop"}. Enter a task when Dentweb is ready.`
+              : "The Dentweb Controller extension cannot find a Chrome Remote Desktop tab.",
+          );
         } catch (error) {
           appendPcAiMessage("assistant error", error instanceof Error ? error.message : "Could not share the browser tab.");
         }
+      });
+      dentwebRangeRun.addEventListener("click", async () => {
+        const startDate = dentwebRangeStart.value;
+        const endDate = dentwebRangeEnd.value;
+        if (!startDate || !endDate) {
+          appendPcAiMessage("assistant error", "Choose both From and To dates.");
+          return;
+        }
+        if (endDate < startDate) {
+          appendPcAiMessage("assistant error", "The To date must be on or after the From date.");
+          return;
+        }
+        const rangeDays = Math.round((new Date(`${endDate}T00:00:00Z`) - new Date(`${startDate}T00:00:00Z`)) / 86400000);
+        if (rangeDays > 366) {
+          appendPcAiMessage("assistant error", "Choose a reservation range of 366 days or less.");
+          return;
+        }
+        const message = `덴트웹 예약 검색에서 특정기간을 선택하고 ${startDate}부터 ${endDate}까지 예약 목록을 불러와줘.`;
+        await sendPcAiChat(message, { workflow: "reservation_range_search", startDate, endDate });
       });
       pcAiClose.addEventListener("click", closePcAi);
       pcAiOverlay.addEventListener("click", (e) => {
