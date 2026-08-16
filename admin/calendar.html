@@ -1003,8 +1003,8 @@
           <button class="cal-nav-btn" id="nextBtn" aria-label="Next month">&#8250;</button>
           <button class="btn-today" id="todayBtn">Today</button>
           <button class="btn-today btn-undo" id="undoBtn" disabled>Undo</button>
-          <button class="btn-today btn-sync" id="dentwebSyncBtn" type="button">Sync with Dentweb</button>
-          <button class="btn-today" id="pcAiBtn" type="button">PC AI</button>
+          <button class="btn-today btn-sync" id="dentwebSyncBtn" type="button">Read Dentweb screen</button>
+          <button class="btn-today" id="pcAiBtn" type="button">Browser AI</button>
         </div>
       </div>
 
@@ -1121,15 +1121,15 @@
     <div class="edit-overlay" id="pcAiOverlay" role="dialog" aria-modal="true" aria-labelledby="pcAiTitle">
       <div class="pc-ai-panel">
         <div class="pc-ai-head">
-          <h3 class="pc-ai-title" id="pcAiTitle">PC AI</h3>
+          <h3 class="pc-ai-title" id="pcAiTitle">Dentweb Browser AI</h3>
           <button class="pc-ai-close" id="pcAiClose" type="button" aria-label="Close">&#x2715;</button>
         </div>
         <div class="pc-ai-messages" id="pcAiMessages"></div>
         <form class="pc-ai-form" id="pcAiForm">
-          <textarea class="pc-ai-input" id="pcAiInput" placeholder="예: 지금 PC 화면에서 필요한 작업을 대신 진행해줘."></textarea>
+          <textarea class="pc-ai-input" id="pcAiInput" placeholder="예: 화면에 보이는 이번 주 예약을 모두 읽어줘."></textarea>
           <div class="pc-ai-actions">
-            <label class="pc-ai-toggle"><input id="pcAiApply" type="checkbox" checked /> Allow PC action</label>
-            <button class="pc-ai-send" id="pcAiSend" type="submit">Send</button>
+            <button class="btn-small" id="pcAiShare" type="button">Change shared tab</button>
+            <button class="pc-ai-send" id="pcAiSend" type="submit">Read screen</button>
           </div>
         </form>
       </div>
@@ -1248,7 +1248,7 @@
       const pcAiMessages = document.getElementById("pcAiMessages");
       const pcAiForm = document.getElementById("pcAiForm");
       const pcAiInput = document.getElementById("pcAiInput");
-      const pcAiApply = document.getElementById("pcAiApply");
+      const pcAiShare = document.getElementById("pcAiShare");
       const pcAiSend = document.getElementById("pcAiSend");
       const instagramStatus = document.getElementById("instagramStatus");
       const instagramOpen = document.getElementById("instagramOpen");
@@ -1263,6 +1263,7 @@
       let editingReservationId = null;
       let statusTimer = null;
       const pcAiConversation = [];
+      let dentwebCaptureStream = null;
       const undoStack = [];
       const maxUndoStack = 30;
       const selectedReservationIds = new Set();
@@ -1306,28 +1307,14 @@
       async function syncWithDentweb() {
         const originalText = dentwebSyncBtn.textContent;
         dentwebSyncBtn.disabled = true;
-        dentwebSyncBtn.textContent = "Syncing...";
-        statusMsg.style.display = "block";
-        statusMsg.textContent = "Running Dentweb print sync on this computer...";
+        dentwebSyncBtn.textContent = "Reading...";
+        openPcAi();
 
         try {
-          const response = await fetch("http://127.0.0.1:5175/sync", {
-            method: "POST",
-            mode: "cors",
-            cache: "no-store",
-          });
-          const data = await response.json().catch(() => ({}));
-          if (!response.ok || !data.ok) {
-            throw new Error(data.message || "Dentweb sync agent failed.");
-          }
-
-          await loadReservations();
-          const savedMessage = data.screenshotPath ? ` Screenshot saved: ${data.screenshotPath}` : "";
-          flashStatus(`Dentweb synced: ${data.imported || 0} imported, ${data.skipped || 0} skipped.${savedMessage}`, 6200);
+          await sendPcAiChat("Read every clearly visible reservation on the current Dentweb screen.");
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Dentweb sync failed.";
-          statusMsg.style.display = "block";
-          statusMsg.textContent = `${message} Start the local agent first: npm run dentweb:agent`;
+          const message = error instanceof Error ? error.message : "Dentweb browser scan failed.";
+          flashStatus(message, 5200);
         } finally {
           dentwebSyncBtn.disabled = false;
           dentwebSyncBtn.textContent = originalText;
@@ -1337,7 +1324,8 @@
       function openPcAi() {
         pcAiOverlay.classList.add("open");
         if (!pcAiConversation.length) {
-          appendPcAiMessage("assistant", "PC AI is ready. I can look at the current PC screen and operate visible apps when you allow PC action.");
+          appendPcAiMessage("assistant", "Open Dentweb in Chrome Remote Desktop, then share that browser tab. I will read the visible reservation screen. Nothing is saved until you review the result and press Import.");
+          pcAiConversation.push({ role: "assistant", content: "ready" });
         }
         pcAiInput.focus();
       }
@@ -1361,86 +1349,132 @@
         return bubble;
       }
 
-      function summarizePcAiAction(action) {
-        const type = String(action?.action || "wait").toLowerCase();
-        if (type === "element_click") return `PC action: click element #${action.elementId}`;
-        if (type === "element_type") return `PC action: type into element #${action.elementId}`;
-        if (type === "click") return `PC action: click ${action.x}, ${action.y}`;
-        if (type === "double_click") return `PC action: double click ${action.x}, ${action.y}`;
-        if (type === "right_click") return `PC action: right click ${action.x}, ${action.y}`;
-        if (type === "drag") return `PC action: drag ${action.x}, ${action.y} to ${action.toX}, ${action.toY}`;
-        if (type === "scroll") return `PC action: scroll ${action.deltaY || 700}`;
-        if (type === "type") return `PC action: type ${String(action.text || "").length} chars`;
-        if (type === "key") return `PC action: key ${action.key || ""}`.trim();
-        if (type === "done") return "PC action: done";
-        return "PC action: wait";
+      function stopDentwebCapture() {
+        if (!dentwebCaptureStream) return;
+        dentwebCaptureStream.getTracks().forEach((track) => track.stop());
+        dentwebCaptureStream = null;
       }
 
-      function buildPcAiPageContext() {
-        const visibleStart = new Date(viewYear, viewMonth, 1);
-        const visibleEnd = new Date(viewYear, viewMonth + 1, 0);
-        const monthReservations = allReservations
-          .filter((reservation) => {
-            const date = normalizeDate(reservation.date);
-            return date >= formatDateKey(visibleStart) && date <= formatDateKey(visibleEnd);
-          })
-          .map((reservation) => ({
-            id: reservation.id,
-            date: normalizeDate(reservation.date),
-            time: reservation.time || "",
-            name: reservation.name || "",
-            phone: reservation.phone || "",
-            concerns: reservation.concerns || reservation.memo || "",
-            source: reservation.source || "",
-          }))
-          .sort((a, b) => String(a.date).localeCompare(String(b.date)) || parseTimeValue(a.time) - parseTimeValue(b.time));
+      async function ensureDentwebCapture(forceNew = false) {
+        if (forceNew) stopDentwebCapture();
+        const activeTrack = dentwebCaptureStream?.getVideoTracks()?.[0];
+        if (activeTrack?.readyState === "live") return dentwebCaptureStream;
+        if (!navigator.mediaDevices?.getDisplayMedia) {
+          throw new Error("This browser does not support tab sharing. Use the latest Chrome over HTTPS or localhost.");
+        }
 
-        return {
-          app: "lofi admin calendar",
-          visibleMonth: `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`,
-          selectedDate: selectedDateKey || "",
-          reservationCountInVisibleMonth: monthReservations.length,
-          reservations: monthReservations.slice(0, 120),
-          selectedReservations: Array.from(selectedReservationIds || []).slice(0, 40),
-        };
+        dentwebCaptureStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { displaySurface: "browser" },
+          audio: false,
+          preferCurrentTab: false,
+          selfBrowserSurface: "exclude",
+          surfaceSwitching: "include",
+        });
+        const track = dentwebCaptureStream.getVideoTracks()[0];
+        track.addEventListener("ended", () => {
+          dentwebCaptureStream = null;
+          appendPcAiMessage("assistant", "Screen sharing stopped. Share the Chrome Remote Desktop tab again to continue.");
+        }, { once: true });
+        return dentwebCaptureStream;
+      }
+
+      async function captureDentwebFrame(forceNew = false) {
+        const stream = await ensureDentwebCapture(forceNew);
+        const video = document.createElement("video");
+        video.srcObject = stream;
+        video.muted = true;
+        video.playsInline = true;
+        await video.play();
+        if (!video.videoWidth || !video.videoHeight) {
+          await new Promise((resolve) => video.addEventListener("loadedmetadata", resolve, { once: true }));
+        }
+
+        const maxWidth = 2560;
+        const scale = Math.min(1, maxWidth / video.videoWidth);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+        canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+        canvas.getContext("2d", { alpha: false }).drawImage(video, 0, 0, canvas.width, canvas.height);
+        video.pause();
+        video.srcObject = null;
+        return canvas.toDataURL("image/jpeg", 0.9);
+      }
+
+      function formatDentwebScan(data) {
+        const rows = Array.isArray(data.reservations) ? data.reservations : [];
+        const lines = rows.map((row) => `${row.date} ${row.time}  ${row.name}${row.phone ? `  ${row.phone}` : ""}`);
+        const warnings = Array.isArray(data.warnings) && data.warnings.length
+          ? `\n\nCheck carefully:\n${data.warnings.map((warning) => `- ${warning}`).join("\n")}`
+          : "";
+        const range = data.visibleDateRange ? `\nVisible range: ${data.visibleDateRange}` : "";
+        const result = lines.length ? `\n\n${lines.join("\n")}` : "\n\nNo clearly readable reservations found.";
+        return `${data.summary || "Dentweb screen checked."}${range}${result}${warnings}`;
+      }
+
+      async function importDentwebBrowserRows(rows, button) {
+        if (!Array.isArray(rows) || !rows.length) return;
+        if (!window.confirm(`Import ${rows.length} reviewed Dentweb reservation(s)? Existing time slots will be skipped.`)) return;
+        button.disabled = true;
+        button.textContent = "Importing...";
+        try {
+          const response = await fetch("/api/admin/dentweb/browser-scan", {
+            method: "POST",
+            cache: "no-store",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ apply: true, rows, year: new Date().getFullYear() }),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data.ok) throw new Error(data.message || "Dentweb import failed.");
+          button.textContent = `Imported ${data.imported || 0}; skipped ${data.skipped || 0}`;
+          await loadReservations();
+          flashStatus(`Dentweb import complete: ${data.imported || 0} imported, ${data.skipped || 0} skipped.`, 5200);
+        } catch (error) {
+          button.disabled = false;
+          button.textContent = "Try import again";
+          appendPcAiMessage("assistant error", error instanceof Error ? error.message : "Dentweb import failed.");
+        }
       }
 
       async function sendPcAiChat(message) {
-        const userMessage = { role: "user", content: message };
-        pcAiConversation.push(userMessage);
         appendPcAiMessage("user", message);
 
         pcAiSend.disabled = true;
-        const pending = appendPcAiMessage("assistant", "Looking at this PC screen...");
+        const pending = appendPcAiMessage("assistant", "Capturing the shared Chrome Remote Desktop tab...");
 
         try {
-          const response = await fetch("http://127.0.0.1:5175/pc-ai-chat", {
+          const imageDataUrl = await captureDentwebFrame();
+          pending.textContent = "Reading the visible Dentweb reservation screen...";
+          const response = await fetch("/api/admin/dentweb/browser-scan", {
             method: "POST",
-            mode: "cors",
             cache: "no-store",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ messages: pcAiConversation, apply: pcAiApply.checked, pageContext: buildPcAiPageContext() }),
+            body: JSON.stringify({
+              imageDataUrl,
+              instruction: message,
+              year: new Date().getFullYear(),
+            }),
           });
           const data = await response.json().catch(() => ({}));
           if (!response.ok || !data.ok) {
-            throw new Error(data.message || "PC AI failed.");
+            throw new Error(data.message || "Dentweb browser scan failed.");
           }
 
-          const reply = data.reply || data.action?.reason || "I checked the PC screen.";
-          const actionText = summarizePcAiAction(data.action);
-          pending.textContent = reply;
-          if (actionText) {
-            const note = document.createElement("span");
-            note.className = "pc-ai-action-note";
-            note.textContent = actionText;
-            pending.appendChild(note);
+          pending.textContent = formatDentwebScan(data);
+          if (data.screenRecognized && Array.isArray(data.reservations) && data.reservations.length) {
+            const importButton = document.createElement("button");
+            importButton.className = "btn-small primary";
+            importButton.type = "button";
+            importButton.textContent = `Import ${data.reservations.length} reservation(s)`;
+            importButton.addEventListener("click", () => importDentwebBrowserRows(data.reservations, importButton));
+            pending.appendChild(importButton);
           }
-          pcAiConversation.push({ role: "assistant", content: reply });
-          flashStatus(`PC AI complete. ${actionText}`, 4200);
+          flashStatus(`Browser AI read ${data.reservations?.length || 0} visible reservation(s).`, 4200);
         } catch (error) {
-          const message = error instanceof Error ? error.message : "PC AI failed.";
+          const message = error instanceof Error ? error.message : "Dentweb browser scan failed.";
           pending.className = "pc-ai-bubble assistant error";
-          pending.textContent = `${message} Check npm run dentweb:agent and local OPENAI_API_KEY.`;
+          pending.textContent = message.includes("Permission denied") || message.includes("not allowed")
+            ? "Screen sharing was canceled. Try again and choose the Chrome Remote Desktop tab."
+            : message;
         } finally {
           pcAiSend.disabled = false;
         }
@@ -2463,6 +2497,14 @@
 
       dentwebSyncBtn.addEventListener("click", syncWithDentweb);
       pcAiBtn.addEventListener("click", openPcAi);
+      pcAiShare.addEventListener("click", async () => {
+        try {
+          await ensureDentwebCapture(true);
+          appendPcAiMessage("assistant", "Chrome Remote Desktop tab connected. Press Read screen when the Dentweb reservation view is ready.");
+        } catch (error) {
+          appendPcAiMessage("assistant error", error instanceof Error ? error.message : "Could not share the browser tab.");
+        }
+      });
       pcAiClose.addEventListener("click", closePcAi);
       pcAiOverlay.addEventListener("click", (e) => {
         if (e.target === e.currentTarget) closePcAi();
@@ -2477,315 +2519,6 @@
       instagramOpen.addEventListener("click", openInstagramWindow);
 
       loadReservations();
-    </script>
-    <style media="not all" data-disabled="legacy-pc-ai-injection">
-      .pc-ai-panel {
-        position: fixed;
-        right: 20px;
-        bottom: 20px;
-        z-index: 80;
-        width: min(420px, calc(100vw - 32px));
-        max-height: min(680px, calc(100vh - 40px));
-        display: none;
-        flex-direction: column;
-        overflow: hidden;
-        border: 1px solid rgba(17, 24, 39, 0.14);
-        border-radius: 8px;
-        background: #fff;
-        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.2);
-      }
-
-      .pc-ai-panel.is-open {
-        display: flex;
-      }
-
-      .pc-ai-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 14px 16px;
-        border-bottom: 1px solid rgba(17, 24, 39, 0.1);
-        background: #f8fafc;
-      }
-
-      .pc-ai-title {
-        display: grid;
-        gap: 2px;
-        min-width: 0;
-      }
-
-      .pc-ai-title strong {
-        color: #111827;
-        font-size: 15px;
-        line-height: 1.25;
-      }
-
-      .pc-ai-title span {
-        color: #64748b;
-        font-size: 12px;
-        line-height: 1.25;
-      }
-
-      .pc-ai-close {
-        width: 32px;
-        height: 32px;
-        border: 0;
-        border-radius: 6px;
-        background: transparent;
-        color: #475569;
-        cursor: pointer;
-        font-size: 22px;
-        line-height: 1;
-      }
-
-      .pc-ai-close:hover {
-        background: rgba(15, 23, 42, 0.08);
-      }
-
-      .pc-ai-messages {
-        display: flex;
-        min-height: 260px;
-        max-height: 430px;
-        flex-direction: column;
-        gap: 10px;
-        overflow-y: auto;
-        padding: 16px;
-        background: #ffffff;
-      }
-
-      .pc-ai-message {
-        max-width: 88%;
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        border-radius: 8px;
-        padding: 10px 12px;
-        font-size: 13px;
-        line-height: 1.45;
-      }
-
-      .pc-ai-message.user {
-        align-self: flex-end;
-        background: #2563eb;
-        color: #fff;
-      }
-
-      .pc-ai-message.assistant {
-        align-self: flex-start;
-        background: #f1f5f9;
-        color: #172033;
-      }
-
-      .pc-ai-message.error {
-        align-self: flex-start;
-        background: #fef2f2;
-        color: #991b1b;
-      }
-
-      .pc-ai-form {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 10px;
-        padding: 12px;
-        border-top: 1px solid rgba(17, 24, 39, 0.1);
-        background: #f8fafc;
-      }
-
-      .pc-ai-form textarea {
-        min-height: 44px;
-        max-height: 120px;
-        resize: vertical;
-        border: 1px solid rgba(17, 24, 39, 0.16);
-        border-radius: 8px;
-        padding: 10px 12px;
-        color: #111827;
-        font: inherit;
-        line-height: 1.4;
-      }
-
-      .pc-ai-form button {
-        align-self: end;
-        min-height: 44px;
-        border-radius: 8px;
-      }
-
-      @media (max-width: 640px) {
-        .pc-ai-panel {
-          right: 12px;
-          bottom: 12px;
-          width: calc(100vw - 24px);
-          max-height: calc(100vh - 24px);
-        }
-
-        .pc-ai-form {
-          grid-template-columns: 1fr;
-        }
-      }
-    </style>
-    <script type="application/json" data-disabled="legacy-pc-ai-injection">
-      (() => {
-        const endpoint = 'http://127.0.0.1:5175/ai-step';
-        const history = [];
-
-        function ensurePcAiPanel() {
-          let panel = document.getElementById('pcAiPanel');
-          if (panel) return panel;
-
-          panel = document.createElement('aside');
-          panel.id = 'pcAiPanel';
-          panel.className = 'pc-ai-panel';
-          panel.innerHTML = `
-            <div class="pc-ai-header">
-              <div class="pc-ai-title">
-                <strong>PC AI</strong>
-                <span>로그인된 PC 덴트웹 프로그램 조작</span>
-              </div>
-              <button class="pc-ai-close" type="button" aria-label="PC AI 닫기">×</button>
-            </div>
-            <div class="pc-ai-messages" id="pcAiMessages" aria-live="polite"></div>
-            <form class="pc-ai-form" id="pcAiForm">
-              <textarea id="pcAiInput" rows="2" placeholder="PC AI에게 요청하기"></textarea>
-              <button class="btn primary" type="submit">보내기</button>
-            </form>
-          `;
-          document.body.appendChild(panel);
-
-          panel.querySelector('.pc-ai-close').addEventListener('click', closePcAiPanel);
-          panel.querySelector('#pcAiForm').addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const input = panel.querySelector('#pcAiInput');
-            const task = input.value.trim();
-            if (!task) return;
-            input.value = '';
-            await sendPcAiMessage(task);
-          });
-
-          return panel;
-        }
-
-        function appendPcAiMessage(role, text) {
-          const panel = ensurePcAiPanel();
-          const messages = panel.querySelector('#pcAiMessages');
-          const item = document.createElement('div');
-          item.className = `pc-ai-message ${role}`;
-          item.textContent = text;
-          messages.appendChild(item);
-          messages.scrollTop = messages.scrollHeight;
-          return item;
-        }
-
-        function summarizeAction(action) {
-          if (!action || !action.type) return '화면 확인';
-          if (action.type === 'click') return `클릭 (${action.x}, ${action.y})`;
-          if (action.type === 'type') return `입력 ${action.text || ''}`.trim();
-          if (action.type === 'hotkey') return `단축키 ${action.key || ''}`.trim();
-          if (action.type === 'wait') return '대기';
-          return action.type;
-        }
-
-        async function sendPcAiMessage(message) {
-          history.push({ role: 'user', content: message });
-          appendPcAiMessage('user', message);
-          const pending = appendPcAiMessage('assistant', 'PC 화면을 확인하는 중입니다...');
-
-          const task = [
-            '너는 PC AI다. 현재 로그인된 Windows PC의 덴트웹 프로그램 화면을 보고 사용자의 요청을 처리한다.',
-            '가능하면 덴트웹 UI를 직접 조작하고, 확실하지 않으면 위험한 입력이나 저장 작업을 하지 말고 필요한 확인을 말한다.',
-            '최근 대화:',
-            history.slice(-8).map((item) => `${item.role}: ${item.content}`).join('\n'),
-            `현재 사용자 요청: ${message}`
-          ].join('\n\n');
-
-          try {
-            const response = await fetch(endpoint, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ task, apply: true })
-            });
-            const result = await response.json().catch(() => ({}));
-            if (!response.ok || !result.ok) {
-              throw new Error(result.error || 'PC AI 실행에 실패했습니다.');
-            }
-
-            const actionText = summarizeAction(result.action);
-            const reply = result.reply || result.reason || '요청을 처리했습니다.';
-            const assistantText = `${reply}\n실행: ${actionText}`;
-            pending.textContent = assistantText;
-            history.push({ role: 'assistant', content: assistantText });
-
-            if (typeof setStatus === 'function') {
-              setStatus(`PC AI 완료: ${actionText}`);
-            }
-          } catch (error) {
-            const errorText = `PC AI 오류: ${error.message}`;
-            pending.className = 'pc-ai-message error';
-            pending.textContent = errorText;
-            history.push({ role: 'assistant', content: errorText });
-            if (typeof setStatus === 'function') {
-              setStatus(errorText);
-            }
-          }
-        }
-
-        function openPcAiPanel() {
-          const panel = ensurePcAiPanel();
-          panel.classList.add('is-open');
-          const messages = panel.querySelector('#pcAiMessages');
-          if (!messages.dataset.started) {
-            messages.dataset.started = 'true';
-            appendPcAiMessage('assistant', 'PC AI가 준비됐습니다. 덴트웹이 로그인되어 있으면 화면을 보고 클릭, 입력, 단축키 실행을 할 수 있습니다.');
-          }
-          panel.querySelector('#pcAiInput').focus();
-        }
-
-        function closePcAiPanel() {
-          const panel = document.getElementById('pcAiPanel');
-          if (panel) panel.classList.remove('is-open');
-        }
-
-        function upgradeExistingButtons() {
-          let upgraded = false;
-          document.querySelectorAll('button, a').forEach((element) => {
-            const label = (element.textContent || '').trim().toLowerCase();
-            const handler = element.getAttribute('onclick') || '';
-            if (handler.includes('runDentwebAiAction') || label === 'dentweb ai' || label === '덴트웹 ai') {
-              element.textContent = 'PC AI';
-              element.onclick = (event) => {
-                event.preventDefault();
-                openPcAiPanel();
-              };
-              upgraded = true;
-            }
-          });
-
-          if (upgraded || document.getElementById('pcAiLauncher')) return;
-
-          const dentwebSyncButton = Array.from(document.querySelectorAll('button, a')).find((element) => {
-            const label = (element.textContent || '').trim().toLowerCase();
-            return label.includes('sync with dentweb') || label.includes('dentweb sync') || label.includes('덴트웹');
-          });
-          if (!dentwebSyncButton || !dentwebSyncButton.parentElement) return;
-
-          const launcher = document.createElement('button');
-          launcher.id = 'pcAiLauncher';
-          launcher.type = 'button';
-          launcher.className = dentwebSyncButton.className || 'btn';
-          launcher.textContent = 'PC AI';
-          launcher.addEventListener('click', openPcAiPanel);
-          dentwebSyncButton.insertAdjacentElement('afterend', launcher);
-        }
-
-        window.openPcAiPanel = openPcAiPanel;
-        window.closePcAiPanel = closePcAiPanel;
-        window.sendPcAiMessage = sendPcAiMessage;
-        window.runDentwebAiAction = openPcAiPanel;
-
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', upgradeExistingButtons);
-        } else {
-          upgradeExistingButtons();
-        }
-      })();
     </script>
   </body>
 </html>

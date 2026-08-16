@@ -454,6 +454,106 @@ function parseDentwebReservationsFromText(text, fallbackYear = new Date().getFul
   return rows;
 }
 
+function normalizeDentwebBrowserRows(rows, fallbackYear = new Date().getFullYear()) {
+  const normalized = [];
+  const seen = new Set();
+
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const date = normalizeDentwebDate(row?.date, fallbackYear);
+    const time = normalizeDentwebTime(row?.time);
+    const name = String(row?.name || "").trim().slice(0, 80);
+    const phone = String(row?.phone || "").replace(/[^\d+]/g, "").slice(0, 30);
+    const concerns = String(row?.concerns || row?.memo || "Imported from Dentweb browser scan").trim().slice(0, 500);
+    if (!date || !time || !name) continue;
+
+    const key = `${date}|${time}|${normalizePatientPhone(phone)}|${name}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    normalized.push({ date, time, name, phone, concerns });
+  }
+
+  return normalized.slice(0, 150);
+}
+
+async function analyzeDentwebBrowserScreenshot({ imageDataUrl, instruction, fallbackYear }) {
+  if (!openaiApiKey) {
+    const error = new Error("OpenAI API key is not configured");
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const imageMatch = String(imageDataUrl || "").match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/);
+  if (!imageMatch) {
+    const error = new Error("A PNG, JPEG, or WebP screenshot is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const imageBuffer = Buffer.from(imageMatch[2], "base64");
+  if (!imageBuffer.length || imageBuffer.length > 6 * 1024 * 1024) {
+    const error = new Error("Screenshot is too large");
+    error.statusCode = 413;
+    throw error;
+  }
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${openaiApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: openaiModel,
+      temperature: 0,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You read Dentweb reservation screens shown inside Chrome Remote Desktop for a dental clinic.",
+            "Return only JSON with keys: summary, screenRecognized, visibleDateRange, reservations, warnings.",
+            "reservations must be an array of objects with date, time, name, phone, concerns.",
+            "Use YYYY-MM-DD dates and 24-hour HH:MM times. The fallback year is supplied by the user message.",
+            "Read only clearly visible reservation rows or calendar entries. Never infer hidden, cropped, blurred, or uncertain patient details.",
+            "Exclude empty slots, canceled entries, headers, staff names, and UI labels. Leave phone or concerns empty when not visible.",
+            "If the Dentweb reservation screen is not visible or text cannot be read, set screenRecognized false and reservations to an empty array.",
+            "Put ambiguity, cropped dates, duplicate-looking rows, and unreadable text in warnings.",
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `Task: ${String(instruction || "Read every visible Dentweb reservation").slice(0, 1000)}\nFallback year: ${fallbackYear}`,
+            },
+            { type: "image_url", image_url: { url: imageDataUrl, detail: "high" } },
+          ],
+        },
+      ],
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data?.error?.message || "OpenAI vision request failed");
+    error.statusCode = response.status;
+    throw error;
+  }
+
+  let parsed = {};
+  try { parsed = JSON.parse(data?.choices?.[0]?.message?.content || "{}"); } catch { parsed = {}; }
+  return {
+    summary: String(parsed?.summary || "").trim().slice(0, 1200),
+    screenRecognized: parsed?.screenRecognized === true,
+    visibleDateRange: String(parsed?.visibleDateRange || "").trim().slice(0, 120),
+    reservations: normalizeDentwebBrowserRows(parsed?.reservations, fallbackYear),
+    warnings: Array.isArray(parsed?.warnings)
+      ? parsed.warnings.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 12)
+      : [],
+  };
+}
+
 async function importDentwebReservations(rows, { fileName = "dentweb.pdf", dryRun = false } = {}) {
   const existingRecords = await readInbox();
   const existingSlots = new Set(existingRecords.map((record) => `${normalizeReservationDate(record?.date)}|${normalizeReservationTime(record?.time)}`));
@@ -4967,6 +5067,51 @@ createServer(async (request, response) => {
       const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
       response.writeHead(isPayloadError ? 400 : 500, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : "Failed to import Dentweb PDF" }));
+    }
+    return;
+  }
+
+  if (pathname === "/api/admin/dentweb/browser-scan" && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+
+    try {
+      const payload = await getJsonBody(request, 8 * 1024 * 1024);
+      const fallbackYear = Number(payload.year || new Date().getFullYear());
+      const safeFallbackYear = Number.isFinite(fallbackYear) ? fallbackYear : new Date().getFullYear();
+
+      if (payload.apply === true) {
+        const rows = normalizeDentwebBrowserRows(payload.rows, safeFallbackYear);
+        if (!rows.length) {
+          response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+          response.end(JSON.stringify({ message: "No valid reviewed reservations were provided" }));
+          return;
+        }
+        const result = await importDentwebReservations(rows, { fileName: "dentweb-browser-scan", dryRun: false });
+        response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({
+          ok: true,
+          applied: true,
+          parsed: rows.length,
+          imported: result.imported.length,
+          skipped: result.skipped.length,
+          records: result.imported,
+          skippedRecords: result.skipped,
+        }));
+        return;
+      }
+
+      const analysis = await analyzeDentwebBrowserScreenshot({
+        imageDataUrl: payload.imageDataUrl,
+        instruction: payload.instruction,
+        fallbackYear: safeFallbackYear,
+      });
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ ok: true, applied: false, model: openaiModel, ...analysis }));
+    } catch (error) {
+      console.error("Failed to scan Dentweb browser screenshot", error);
+      const statusCode = Number(error?.statusCode) || (error?.message === "Payload too large" ? 413 : 500);
+      response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: error?.message || "Failed to scan Dentweb browser screenshot" }));
     }
     return;
   }
