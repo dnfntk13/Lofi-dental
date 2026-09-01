@@ -74,6 +74,14 @@
       transform: translateX(-50%);
     }
 
+    body.home-cta-swapped .consult-chat-launch {
+      bottom: 28px;
+    }
+
+    body.home-cta-swapped.lofi-floating-ctas .sticky-appointment {
+      bottom: 88px !important;
+    }
+
     .consult-chat-panel {
       position: fixed;
       right: 28px;
@@ -352,6 +360,14 @@
         bottom: 142px;
         left: 18px;
         width: auto;
+      }
+
+      body.home-cta-swapped .consult-chat-launch {
+        bottom: 18px;
+      }
+
+      body.home-cta-swapped.lofi-floating-ctas .sticky-appointment {
+        bottom: 84px !important;
       }
     }
   `;

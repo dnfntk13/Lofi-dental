@@ -138,6 +138,44 @@
         gap: 8px;
       }
 
+      .contact-location {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 5px;
+      }
+
+      .map-links {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-right: 1px;
+      }
+
+      .map-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border: 1px solid rgba(90, 111, 218, 0.14);
+        border-radius: 8px;
+        background: #ffffff;
+        text-decoration: none;
+        transition: transform 180ms ease, border-color 180ms ease;
+      }
+
+      .map-link:hover {
+        transform: translateY(-1px);
+        border-color: rgba(90, 111, 218, 0.34);
+      }
+
+      .map-icon {
+        display: block;
+        width: 20px;
+        height: 20px;
+      }
+
       .contact-address::before {
         content: "";
         width: 6px;
@@ -551,6 +589,11 @@
           width: 100%;
         }
 
+        .contact-location {
+          width: 100%;
+          align-items: flex-start;
+        }
+
         .career-item {
           grid-template-columns: 64px 1fr;
         }
@@ -588,7 +631,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="home-cta-swapped">
     <div class="page">
       <header class="topbar">
         <a class="logo-link" href="/" aria-label="lofi esthetic dentistry English home">
@@ -598,7 +641,26 @@
       </header>
 
       <div class="contact-bar" aria-label="Clinic contact information">
-        <span class="contact-address">3F, 49 Apgujeong-ro 28-gil, Gangnam-gu, Seoul</span>
+        <div class="contact-location">
+          <span class="contact-address">3F, 49 Apgujeong-ro 28-gil, Gangnam-gu, Seoul</span>
+          <nav class="map-links" aria-label="Clinic map links">
+            <a class="map-link" href="https://naver.me/GlRG56vU" target="_blank" rel="noopener noreferrer" aria-label="Open in Naver Map" title="Naver Map">
+              <svg class="map-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <rect width="24" height="24" rx="5" fill="#03C75A" />
+                <path d="M6.4 5.7h4.1l3.2 4.7V5.7h3.9v12.6h-4.1l-3.2-4.8v4.8H6.4V5.7Z" fill="#fff" />
+              </svg>
+            </a>
+            <a class="map-link" href="https://maps.app.goo.gl/aUHYHjDk8iaGqLKH7" target="_blank" rel="noopener noreferrer" aria-label="Open in Google Maps" title="Google Maps">
+              <svg class="map-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 2.3a7.2 7.2 0 0 0-7.2 7.2c0 5.4 7.2 12.2 7.2 12.2s7.2-6.8 7.2-12.2A7.2 7.2 0 0 0 12 2.3Z" fill="#4285F4" />
+                <path d="M4.8 9.5c0 1.9.9 4 2.1 5.9l5.1-5.1 4.9-4.9A7.2 7.2 0 0 0 4.8 9.5Z" fill="#34A853" />
+                <path d="M12 2.3a7.2 7.2 0 0 0-5.1 2.1L12 9.5l5-5A7.1 7.1 0 0 0 12 2.3Z" fill="#EA4335" />
+                <path d="M6.9 15.4A35.5 35.5 0 0 0 12 21.7v-11.4l-5.1 5.1Z" fill="#FBBC04" />
+                <circle cx="12" cy="9.5" r="2.7" fill="#fff" />
+              </svg>
+            </a>
+          </nav>
+        </div>
         <a class="contact-phone" href="tel:01029848823">+82 10 2984 8823</a>
       </div>
 
