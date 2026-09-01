@@ -84,6 +84,27 @@
       .price-item { padding: 20px 0; border-bottom: 1px solid var(--line); }
       .price-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: start; }
       .treatment { margin: 0; font-size: 1rem; font-weight: 700; line-height: 1.5; }
+      .treatment-line { display: inline-flex; align-items: center; gap: 8px; }
+      .info-trigger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        flex: 0 0 22px;
+        border: 1px solid rgba(137, 117, 213, 0.32);
+        border-radius: 50%;
+        padding: 0;
+        color: var(--brand);
+        background: #fff;
+        font: inherit;
+        font-size: .75rem;
+        font-weight: 700;
+        line-height: 1;
+        cursor: pointer;
+        transition: color 180ms ease, background 180ms ease, transform 180ms ease;
+      }
+      .info-trigger:hover, .info-trigger:focus-visible { color: #fff; background: var(--brand); transform: translateY(-1px); outline: none; }
       .description { margin: 5px 0 0; color: var(--soft); font-size: .82rem; line-height: 1.55; }
       .price-amount { display: grid; justify-items: end; gap: 2px; min-width: 176px; font-weight: 700; line-height: 1.35; text-align: right; }
       .price-usd { color: var(--soft); font-size: .75rem; font-weight: 400; }
@@ -95,6 +116,21 @@
       .button { min-height: 52px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 12px; padding: 13px 18px; background: #fff; color: var(--ink); font-weight: 700; text-align: center; text-decoration: none; transition: transform 180ms ease, box-shadow 180ms ease; }
       .button-primary { border-color: var(--brand); color: #fff; background: var(--brand); box-shadow: 0 12px 28px rgba(55,37,121,.22); }
       .button:hover { transform: translateY(-2px); }
+      .info-dialog {
+        width: min(460px, calc(100vw - 36px));
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 0;
+        color: var(--ink);
+        background: #fff;
+        box-shadow: 0 24px 70px rgba(59, 43, 120, .24);
+      }
+      .info-dialog::backdrop { background: rgba(40, 28, 78, .42); backdrop-filter: blur(4px); }
+      .dialog-inner { position: relative; padding: 32px; }
+      .dialog-label { margin: 0 0 9px; color: var(--soft); font-size: .68rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+      .dialog-title { margin: 0; padding-right: 32px; font-size: 1.35rem; line-height: 1.3; }
+      .dialog-copy { margin: 14px 0 0; color: var(--soft); font-size: .92rem; line-height: 1.7; }
+      .dialog-close { position: absolute; top: 18px; right: 18px; width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 50%; color: var(--ink); background: #f8f6fc; font: inherit; font-size: 1.2rem; cursor: pointer; }
       @media (max-width: 640px) {
         .page { padding-top: 18px; }
         .hero, .section { border-radius: 18px; }
@@ -132,14 +168,14 @@
         <section class="section" aria-labelledby="private-title">
           <h2 id="private-title">Treatments not covered by Korean National Health Insurance</h2>
           <div class="price-list">
-            <article class="price-item"><div class="price-main"><div><p class="treatment">Teeth Whitening</p></div><span class="price-amount"><span>₩89,000 per whitening cycle</span><span class="price-usd">Approx. US$66 per cycle</span></span></div></article>
-            <article class="price-item"><div class="price-main"><div><p class="treatment">Simple Composite Filling</p></div><span class="price-amount"><span>₩99,000 per tooth</span><span class="price-usd">Approx. US$73 per tooth</span></span></div></article>
-            <article class="price-item"><div class="price-main"><div><p class="treatment">Dental Crown</p></div><span class="price-amount"><span>₩500,000 per tooth</span><span class="price-usd">Approx. US$370 per tooth</span></span></div></article>
-            <article class="price-item"><div class="price-main"><div><p class="treatment">Masseter Botox</p><p class="description">Jaw slimming treatment</p></div><span class="price-amount"><span>₩150,000</span><span class="price-usd">Approx. US$111</span></span></div></article>
-            <article class="price-item"><div class="price-main"><div><p class="treatment">Veneers</p></div></div><div class="variants"><div class="variant"><span class="variant-name">Economic Composite Resin Veneer</span><span class="price-amount"><span>₩99,000 per tooth</span><span class="price-usd">Approx. US$73 per tooth</span></span></div><div class="variant"><span class="variant-name">Standard Porcelain Veneer · Rosetta</span><span class="price-amount"><span>₩259,000 per tooth</span><span class="price-usd">Approx. US$192 per tooth</span></span></div><div class="variant"><span class="variant-name">Premium Porcelain Veneer · IPS e.max</span><span class="price-amount"><span>₩399,000 per tooth</span><span class="price-usd">Approx. US$296 per tooth</span></span></div></div></article>
-            <article class="price-item"><div class="price-main"><div><p class="treatment">Dental Implants</p></div></div><div class="variants"><div class="variant"><span class="variant-name">Standard Implant · MegaGen</span><span class="price-amount"><span>₩599,000 per tooth</span><span class="price-usd">Approx. US$444 per tooth</span></span></div><div class="variant"><span class="variant-name">Premium Implant · Osstem</span><span class="price-amount"><span>₩799,000 per tooth</span><span class="price-usd">Approx. US$592 per tooth</span></span></div></div></article>
-            <article class="price-item"><div class="price-main"><div><p class="treatment">All on X</p><p class="description">Full-mouth restoration for multiple missing teeth</p></div><span class="price-amount"><span>₩4,990,000 per arch</span><span class="price-usd">Approx. US$3,696 per arch</span></span></div></article>
-            <article class="price-item"><div class="price-main"><div><p class="treatment">SureSmile Clear Aligners</p></div></div><div class="variants"><div class="variant"><span class="variant-name">Front Teeth Only</span><span class="price-amount"><span>₩2,000,000</span><span class="price-usd">Approx. US$1,481</span></span></div><div class="variant"><span class="variant-name">Full Treatment</span><span class="price-amount"><span>₩4,000,000</span><span class="price-usd">Approx. US$2,963</span></span></div></div></article>
+            <article class="price-item"><div class="price-main"><div><p class="treatment treatment-line">Teeth Whitening <button class="info-trigger" type="button" data-info="whitening" aria-label="About Teeth Whitening">?</button></p></div><span class="price-amount"><span>₩89,000 per whitening cycle</span><span class="price-usd">Approx. US$66 per cycle</span></span></div></article>
+            <article class="price-item"><div class="price-main"><div><p class="treatment treatment-line">Simple Composite Filling <button class="info-trigger" type="button" data-info="filling" aria-label="About Simple Composite Filling">?</button></p></div><span class="price-amount"><span>₩99,000 per tooth</span><span class="price-usd">Approx. US$73 per tooth</span></span></div></article>
+            <article class="price-item"><div class="price-main"><div><p class="treatment treatment-line">Dental Crown <button class="info-trigger" type="button" data-info="crown" aria-label="About Dental Crown">?</button></p></div><span class="price-amount"><span>₩500,000 per tooth</span><span class="price-usd">Approx. US$370 per tooth</span></span></div></article>
+            <article class="price-item"><div class="price-main"><div><p class="treatment treatment-line">Masseter Botox <button class="info-trigger" type="button" data-info="masseterBotox" aria-label="About Masseter Botox">?</button></p><p class="description">Jaw slimming treatment</p></div><span class="price-amount"><span>₩150,000</span><span class="price-usd">Approx. US$111</span></span></div></article>
+            <article class="price-item"><div class="price-main"><div><p class="treatment treatment-line">Veneers <button class="info-trigger" type="button" data-info="veneers" aria-label="About Veneers">?</button></p></div></div><div class="variants"><div class="variant"><span class="variant-name">Economic Composite Resin Veneer</span><span class="price-amount"><span>₩99,000 per tooth</span><span class="price-usd">Approx. US$73 per tooth</span></span></div><div class="variant"><span class="variant-name">Standard Porcelain Veneer · Rosetta</span><span class="price-amount"><span>₩259,000 per tooth</span><span class="price-usd">Approx. US$192 per tooth</span></span></div><div class="variant"><span class="variant-name">Premium Porcelain Veneer · IPS e.max</span><span class="price-amount"><span>₩399,000 per tooth</span><span class="price-usd">Approx. US$296 per tooth</span></span></div></div></article>
+            <article class="price-item"><div class="price-main"><div><p class="treatment treatment-line">Dental Implants <button class="info-trigger" type="button" data-info="implants" aria-label="About Dental Implants">?</button></p></div></div><div class="variants"><div class="variant"><span class="variant-name">Standard Implant · MegaGen</span><span class="price-amount"><span>₩599,000 per tooth</span><span class="price-usd">Approx. US$444 per tooth</span></span></div><div class="variant"><span class="variant-name">Premium Implant · Osstem</span><span class="price-amount"><span>₩799,000 per tooth</span><span class="price-usd">Approx. US$592 per tooth</span></span></div></div></article>
+            <article class="price-item"><div class="price-main"><div><p class="treatment treatment-line">All on X <button class="info-trigger" type="button" data-info="allOnX" aria-label="About All on X">?</button></p><p class="description">Full-mouth restoration for multiple missing teeth</p></div><span class="price-amount"><span>₩4,990,000 per arch</span><span class="price-usd">Approx. US$3,696 per arch</span></span></div></article>
+            <article class="price-item"><div class="price-main"><div><p class="treatment treatment-line">SureSmile Clear Aligners <button class="info-trigger" type="button" data-info="sureSmile" aria-label="About SureSmile Clear Aligners">?</button></p></div></div><div class="variants"><div class="variant"><span class="variant-name">Front Teeth Only</span><span class="price-amount"><span>₩2,000,000</span><span class="price-usd">Approx. US$1,481</span></span></div><div class="variant"><span class="variant-name">Full Treatment</span><span class="price-amount"><span>₩4,000,000</span><span class="price-usd">Approx. US$2,963</span></span></div></div></article>
           </div>
           <p class="notice">USD amounts are approximate and use a reference rate of US$1 ≈ ₩1,350. Actual card or bank conversion rates may differ. Prices are general guidelines and may vary depending on your clinical condition and case complexity. Final fees will be confirmed after an examination.</p>
           <div class="actions">
@@ -149,5 +185,46 @@
         </section>
       </main>
     </div>
+    <dialog class="info-dialog" id="treatmentDialog" aria-labelledby="dialogTitle">
+      <div class="dialog-inner">
+        <button class="dialog-close" id="dialogClose" type="button" aria-label="Close">×</button>
+        <p class="dialog-label">Treatment guide</p>
+        <h2 class="dialog-title" id="dialogTitle"></h2>
+        <p class="dialog-copy" id="dialogCopy"></p>
+      </div>
+    </dialog>
+    <script>
+      const treatmentInfo = {
+        whitening: ["Teeth Whitening", "Professional whitening brightens natural teeth by applying whitening gel under clinical supervision. More than one cycle may be recommended depending on your starting shade and goals."],
+        filling: ["Simple Composite Filling", "A small cavity, worn area, or chip is repaired with tooth-colored composite resin. The listed fee applies to a simple restoration and may vary for larger areas."],
+        crown: ["Dental Crown", "A crown covers and protects a weakened or heavily restored tooth. The final material and treatment plan are selected after evaluating the tooth and bite."],
+        masseterBotox: ["Masseter Botox", "Botulinum toxin is placed in the masseter muscles to reduce excessive jaw tension and create a softer lower-face contour. Results develop gradually."],
+        veneers: ["Veneers", "Thin custom restorations are designed to improve the color, shape, proportion, and alignment of visible front teeth while preserving as much natural tooth structure as possible."],
+        implants: ["Dental Implants", "An implant replaces a missing tooth root and supports a crown-like restoration. Bone condition, additional procedures, and the final prosthesis can affect the total fee."],
+        allOnX: ["All on X", "A full arch of fixed teeth is supported by multiple implants for patients with several missing or failing teeth. Detailed imaging and planning are required."],
+        sureSmile: ["SureSmile Clear Aligners", "A sequence of removable clear aligners gradually guides teeth toward a planned position. Treatment scope and duration depend on tooth movement and bite complexity."],
+      };
+      const dialog = document.getElementById("treatmentDialog");
+      const dialogTitle = document.getElementById("dialogTitle");
+      const dialogCopy = document.getElementById("dialogCopy");
+      let lastTrigger = null;
+
+      document.querySelectorAll(".info-trigger[data-info]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const info = treatmentInfo[button.dataset.info];
+          if (!info) return;
+          lastTrigger = button;
+          dialogTitle.textContent = info[0];
+          dialogCopy.textContent = info[1];
+          dialog.showModal();
+        });
+      });
+      document.getElementById("dialogClose").addEventListener("click", () => dialog.close());
+      dialog.addEventListener("click", (event) => {
+        const box = dialog.getBoundingClientRect();
+        if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) dialog.close();
+      });
+      dialog.addEventListener("close", () => lastTrigger?.focus());
+    </script>
   </body>
 </html>
