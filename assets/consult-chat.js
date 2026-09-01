@@ -76,6 +76,9 @@
 
     body.home-cta-swapped .consult-chat-launch {
       bottom: 28px;
+      border-color: rgba(137, 117, 213, 0.22);
+      color: #3b2b78;
+      box-shadow: 0 12px 24px rgba(82, 65, 155, 0.12);
     }
 
     body.home-cta-swapped.lofi-floating-ctas .sticky-appointment {
@@ -381,7 +384,7 @@
   const launch = document.createElement("button");
   launch.type = "button";
   launch.className = "consult-chat-launch";
-  launch.textContent = "Ask lofi AI";
+  launch.textContent = "Consult with us";
   launch.setAttribute("aria-expanded", "false");
   launch.setAttribute("aria-controls", "consultChatPanel");
 

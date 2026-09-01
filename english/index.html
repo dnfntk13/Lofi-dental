@@ -45,15 +45,17 @@
     <style>
       :root {
         color-scheme: light;
-        --bg-cream: #f5f7ff;
-        --bg-mist: #e7edff;
-        --ink: #1f2d66;
-        --soft-ink: #5a6fda;
-        --line: rgba(90, 111, 218, 0.22);
-        --line-strong: rgba(90, 111, 218, 0.36);
+        --bg-cream: #fbfaff;
+        --bg-mist: #f0edfb;
+        --ink: #3b2b78;
+        --soft-ink: #7968bb;
+        --brand: #8975d5;
+        --brand-deep: #6650b8;
+        --line: rgba(137, 117, 213, 0.2);
+        --line-strong: rgba(137, 117, 213, 0.34);
         --card: rgba(255, 255, 255, 0.94);
-        --mint: #dde5ff;
-        --amber: #cdd7ff;
+        --mint: #f0edfb;
+        --amber: #e4def8;
       }
 
       * {
@@ -65,7 +67,9 @@
         min-height: 100vh;
         font-family: "Paperlogy", "Noto Sans KR", sans-serif;
         color: var(--ink);
-        background: #f5f7fc;
+        background:
+          radial-gradient(circle at 12% 0%, rgba(155, 137, 224, 0.12), transparent 36%),
+          #f9f8fc;
       }
 
       .page {
@@ -83,19 +87,17 @@
         min-height: 58px;
       }
 
-      .logo-img {
-        width: min(194px, 70vw);
-        max-width: 100%;
-        height: auto;
-        display: block;
-        margin-left: 4px;
-      }
-
       .logo-link {
         display: inline-block;
-        color: inherit;
+        margin-left: 4px;
         text-decoration: none;
         line-height: 0;
+      }
+
+      .logo-img {
+        display: block;
+        width: min(170px, 62vw);
+        height: auto;
       }
 
       .lang-toggle {
@@ -108,7 +110,7 @@
         text-transform: uppercase;
         padding: 9px 0 9px 14px;
         border: 0;
-        border-left: 1px solid rgba(90, 111, 218, 0.2);
+        border-left: 1px solid rgba(137, 117, 213, 0.2);
         background: transparent;
         transition: color 180ms ease;
         white-space: nowrap;
@@ -125,7 +127,7 @@
         justify-content: flex-end;
         gap: 10px 18px;
         flex-wrap: wrap;
-        color: rgba(31, 45, 102, 0.64);
+        color: rgba(59, 43, 120, 0.68);
         font-family: "Paperlogy", "Noto Sans KR", sans-serif;
         font-size: 0.76rem;
         line-height: 1.5;
@@ -156,18 +158,25 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 30px;
+        gap: 7px;
         height: 30px;
-        border: 1px solid rgba(90, 111, 218, 0.14);
+        padding: 0 9px 0 6px;
+        border: 1px solid rgba(137, 117, 213, 0.16);
         border-radius: 8px;
         background: #ffffff;
+        color: var(--ink);
+        font-family: "Nunito Sans", "Segoe UI", sans-serif;
+        font-size: 0.7rem;
+        font-weight: 600;
+        line-height: 1;
+        white-space: nowrap;
         text-decoration: none;
         transition: transform 180ms ease, border-color 180ms ease;
       }
 
       .map-link:hover {
         transform: translateY(-1px);
-        border-color: rgba(90, 111, 218, 0.34);
+        border-color: rgba(137, 117, 213, 0.38);
       }
 
       .map-icon {
@@ -181,7 +190,7 @@
         width: 6px;
         height: 6px;
         border-radius: 50%;
-        background: #5a6fda;
+        background: var(--brand);
       }
 
       .contact-phone {
@@ -217,8 +226,8 @@
         overflow: hidden;
         border: 0;
         border-radius: 24px;
-        background: #263a91;
-        box-shadow: 0 16px 40px rgba(31, 45, 102, 0.16);
+        background: linear-gradient(135deg, #6650b8 0%, #7963ca 56%, #8d79da 100%);
+        box-shadow: 0 16px 40px rgba(82, 65, 155, 0.16);
         animation: rise 720ms ease both;
       }
 
@@ -293,8 +302,8 @@
 
       .btn-primary {
         color: #ffffff;
-        background: #263a91;
-        box-shadow: 0 10px 24px rgba(31, 45, 102, 0.22);
+        background: #6650b8;
+        box-shadow: 0 12px 28px rgba(55, 37, 121, 0.3);
       }
 
       .btn-secondary {
@@ -314,13 +323,13 @@
       }
 
       .hero-main .btn-price {
-        border-color: #ffffff;
-        color: #263a91;
-        background: #ffffff;
+        border-color: #a17e9f;
+        color: #ffffff;
+        background: #815f80;
       }
 
       .hero-main .btn-price:hover {
-        background: #eef1ff;
+        background: #745373;
       }
 
       .hero-actions {
@@ -333,27 +342,53 @@
         width: 100%;
       }
 
-      .hero-main .btn-book {
-        border-color: #7186ee;
+      .hero-main .btn-veneers {
+        border-color: #776e9a;
         color: #ffffff;
-        background: #5a6fda;
+        background: #51486f;
+      }
+
+      .hero-main .btn-veneers:hover {
+        background: #473e63;
+      }
+
+      .hero-main .btn-book {
+        min-height: 56px;
+        border-color: #f8e8f2;
+        color: #422a5f;
+        background: #f0d8e8;
+        box-shadow: 0 12px 30px rgba(64, 42, 92, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        font-weight: 700;
       }
 
       .hero-main .btn-book:hover {
-        background: #667be3;
+        background: #f7e4ef;
+        box-shadow: 0 16px 34px rgba(64, 42, 92, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      }
+
+      .btn-meet {
+        border-color: #7561c3;
+        color: #ffffff;
+        background: #7561c3;
+      }
+
+      .btn-meet:hover {
+        background: #6854b4;
+      }
+
+      .profile-cta {
+        margin-top: 20px;
       }
 
       .btn-before-after {
-        border-color: #263a91;
+        border-color: #806ac0;
         color: #ffffff;
-        background: #263a91;
+        background: #6048a1;
         box-shadow: none;
       }
 
-      .btn-veneers {
-        border-color: rgba(90, 111, 218, 0.26);
-        color: var(--ink);
-        background: transparent;
+      .btn-before-after:hover {
+        background: #543d91;
         box-shadow: none;
       }
 
@@ -379,7 +414,7 @@
 
       .stat,
       .hours {
-        border: 1px solid rgba(90, 111, 218, 0.14);
+        border: 1px solid rgba(137, 117, 213, 0.16);
         border-radius: 20px;
         background: #ffffff;
         padding: 24px;
@@ -425,7 +460,7 @@
 
       .section {
         margin-top: 20px;
-        border: 1px solid rgba(90, 111, 218, 0.14);
+        border: 1px solid rgba(137, 117, 213, 0.16);
         border-radius: 20px;
         background: #ffffff;
         padding: clamp(30px, 5vw, 48px);
@@ -450,17 +485,6 @@
         text-transform: uppercase;
       }
 
-      .service-grid {
-        margin-top: 18px;
-      }
-
-      .service-copy {
-        margin: 0;
-        color: var(--soft-ink);
-        font-size: 1.04rem;
-        line-height: 1.75;
-      }
-
       .career-list {
         margin-top: 24px;
         display: grid;
@@ -471,7 +495,7 @@
 
       .career-item {
         border: 0;
-        border-top: 1px solid rgba(90, 111, 218, 0.14);
+        border-top: 1px solid rgba(137, 117, 213, 0.16);
         border-radius: 0;
         background: transparent;
         padding: 18px 0;
@@ -484,7 +508,7 @@
       }
 
       .career-item:hover {
-        border-color: rgba(90, 111, 218, 0.26);
+        border-color: rgba(137, 117, 213, 0.3);
         background: transparent;
       }
 
@@ -635,7 +659,7 @@
     <div class="page">
       <header class="topbar">
         <a class="logo-link" href="/" aria-label="lofi esthetic dentistry English home">
-          <img src="/assets/영문로고.png" alt="lofi esthetic dentistry" class="logo-img" />
+          <img class="logo-img" src="../assets/lofi-logo-violet.png" alt="lofi esthetic dentistry" />
         </a>
         <a class="lang-toggle" href="/korean">Korean</a>
       </header>
@@ -649,6 +673,7 @@
                 <rect width="24" height="24" rx="5" fill="#03C75A" />
                 <path d="M6.4 5.7h4.1l3.2 4.7V5.7h3.9v12.6h-4.1l-3.2-4.8v4.8H6.4V5.7Z" fill="#fff" />
               </svg>
+              <span>Naver Map</span>
             </a>
             <a class="map-link" href="https://maps.app.goo.gl/aUHYHjDk8iaGqLKH7" target="_blank" rel="noopener noreferrer" aria-label="Open in Google Maps" title="Google Maps">
               <svg class="map-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -658,6 +683,7 @@
                 <path d="M6.9 15.4A35.5 35.5 0 0 0 12 21.7v-11.4l-5.1 5.1Z" fill="#FBBC04" />
                 <circle cx="12" cy="9.5" r="2.7" fill="#fff" />
               </svg>
+              <span>Google Maps</span>
             </a>
           </nav>
         </div>
@@ -675,23 +701,12 @@
             </h1>
             <p class="hero-lead">Thoughtful esthetic dentistry designed around your face, your character, and the way you naturally smile.</p>
             <div class="cta-row hero-actions">
-              <a class="btn btn-book" href="/reservation/index.html">Book your appointment</a>
+              <a class="btn btn-veneers" href="/lofi-lab-en.html">Learn about our veneers</a>
+              <a class="btn btn-before-after" href="/before-after-en.html">Before &amp; After</a>
               <a class="btn btn-secondary btn-price" href="/reservation/?priceGuide=1">Price Guide</a>
-              <a class="btn btn-secondary btn-meet" href="/meetdrkim.html">Meet Dr. Ryan Kim</a>
+              <a class="btn btn-book" href="/reservation/index.html">Book your appointment</a>
             </div>
           </article>
-        </section>
-
-        <section class="section" id="services">
-          <p class="section-label">Signature Treatment</p>
-          <h2>lofi veneers</h2>
-          <div class="service-grid">
-            <p class="service-copy">A timeless smile, uniquely yours.</p>
-            <div class="cta-row">
-              <a class="btn btn-before-after" href="/before-after-en.html">Before &amp; After</a>
-              <a class="btn btn-veneers" href="/lofi-lab-en.html">Learn about lofi veneers</a>
-            </div>
-          </div>
         </section>
 
         <section class="hero-side" aria-label="Seoul New York clinical background">
@@ -699,6 +714,9 @@
             <p class="stat-value">Seoul - New York</p>
             <p class="stat-label">With 8 years of clinical experience between Seoul and New York, we pursue aesthetics that are trendy yet lasting.</p>
             <p class="stat-note">Officially registered by the Korean government to serve international patients</p>
+            <div class="profile-cta">
+              <a class="btn btn-meet" href="/meetdrkim.html">Meet Dr. Ryan Kim</a>
+            </div>
           </article>
         </section>
 
