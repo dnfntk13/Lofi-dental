@@ -35,12 +35,12 @@
     <meta name="description" content="Reservation confirmation page." />
     <style>
       :root {
-        --bg: #f5f7ff;
-        --ink: #1f2d66;
-        --soft: #5a6fda;
-        --line: rgba(90, 111, 218, 0.14);
+        --bg: #fbfaff;
+        --ink: #3b2b78;
+        --soft: #7968bb;
+        --line: rgba(137, 117, 213, 0.16);
         --card: rgba(255, 255, 255, 0.95);
-        --accent: #cdd7ff;
+        --accent: #e4def8;
       }
 
       * { box-sizing: border-box; }
@@ -50,7 +50,7 @@
         font-family: Georgia, "Times New Roman", serif;
         color: var(--ink);
         background:
-          radial-gradient(circle at top left, rgba(90, 111, 218, 0.12), transparent 28%),
+          radial-gradient(circle at top left, rgba(137, 117, 213, 0.12), transparent 28%),
           radial-gradient(circle at top right, rgba(103, 128, 245, 0.16), transparent 30%),
           linear-gradient(180deg, #f8faff 0%, var(--bg) 48%, #edf2ff 100%);
       }
@@ -160,7 +160,7 @@
   <body>
     <div class="page">
       <a class="site-logo" id="homeLink" href="/english" aria-label="lofi esthetic dentistry home">
-        <img id="siteLogoImage" src="../assets/영문로고.png" alt="lofi esthetic dentistry" />
+        <img id="siteLogoImage" src="../assets/lofi-logo-violet.png" alt="lofi esthetic dentistry" />
       </a>
       <a class="back-link" href="#" aria-label="Back" onclick="history.back(); return false;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -186,7 +186,7 @@
       document.documentElement.lang = isKorean ? "ko" : "en";
       document.title = isKorean ? "예약 신청 완료 | lofi esthetic dentistry" : "Reservation Received | lofi esthetic dentistry";
       document.getElementById("homeLink").href = isKorean ? "/korean" : "/english";
-      document.getElementById("siteLogoImage").src = isKorean ? "../assets/한글로고.png" : "../assets/영문로고.png";
+      document.getElementById("siteLogoImage").src = "../assets/lofi-logo-violet.png";
       document.getElementById("pageTitle").textContent = isKorean ? "예약 신청이 접수되었습니다" : "Your reservation was received";
       document.getElementById("pageMessage").innerHTML = isKorean
         ? "확인 후 빠르게 연락드리겠습니다.<br />(보통 1~2시간 안에 확인됩니다.)"

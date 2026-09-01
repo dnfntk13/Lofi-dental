@@ -42,15 +42,15 @@
       width: min(360px, calc(100vw - 36px));
       min-height: 46px;
       padding: 0 20px;
-      border: 1px solid rgba(31, 45, 102, 0.16);
+      border: 1px solid rgba(137, 117, 213, 0.2);
       border-radius: 999px;
       background: rgba(255, 255, 255, 0.96);
-      color: #1f2d66;
+      color: #3b2b78;
       font: inherit;
       font-weight: 700;
       text-decoration: none;
       white-space: nowrap;
-      box-shadow: 0 12px 24px rgba(31, 45, 102, 0.14);
+      box-shadow: 0 12px 24px rgba(82, 65, 155, 0.14);
       cursor: pointer;
       transform: translateX(-50%);
       transition: transform 180ms ease, box-shadow 180ms ease;
@@ -58,7 +58,7 @@
 
     .consult-chat-launch:hover {
       transform: translateX(-50%) translateY(-1px);
-      box-shadow: 0 16px 30px rgba(31, 45, 102, 0.18);
+      box-shadow: 0 16px 30px rgba(82, 65, 155, 0.18);
     }
 
     body.lofi-floating-ctas .sticky-appointment {
@@ -91,10 +91,10 @@
       bottom: 146px;
       z-index: 22;
       width: min(360px, calc(100vw - 36px));
-      border: 1px solid rgba(90, 111, 218, 0.22);
+      border: 1px solid rgba(137, 117, 213, 0.22);
       border-radius: 18px;
       background: rgba(255, 255, 255, 0.98);
-      box-shadow: 0 20px 48px rgba(31, 45, 102, 0.18);
+      box-shadow: 0 20px 48px rgba(82, 65, 155, 0.18);
       overflow: hidden;
       transform: translateY(10px);
       opacity: 0;
@@ -114,8 +114,8 @@
       justify-content: space-between;
       gap: 12px;
       padding: 14px 16px;
-      border-bottom: 1px solid rgba(90, 111, 218, 0.16);
-      color: #1f2d66;
+      border-bottom: 1px solid rgba(137, 117, 213, 0.16);
+      color: #3b2b78;
       font-weight: 800;
     }
 
@@ -129,7 +129,7 @@
     .consult-chat-reset {
       border: 0;
       background: transparent;
-      color: #5a6fda;
+      color: #7968bb;
       font: inherit;
       font-size: 0.78rem;
       font-weight: 800;
@@ -154,7 +154,7 @@
       max-height: 280px;
       overflow: auto;
       padding: 14px 16px;
-      color: #1f2d66;
+      color: #3b2b78;
       font-size: 0.95rem;
       line-height: 1.45;
     }
@@ -164,13 +164,13 @@
       max-width: 88%;
       padding: 9px 11px;
       border-radius: 14px;
-      background: #eef3ff;
+      background: #f0edfb;
       white-space: pre-wrap;
     }
 
     .consult-chat-message.user {
       justify-self: end;
-      background: #1f2d66;
+      background: #6650b8;
       color: #fff;
     }
 
@@ -192,11 +192,11 @@
 
     .consult-chat-option {
       width: 100%;
-      border: 1px solid rgba(90, 111, 218, 0.2);
+      border: 1px solid rgba(137, 117, 213, 0.2);
       border-radius: 12px;
       padding: 9px 10px;
       background: #fff;
-      color: #1f2d66;
+      color: #3b2b78;
       font: inherit;
       font-size: 0.9rem;
       line-height: 1.35;
@@ -205,8 +205,8 @@
     }
 
     .consult-chat-option:hover {
-      border-color: rgba(90, 111, 218, 0.38);
-      background: #f8faff;
+      border-color: rgba(137, 117, 213, 0.38);
+      background: #fbfaff;
     }
 
     .consult-chat-actions {
@@ -223,7 +223,7 @@
       border: 0;
       border-radius: 12px;
       padding: 0 12px;
-      background: #1f2d66;
+      background: #6650b8;
       color: #fff;
       font: inherit;
       font-size: 0.88rem;
@@ -236,7 +236,7 @@
       display: grid;
       gap: 8px;
       padding: 12px;
-      border-top: 1px solid rgba(90, 111, 218, 0.16);
+      border-top: 1px solid rgba(137, 117, 213, 0.16);
     }
 
     .consult-chat-tools,
@@ -253,11 +253,11 @@
 
     .consult-chat-tool {
       min-height: 34px;
-      border: 1px solid rgba(90, 111, 218, 0.22);
+      border: 1px solid rgba(137, 117, 213, 0.22);
       border-radius: 999px;
       padding: 0 10px;
       background: #fff;
-      color: #1f2d66;
+      color: #3b2b78;
       font: inherit;
       font-weight: 800;
       cursor: pointer;
@@ -268,9 +268,9 @@
       grid-template-columns: repeat(8, 1fr);
       gap: 4px;
       padding: 8px;
-      border: 1px solid rgba(90, 111, 218, 0.16);
+      border: 1px solid rgba(137, 117, 213, 0.16);
       border-radius: 12px;
-      background: #f8faff;
+      background: #fbfaff;
     }
 
     .consult-chat-emoji-panel.open {
@@ -307,10 +307,10 @@
     .consult-chat-input {
       min-width: 0;
       min-height: 42px;
-      border: 1px solid rgba(90, 111, 218, 0.22);
+      border: 1px solid rgba(137, 117, 213, 0.22);
       border-radius: 12px;
       padding: 0 12px;
-      color: #1f2d66;
+      color: #3b2b78;
       font: inherit;
       background: #fff;
     }
@@ -320,7 +320,7 @@
       border: 0;
       border-radius: 12px;
       padding: 0 14px;
-      background: #1f2d66;
+      background: #6650b8;
       color: #fff;
       font: inherit;
       font-weight: 800;

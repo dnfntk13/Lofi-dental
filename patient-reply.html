@@ -27,11 +27,11 @@
     </style>
     <style>
       :root {
-        --bg: #f5f7ff;
-        --ink: #1f2d66;
-        --soft: #5a6fda;
-        --line: rgba(90, 111, 218, 0.14);
-        --navy: #4d64d8;
+        --bg: #fbfaff;
+        --ink: #3b2b78;
+        --soft: #7968bb;
+        --line: rgba(137, 117, 213, 0.16);
+        --navy: #6650b8;
         --card: rgba(255, 255, 255, 0.95);
       }
 
@@ -42,7 +42,7 @@
         font-family: Georgia, "Times New Roman", serif;
         color: var(--ink);
         background:
-          radial-gradient(circle at top left, rgba(90, 111, 218, 0.12), transparent 28%),
+          radial-gradient(circle at top left, rgba(137, 117, 213, 0.12), transparent 28%),
           radial-gradient(circle at top right, rgba(103, 128, 245, 0.16), transparent 30%),
           linear-gradient(180deg, #f8faff 0%, var(--bg) 48%, #edf2ff 100%);
       }
@@ -94,7 +94,7 @@
 
       .subtitle {
         font-size: 0.95rem;
-        color: #5a6fda;
+        color: #7968bb;
         margin: 0 0 32px;
         line-height: 1.5;
       }
@@ -194,7 +194,7 @@
   <body>
     <div class="page">
       <a class="site-logo" id="homeLink" href="/english">
-        <img id="siteLogoImage" src="/assets/영문로고.png" alt="lofi esthetic dentistry" />
+        <img id="siteLogoImage" src="/assets/lofi-logo-violet.png" alt="lofi esthetic dentistry" />
       </a>
 
       <div class="card">
@@ -245,7 +245,7 @@
         document.documentElement.lang = "ko";
         document.title = "환자 정보 입력 | lofi esthetic dentistry";
         document.getElementById("homeLink").href = "/korean";
-        document.getElementById("siteLogoImage").src = "/assets/한글로고.png";
+        document.getElementById("siteLogoImage").src = "/assets/lofi-logo-violet.png";
         document.getElementById("pageTitle").textContent = "예약자 정보를 알려주세요";
         document.getElementById("pageSubtitle").textContent = "방문 준비를 위해 아래 정보를 입력해 주세요.";
         document.getElementById("nameLabel").textContent = "성함";
