@@ -4172,6 +4172,15 @@ createServer(async (request, response) => {
   const adminAuthorized = basicAuthorized || sessionAuthorized;
   let setCookieHeader;
 
+  if (pathname === "/api/time" && request.method === "GET") {
+    response.writeHead(200, {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+    });
+    response.end(String(Date.now()));
+    return;
+  }
+
   if (pathname === "/api/reservations" && request.method === "OPTIONS") {
     response.writeHead(204, reservationCorsHeaders);
     response.end();

@@ -80,15 +80,36 @@
         ];
         var current = 0;
         var changing = false;
+        var serverTime = 0;
+        var deviceTimeAtSync = 0;
 
         function twoDigits(number) {
           return number < 10 ? "0" + number : String(number);
         }
 
         function updateClock() {
-          var now = new Date();
-          var koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+          var deviceNow = new Date().getTime();
+          var currentTime = serverTime ? serverTime + (deviceNow - deviceTimeAtSync) : deviceNow;
+          var koreaTime = new Date(currentTime + (9 * 60 * 60 * 1000));
           clock.innerHTML = twoDigits(koreaTime.getUTCHours()) + ":" + twoDigits(koreaTime.getUTCMinutes());
+        }
+
+        function syncClock() {
+          var request = new XMLHttpRequest();
+          request.onreadystatechange = function () {
+            var receivedTime;
+            if (request.readyState !== 4 || request.status !== 200) {
+              return;
+            }
+            receivedTime = parseInt(request.responseText, 10);
+            if (!isNaN(receivedTime)) {
+              serverTime = receivedTime;
+              deviceTimeAtSync = new Date().getTime();
+              updateClock();
+            }
+          };
+          request.open("GET", "/api/time?display=" + new Date().getTime(), true);
+          request.send(null);
         }
 
         function playVideo() {
@@ -127,6 +148,8 @@
 
         updateClock();
         window.setInterval(updateClock, 30000);
+        syncClock();
+        window.setInterval(syncClock, 600000);
 
         try {
           video.play();
