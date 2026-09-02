@@ -6,323 +6,91 @@
     <meta name="robots" content="noindex, nofollow" />
     <title>lofi esthetic dentistry | Clinic Display</title>
     <style>
-      :root {
-        color-scheme: dark;
-        --violet: #8975d5;
-        --violet-deep: #6650b8;
-        --white: #ffffff;
-        --safe-x: clamp(48px, 4vw, 96px);
-        --safe-y: clamp(36px, 4vh, 72px);
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
       html,
       body {
         width: 100%;
         height: 100%;
         margin: 0;
+        padding: 0;
         overflow: hidden;
-        background: #110d20;
+        background: #000000;
       }
 
-      body {
-        font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-      }
-
-      .display {
-        position: fixed;
-        inset: 0;
-        isolation: isolate;
-        background:
-          radial-gradient(circle at 12% 12%, rgba(137, 117, 213, 0.28), transparent 34%),
-          #110d20;
-      }
-
-      .display-video {
+      #displayVideo {
         position: absolute;
-        inset: 0;
+        top: 0;
+        left: 0;
         width: 100%;
         height: 100%;
-        object-fit: contain;
-        background: #000;
-        opacity: 1;
-        transition: opacity 450ms ease;
-      }
-
-      .display.is-changing .display-video {
-        opacity: 0;
-      }
-
-      .display-shade {
-        position: absolute;
-        inset: 0;
-        z-index: 1;
-        pointer-events: none;
-        background:
-          linear-gradient(180deg, rgba(12, 8, 24, 0.52) 0%, transparent 23%),
-          linear-gradient(0deg, rgba(12, 8, 24, 0.68) 0%, transparent 30%);
-      }
-
-      .display-header {
-        position: absolute;
-        z-index: 2;
-        top: var(--safe-y);
-        left: var(--safe-x);
-        right: var(--safe-x);
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 24px;
-      }
-
-      .display-logo {
-        width: clamp(220px, 17vw, 340px);
-        height: auto;
-        display: block;
-        filter: brightness(0) invert(1);
-      }
-
-      .display-clock {
-        margin: 0;
-        color: rgba(255, 255, 255, 0.88);
-        font-size: clamp(22px, 1.6vw, 32px);
-        font-weight: 500;
-        letter-spacing: 0.04em;
-        text-shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
-      }
-
-      .display-footer {
-        position: absolute;
-        z-index: 2;
-        right: var(--safe-x);
-        bottom: var(--safe-y);
-        left: var(--safe-x);
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        gap: 32px;
-      }
-
-      .display-copy {
-        min-width: 0;
-      }
-
-      .display-kicker {
-        margin: 0 0 10px;
-        color: #d8d0fa;
-        font-size: clamp(15px, 1.1vw, 22px);
-        font-weight: 700;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-      }
-
-      .display-title {
-        margin: 0;
-        max-width: 18ch;
-        color: var(--white);
-        font-size: clamp(48px, 4.4vw, 88px);
-        font-weight: 600;
-        line-height: 1.03;
-        letter-spacing: -0.04em;
-        text-shadow: 0 3px 24px rgba(0, 0, 0, 0.5);
-      }
-
-      .display-progress {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding-bottom: 7px;
-      }
-
-      .display-dot {
-        width: 10px;
-        height: 10px;
-        padding: 0;
         border: 0;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.38);
-        transition: width 240ms ease, background 240ms ease;
-      }
-
-      .display-dot[aria-current="true"] {
-        width: 36px;
-        background: #d8d0fa;
-      }
-
-      /* LG large-format signage: keep the 1920 × 1080 composition at 4K. */
-      @media (min-width: 2560px) and (min-aspect-ratio: 16 / 10) {
-        :root {
-          --safe-x: clamp(96px, 4vw, 192px);
-          --safe-y: clamp(72px, 4vh, 144px);
-        }
-
-        .display-logo {
-          width: clamp(440px, 17vw, 680px);
-        }
-
-        .display-clock {
-          font-size: clamp(44px, 1.6vw, 64px);
-        }
-
-        .display-kicker {
-          margin-bottom: 20px;
-          font-size: clamp(30px, 1.1vw, 44px);
-        }
-
-        .display-title {
-          font-size: clamp(96px, 4.4vw, 176px);
-        }
-
-        .display-progress {
-          gap: 16px;
-          padding-bottom: 14px;
-        }
-
-        .display-dot {
-          width: 20px;
-          height: 20px;
-        }
-
-        .display-dot[aria-current="true"] {
-          width: 72px;
-        }
-      }
-
-      .start-button {
-        position: absolute;
-        z-index: 3;
-        inset: 50% auto auto 50%;
-        transform: translate(-50%, -50%);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 999px;
-        padding: 14px 24px;
-        color: #ffffff;
-        background: rgba(102, 80, 184, 0.9);
-        font: inherit;
-        font-weight: 600;
-        cursor: pointer;
-        backdrop-filter: blur(12px);
-      }
-
-      .start-button[hidden] {
-        display: none;
-      }
-
-      @media (orientation: portrait) {
-        .display-footer {
-          align-items: flex-start;
-          flex-direction: column;
-        }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        .display-video,
-        .display-dot {
-          transition: none;
-        }
+        background: #000000;
+        object-fit: contain;
       }
     </style>
   </head>
   <body>
-    <main class="display" id="display" aria-label="lofi esthetic dentistry clinic display">
-      <video class="display-video" id="displayVideo" autoplay muted playsinline preload="auto">
-        <source src="/assets/lofi veneer videos/nojima-before-after.mp4" type="video/mp4" />
-      </video>
-      <div class="display-shade" aria-hidden="true"></div>
+    <video
+      id="displayVideo"
+      autoplay="autoplay"
+      muted="muted"
+      playsinline="playsinline"
+      webkit-playsinline="webkit-playsinline"
+      preload="auto"
+    >
+      <source src="/assets/lofi%20veneer%20videos/nojima-before-after.mp4" type="video/mp4" />
+    </video>
 
-      <header class="display-header">
-        <img class="display-logo" src="/assets/lofi-logo-violet.png" alt="lofi esthetic dentistry" />
-        <p class="display-clock" id="displayClock" aria-label="Current time"></p>
-      </header>
+    <script type="text/javascript">
+      (function () {
+        var video = document.getElementById("displayVideo");
+        var playlist = [
+          "/assets/lofi%20veneer%20videos/nojima-before-after.mp4",
+          "/assets/display-videos/angelica-before-after.mp4",
+          "/assets/lofi%20veneer%20videos/lofi-lab-dentistryisart.mp4",
+          "/assets/lofi%20veneer%20videos/lofi-lab-primemill.mp4",
+          "/assets/lofi%20veneer%20videos/Hongkong%20patient.mp4"
+        ];
+        var current = 0;
+        var changing = false;
 
-      <footer class="display-footer">
-        <div class="display-copy">
-          <p class="display-kicker">Seoul · Esthetic Dentistry</p>
-          <h1 class="display-title">Dentistry is art.</h1>
-        </div>
-        <div class="display-progress" id="displayProgress" aria-label="Video playlist"></div>
-      </footer>
+        function playVideo() {
+          video.muted = true;
+          video.volume = 0;
+          video.src = playlist[current];
+          try {
+            video.play();
+          } catch (ignore) {}
+        }
 
-      <button class="start-button" id="startButton" type="button" hidden>Start display</button>
-    </main>
-
-    <script>
-      const display = document.getElementById("display");
-      const video = document.getElementById("displayVideo");
-      const clock = document.getElementById("displayClock");
-      const progress = document.getElementById("displayProgress");
-      const startButton = document.getElementById("startButton");
-      const playlist = [
-        "/assets/lofi veneer videos/nojima-before-after.mp4",
-        "/assets/lofi veneer videos/angelica-before-after.mp4",
-        "/assets/lofi veneer videos/lofi-lab-dentistryisart.mp4",
-        "/assets/lofi veneer videos/lofi-lab-primemill.mp4",
-        "/assets/lofi veneer videos/Hongkong patient.mp4",
-      ];
-      let currentIndex = 0;
-
-      playlist.forEach((_, index) => {
-        const dot = document.createElement("span");
-        dot.className = "display-dot";
-        dot.setAttribute("aria-label", `Video ${index + 1} of ${playlist.length}`);
-        progress.appendChild(dot);
-      });
-
-      function updateProgress() {
-        [...progress.children].forEach((dot, index) => {
-          dot.setAttribute("aria-current", String(index === currentIndex));
-        });
-      }
-
-      function playCurrentVideo() {
-        display.classList.add("is-changing");
-        window.setTimeout(() => {
-          video.src = playlist[currentIndex];
-          video.load();
-          const playAttempt = video.play();
-          if (playAttempt) {
-            playAttempt
-              .then(() => {
-                startButton.hidden = true;
-              })
-              .catch(() => {
-                startButton.hidden = false;
-              });
+        function nextVideo() {
+          if (changing) {
+            return;
           }
-          updateProgress();
-        }, 460);
-      }
+          changing = true;
+          current = (current + 1) % playlist.length;
+          window.setTimeout(function () {
+            changing = false;
+            playVideo();
+          }, 500);
+        }
 
-      function playNextVideo() {
-        currentIndex = (currentIndex + 1) % playlist.length;
-        playCurrentVideo();
-      }
+        video.onended = nextVideo;
+        video.onerror = nextVideo;
+        video.muted = true;
+        video.volume = 0;
 
-      function updateClock() {
-        clock.textContent = new Intl.DateTimeFormat("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-          timeZone: "Asia/Seoul",
-        }).format(new Date());
-      }
+        window.setInterval(function () {
+          if (video.paused && !video.ended && video.readyState > 1) {
+            try {
+              video.play();
+            } catch (ignore) {}
+          }
+        }, 5000);
 
-      video.addEventListener("playing", () => display.classList.remove("is-changing"));
-      video.addEventListener("ended", playNextVideo);
-      video.addEventListener("error", playNextVideo);
-      startButton.addEventListener("click", () => video.play().then(() => {
-        startButton.hidden = true;
-      }).catch(() => {}));
-
-      updateProgress();
-      updateClock();
-      window.setInterval(updateClock, 30000);
-      video.play().catch(() => {
-        startButton.hidden = false;
-      });
+        try {
+          video.play();
+        } catch (ignore) {}
+      }());
     </script>
   </body>
 </html>
