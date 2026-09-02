@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
     <title>Meet Dr. Ryan Kim | lofi esthetic dentistry</title>
     <style>
       html,
@@ -11,6 +12,31 @@
         height: 100%;
         margin: 0;
         padding: 0;
+        overflow: hidden;
+        background: #f5f2ff;
+      }
+
+      body {
+        font-family: "Trebuchet MS", Arial, sans-serif;
+        color: #3b2b78;
+      }
+
+      #playCanvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #f5f2ff;
+      }
+
+      #videoArea {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 58%;
         overflow: hidden;
         background: #000000;
       }
@@ -23,22 +49,128 @@
         height: 100%;
         border: 0;
         background: #000000;
-        object-fit: contain;
+        object-fit: cover;
+      }
+
+      #videoShade {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        height: 28%;
+        background: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(18, 11, 39, 0.62));
+      }
+
+      #location {
+        position: absolute;
+        right: 6%;
+        bottom: 5%;
+        left: 6%;
+        z-index: 2;
+        margin: 0;
+        color: #ffffff;
+        font-size: 2.2vh;
+        font-weight: bold;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        text-shadow: 0 2px 5px #000000;
+      }
+
+      #profileArea {
+        position: absolute;
+        top: 58%;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        padding: 4.2vh 7.5% 3vh;
+        background: #f5f2ff;
+      }
+
+      #profileArea:before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 5px;
+        background: #8975d5;
+      }
+
+      #logo {
+        display: block;
+        width: 42%;
+        height: auto;
+        margin: 0 0 1.7vh;
+        border: 0;
+      }
+
+      #eyebrow {
+        margin: 0 0 0.8vh;
+        color: #7968bb;
+        font-size: 1.65vh;
+        font-weight: bold;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0;
+        color: #3b2b78;
+        font-family: "Arial Rounded MT Bold", "Trebuchet MS", Arial, sans-serif;
+        font-size: 5.1vh;
+        font-weight: bold;
+        line-height: 0.98;
+        letter-spacing: -0.045em;
+      }
+
+      #intro {
+        margin: 1.5vh 0 0;
+        color: #65569d;
+        font-size: 1.75vh;
+        line-height: 1.45;
+      }
+
+      #credentials {
+        position: absolute;
+        right: 7.5%;
+        bottom: 3vh;
+        left: 7.5%;
+        padding-top: 1.5vh;
+        border-top: 1px solid #d2caee;
+        color: #7968bb;
+        font-size: 1.55vh;
+        font-weight: bold;
+        line-height: 1.5;
+        letter-spacing: 0.02em;
       }
     </style>
   </head>
   <body>
-    <video
-      id="drKimVideo"
-      autoplay="autoplay"
-      muted="muted"
-      loop="loop"
-      playsinline="playsinline"
-      webkit-playsinline="webkit-playsinline"
-      preload="auto"
-    >
-      <source src="/assets/story/meet-dr-kim.mp4" type="video/mp4" />
-    </video>
+    <main id="playCanvas" aria-label="Meet Dr. Ryan Kim">
+      <section id="videoArea" aria-label="Dr. Ryan Kim profile video">
+        <video
+          id="drKimVideo"
+          autoplay="autoplay"
+          muted="muted"
+          loop="loop"
+          playsinline="playsinline"
+          webkit-playsinline="webkit-playsinline"
+          preload="auto"
+        >
+          <source src="/assets/story/meet-dr-kim.mp4" type="video/mp4" />
+        </video>
+        <div id="videoShade"></div>
+        <p id="location">New York · Seoul</p>
+      </section>
+
+      <section id="profileArea">
+        <img id="logo" src="/assets/lofi-logo-violet.png" alt="lofi esthetic dentistry" />
+        <p id="eyebrow">Founder &amp; Lead Doctor</p>
+        <h1>Meet Dr.<br />Ryan Kim</h1>
+        <p id="intro">NYU-trained dentist connecting clinical experience from New York and Seoul with an artistic approach to esthetic dentistry.</p>
+        <div id="credentials">NYU College of Dentistry · GPR in New York<br />Founder of lofi esthetic dentistry</div>
+      </section>
+    </main>
 
     <script type="text/javascript">
       (function () {
