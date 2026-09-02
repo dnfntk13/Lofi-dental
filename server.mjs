@@ -172,6 +172,10 @@ function resolvePath(urlPath) {
     return "/meetdrkim.html";
   }
 
+  if (["/display", "/display/"].includes(pathname)) {
+    return "/display/index.html";
+  }
+
   if (["/admin/calendar", "/admin/calendar/"].includes(pathname)) {
     return "/admin/calendar.html";
   }
