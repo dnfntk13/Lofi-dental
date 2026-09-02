@@ -44,11 +44,11 @@
         right: 52px;
         z-index: 2;
         margin: 0;
-        color: #ffffff;
-        font-family: Arial, sans-serif;
-        font-size: 30px;
-        font-weight: normal;
-        letter-spacing: 2px;
+        color: #7657dc;
+        font-family: "Arial Rounded MT Bold", "Trebuchet MS", Arial, sans-serif;
+        font-size: 32px;
+        font-weight: bold;
+        letter-spacing: 1px;
         text-shadow: 0 2px 6px #000000;
       }
     </style>
@@ -87,7 +87,8 @@
 
         function updateClock() {
           var now = new Date();
-          clock.innerHTML = twoDigits(now.getHours()) + ":" + twoDigits(now.getMinutes());
+          var koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+          clock.innerHTML = twoDigits(koreaTime.getUTCHours()) + ":" + twoDigits(koreaTime.getUTCMinutes());
         }
 
         function playVideo() {
