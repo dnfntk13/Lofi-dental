@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>Meet Dr. Ryan Kim | lofi esthetic dentistry</title>
+    <title>Dr. Ryan Kim | Career Highlights</title>
     <style>
       html,
       body {
@@ -13,7 +13,7 @@
         margin: 0;
         padding: 0;
         overflow: hidden;
-        background: #f5f2ff;
+        background: #3b2b78;
       }
 
       body {
@@ -24,172 +24,234 @@
       #playCanvas {
         position: absolute;
         top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        background: #f5f2ff;
-      }
-
-      #videoArea {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 58%;
-        overflow: hidden;
-        background: #000000;
-      }
-
-      #drKimVideo {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        border: 0;
-        background: #000000;
-        object-fit: cover;
-      }
-
-      #videoShade {
-        position: absolute;
         right: 0;
         bottom: 0;
         left: 0;
-        height: 28%;
-        background: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(18, 11, 39, 0.62));
+        overflow: hidden;
+        background: #f7f5ff;
       }
 
-      #location {
+      #header {
         position: absolute;
-        right: 6%;
-        bottom: 5%;
-        left: 6%;
-        z-index: 2;
-        margin: 0;
+        top: 0;
+        right: 0;
+        left: 0;
+        height: 25%;
+        padding: 4.4vh 7.5% 3.2vh;
+        box-sizing: border-box;
         color: #ffffff;
-        font-size: 2.2vh;
-        font-weight: bold;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        text-shadow: 0 2px 5px #000000;
+        background: #3b2b78;
       }
 
-      #profileArea {
-        position: absolute;
-        top: 58%;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        padding: 4.2vh 7.5% 3vh;
-        background: #f5f2ff;
-      }
-
-      #profileArea:before {
+      #header:before,
+      #header:after {
         content: "";
         position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 5px;
-        background: #8975d5;
+        border-radius: 50%;
+      }
+
+      #header:before {
+        top: -7vh;
+        right: -13%;
+        width: 34vh;
+        height: 34vh;
+        background: #7865c5;
+        opacity: 0.55;
+      }
+
+      #header:after {
+        right: 18%;
+        bottom: -8vh;
+        width: 15vh;
+        height: 15vh;
+        background: #a89be4;
+        opacity: 0.3;
       }
 
       #logo {
+        position: relative;
+        z-index: 2;
         display: block;
-        width: 42%;
+        width: 38%;
         height: auto;
-        margin: 0 0 1.7vh;
+        margin: 0 0 3vh;
         border: 0;
+        filter: brightness(0) invert(1);
       }
 
       #eyebrow {
-        margin: 0 0 0.8vh;
-        color: #7968bb;
-        font-size: 1.65vh;
+        position: relative;
+        z-index: 2;
+        margin: 0 0 0.7vh;
+        color: #d9d2fa;
+        font-size: 1.55vh;
         font-weight: bold;
-        letter-spacing: 0.14em;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
       }
 
       h1 {
+        position: relative;
+        z-index: 2;
         margin: 0;
-        color: #3b2b78;
+        color: #ffffff;
         font-family: "Arial Rounded MT Bold", "Trebuchet MS", Arial, sans-serif;
         font-size: 5.1vh;
         font-weight: bold;
-        line-height: 0.98;
+        line-height: 1;
         letter-spacing: -0.045em;
       }
 
-      #intro {
-        margin: 1.5vh 0 0;
-        color: #65569d;
-        font-size: 1.75vh;
-        line-height: 1.45;
+      #careerArea {
+        position: absolute;
+        top: 25%;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        padding: 3.3vh 7.5% 3vh;
+        box-sizing: border-box;
+        background: #f7f5ff;
       }
 
-      #credentials {
+      #careerTitle {
+        margin: 0 0 2.3vh;
+        color: #3b2b78;
+        font-size: 2.55vh;
+        font-weight: bold;
+        letter-spacing: -0.02em;
+      }
+
+      #careerTitle:after {
+        content: "";
+        display: block;
+        width: 3.6vh;
+        height: 0.35vh;
+        margin-top: 1.1vh;
+        border-radius: 1vh;
+        background: #8975d5;
+      }
+
+      #timeline {
+        position: relative;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      #timeline:before {
+        content: "";
         position: absolute;
-        right: 7.5%;
-        bottom: 3vh;
-        left: 7.5%;
-        padding-top: 1.5vh;
-        border-top: 1px solid #d2caee;
-        color: #7968bb;
+        top: 1.2vh;
+        bottom: 1.2vh;
+        left: 1.05vh;
+        width: 0.18vh;
+        background: #d7d0ef;
+      }
+
+      .careerItem {
+        position: relative;
+        min-height: 5.65vh;
+        padding: 0 0 1.75vh 5.2vh;
+        box-sizing: border-box;
+      }
+
+      .careerItem:before {
+        content: "";
+        position: absolute;
+        top: 0.55vh;
+        left: 0.45vh;
+        width: 1.2vh;
+        height: 1.2vh;
+        border: 0.36vh solid #f7f5ff;
+        border-radius: 50%;
+        background: #8975d5;
+        box-shadow: 0 0 0 0.16vh #8975d5;
+      }
+
+      .careerItem:last-child:before {
+        background: #3b2b78;
+        box-shadow: 0 0 0 0.16vh #3b2b78;
+      }
+
+      .year {
+        margin: 0 0 0.45vh;
+        color: #8975d5;
         font-size: 1.55vh;
         font-weight: bold;
-        line-height: 1.5;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.08em;
+      }
+
+      .description {
+        margin: 0;
+        color: #3b2b78;
+        font-size: 1.82vh;
+        font-weight: bold;
+        line-height: 1.32;
+      }
+
+      .careerItem:last-child .year,
+      .careerItem:last-child .description {
+        color: #3b2b78;
+      }
+
+      #footer {
+        position: absolute;
+        right: 7.5%;
+        bottom: 2.3vh;
+        color: #887bb7;
+        font-size: 1.2vh;
+        font-weight: bold;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
       }
     </style>
   </head>
   <body>
-    <main id="playCanvas" aria-label="Meet Dr. Ryan Kim">
-      <section id="videoArea" aria-label="Dr. Ryan Kim profile video">
-        <video
-          id="drKimVideo"
-          autoplay="autoplay"
-          muted="muted"
-          loop="loop"
-          playsinline="playsinline"
-          webkit-playsinline="webkit-playsinline"
-          preload="auto"
-        >
-          <source src="/assets/story/meet-dr-kim.mp4" type="video/mp4" />
-        </video>
-        <div id="videoShade"></div>
-        <p id="location">New York · Seoul</p>
-      </section>
-
-      <section id="profileArea">
+    <main id="playCanvas" aria-label="Dr. Ryan Kim career highlights">
+      <header id="header">
         <img id="logo" src="/assets/lofi-logo-violet.png" alt="lofi esthetic dentistry" />
         <p id="eyebrow">Founder &amp; Lead Doctor</p>
-        <h1>Meet Dr.<br />Ryan Kim</h1>
-        <p id="intro">NYU-trained dentist connecting clinical experience from New York and Seoul with an artistic approach to esthetic dentistry.</p>
-        <div id="credentials">NYU College of Dentistry · GPR in New York<br />Founder of lofi esthetic dentistry</div>
+        <h1>Dr. Ryan Kim</h1>
+      </header>
+
+      <section id="careerArea" aria-labelledby="careerTitle">
+        <h2 id="careerTitle">Career Highlights</h2>
+        <ol id="timeline">
+          <li class="careerItem">
+            <p class="year">2018</p>
+            <p class="description">Graduated from NYU College of Dentistry</p>
+          </li>
+          <li class="careerItem">
+            <p class="year">2018—2020</p>
+            <p class="description">Served as Dental Corpsman in the Republic of Korea Army</p>
+          </li>
+          <li class="careerItem">
+            <p class="year">2021</p>
+            <p class="description">Associate Dentist at Seoul Naeun Dental</p>
+          </li>
+          <li class="careerItem">
+            <p class="year">2022</p>
+            <p class="description">Associate Dentist at Michigan Dental</p>
+          </li>
+          <li class="careerItem">
+            <p class="year">2023</p>
+            <p class="description">General Practice Residency at Brookdale Hospital</p>
+          </li>
+          <li class="careerItem">
+            <p class="year">2024</p>
+            <p class="description">GPR 2nd year at Interfaith Hospital</p>
+          </li>
+          <li class="careerItem">
+            <p class="year">2025</p>
+            <p class="description">Associate Dentist at Castle Bubu Dental and Smile Studios Dental</p>
+          </li>
+          <li class="careerItem">
+            <p class="year">2026</p>
+            <p class="description">Founder and lead doctor at lofi esthetic dentistry</p>
+          </li>
+        </ol>
+        <div id="footer">New York · Seoul</div>
       </section>
     </main>
-
-    <script type="text/javascript">
-      (function () {
-        var video = document.getElementById("drKimVideo");
-        video.muted = true;
-        video.volume = 0;
-
-        window.setInterval(function () {
-          if (video.paused) {
-            try {
-              video.play();
-            } catch (ignore) {}
-          }
-        }, 5000);
-
-        try {
-          video.play();
-        } catch (ignore) {}
-      }());
-    </script>
   </body>
 </html>
