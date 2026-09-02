@@ -20,11 +20,36 @@
         position: absolute;
         top: 0;
         left: 0;
+        z-index: 1;
         width: 100%;
         height: 100%;
         border: 0;
         background: #000000;
         object-fit: contain;
+      }
+
+      #displayLogo {
+        position: absolute;
+        top: 42px;
+        left: 52px;
+        z-index: 2;
+        width: 240px;
+        height: auto;
+        border: 0;
+      }
+
+      #displayClock {
+        position: absolute;
+        top: 46px;
+        right: 52px;
+        z-index: 2;
+        margin: 0;
+        color: #ffffff;
+        font-family: Arial, sans-serif;
+        font-size: 30px;
+        font-weight: normal;
+        letter-spacing: 2px;
+        text-shadow: 0 2px 6px #000000;
       }
     </style>
   </head>
@@ -39,10 +64,13 @@
     >
       <source src="/assets/lofi%20veneer%20videos/nojima-before-after.mp4" type="video/mp4" />
     </video>
+    <img id="displayLogo" src="/assets/lofi-logo-violet.png" alt="lofi esthetic dentistry" />
+    <p id="displayClock"></p>
 
     <script type="text/javascript">
       (function () {
         var video = document.getElementById("displayVideo");
+        var clock = document.getElementById("displayClock");
         var playlist = [
           "/assets/lofi%20veneer%20videos/nojima-before-after.mp4",
           "/assets/display-videos/angelica-before-after.mp4",
@@ -52,6 +80,15 @@
         ];
         var current = 0;
         var changing = false;
+
+        function twoDigits(number) {
+          return number < 10 ? "0" + number : String(number);
+        }
+
+        function updateClock() {
+          var now = new Date();
+          clock.innerHTML = twoDigits(now.getHours()) + ":" + twoDigits(now.getMinutes());
+        }
 
         function playVideo() {
           video.muted = true;
@@ -86,6 +123,9 @@
             } catch (ignore) {}
           }
         }, 5000);
+
+        updateClock();
+        window.setInterval(updateClock, 30000);
 
         try {
           video.play();
