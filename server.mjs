@@ -4167,6 +4167,25 @@ createServer(async (request, response) => {
     return;
   }
 
+  const canonicalRedirects = new Map([
+    ["/english", "/"],
+    ["/english/", "/"],
+    ["/english.html", "/"],
+    ["/english/index.html", "/"],
+    ["/korean/", "/korean"],
+    ["/korean.html", "/korean"],
+    ["/index.html", "/korean"],
+  ]);
+  const canonicalPath = canonicalRedirects.get(pathname);
+  if (canonicalPath && request.method === "GET") {
+    response.writeHead(301, {
+      Location: `${canonicalPath}${requestUrl.search}`,
+      "Cache-Control": "public, max-age=3600",
+    });
+    response.end();
+    return;
+  }
+
   const basicAuthorized = isAuthorized(request);
   const sessionAuthorized = hasAdminSession(request);
   const adminAuthorized = basicAuthorized || sessionAuthorized;

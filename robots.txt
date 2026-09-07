@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /reservation/received.html
+
+Sitemap: https://lofiesthetic.com/sitemap.xml
