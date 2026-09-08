@@ -3716,7 +3716,6 @@ async function sendMailWithFallback(mailOptions) {
 
 function buildReservationAutoReply(record) {
   const appointmentKst = `${record.date} ${record.time} (KST)`;
-  const replyFormUrl = `https://lofiesthetic.com/patient-reply?id=${record.id}`;
 
   return {
     subject: "Your reservation has been confirmed | lofi esthetic dentistry",
@@ -3724,11 +3723,13 @@ function buildReservationAutoReply(record) {
 
 Your reservation for ${appointmentKst} has been confirmed.
 
-Please complete your registration by clicking the link below — it only takes a moment:
+REGISTRATION
 
-${replyFormUrl}
+Please fill in the details below and reply to this email:
 
-We'll ask for your name, where you're visiting from, and phone number.
+Name:
+Visiting from:
+Phone number:
 
 See you soon!
 
