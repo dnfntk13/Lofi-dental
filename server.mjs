@@ -3673,6 +3673,7 @@ async function sendMailWithFallback(mailOptions) {
           reply_to: mailOptions.replyTo,
           subject: mailOptions.subject,
           text: mailOptions.text,
+          html: mailOptions.html,
         }),
       });
 
@@ -3716,6 +3717,7 @@ async function sendMailWithFallback(mailOptions) {
 
 function buildReservationAutoReply(record) {
   const appointmentKst = `${record.date} ${record.time} (KST)`;
+  const replyFormUrl = `https://lofiesthetic.com/patient-reply?id=${encodeURIComponent(record.id)}`;
 
   return {
     subject: "Your reservation has been confirmed | lofi esthetic dentistry",
@@ -3723,19 +3725,46 @@ function buildReservationAutoReply(record) {
 
 Your reservation for ${appointmentKst} has been confirmed.
 
-REGISTRATION
-
-Please fill in the details below and reply to this email:
-
-Name:
-Visiting from:
-Phone number:
+Please complete your registration here:
+${replyFormUrl}
 
 See you soon!
 
 lofi esthetic dentistry
 Instagram: www.instagram.com/lofi_esthetic_dentistry
 WhatsApp: +82 10-2984-8823`,
+    html: `<!doctype html>
+<html lang="en">
+  <body style="margin:0;padding:0;background:#f5f2ff;font-family:Arial,sans-serif;color:#3b2b78;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f5f2ff;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:#ffffff;border:1px solid #ded8f2;border-radius:16px;overflow:hidden;">
+            <tr>
+              <td style="padding:32px 32px 24px;">
+                <div style="font-size:13px;font-weight:700;letter-spacing:1.4px;color:#8975d5;text-transform:uppercase;">Reservation confirmed</div>
+                <h1 style="margin:10px 0 12px;font-size:26px;line-height:1.2;color:#3b2b78;">See you at lofi</h1>
+                <p style="margin:0;font-size:16px;line-height:1.6;color:#65569d;">Your reservation for <strong style="color:#3b2b78;">${appointmentKst}</strong> has been confirmed.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 32px 32px;">
+                <a href="${replyFormUrl}" style="display:block;padding:24px;border:1px solid #cfc5ee;border-radius:12px;background:#f7f5ff;color:#3b2b78;text-decoration:none;">
+                  <span style="display:block;margin-bottom:8px;font-size:12px;font-weight:700;letter-spacing:1.2px;color:#8975d5;text-transform:uppercase;">Registration</span>
+                  <span style="display:block;margin-bottom:8px;font-size:20px;font-weight:700;line-height:1.3;color:#3b2b78;">Complete your patient information</span>
+                  <span style="display:block;margin-bottom:18px;font-size:14px;line-height:1.5;color:#7968bb;">Share your name, where you are visiting from, and phone number.</span>
+                  <span style="display:inline-block;padding:12px 20px;border-radius:8px;background:#6f5cc4;color:#ffffff;font-size:14px;font-weight:700;">Open registration →</span>
+                </a>
+                <p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#7968bb;">See you soon!</p>
+                <p style="margin:20px 0 0;font-size:12px;line-height:1.7;color:#9689c0;">lofi esthetic dentistry<br />Instagram: www.instagram.com/lofi_esthetic_dentistry<br />WhatsApp: +82 10-2984-8823</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`,
   };
 }
 
@@ -3781,6 +3810,7 @@ async function sendReservationAutoReply(record) {
     to: record.email,
     subject: message.subject,
     text: message.text,
+    html: message.html,
   });
   return true;
 }
