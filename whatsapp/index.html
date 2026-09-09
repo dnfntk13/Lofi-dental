@@ -16,7 +16,7 @@
       function handleWhatsAppClick(event) {
         event.preventDefault();
 
-        const url = 'https://wa.me/821029848823';
+        const url = 'https://whatsapp.com/channel/0029VbDaNE5It5roZdu5et3g';
         let didNavigate = false;
         const navigate = () => {
           if (didNavigate) {
@@ -33,7 +33,7 @@
 
         gtag('event', 'whatsapp_click', {
           event_category: 'outbound',
-          event_label: '821029848823',
+          event_label: '0029VbDaNE5It5roZdu5et3g',
           transport_type: 'beacon',
         });
 
@@ -128,7 +128,7 @@
     <main class="card">
       <h1>WhatsApp</h1>
       <p>Continue to our WhatsApp when you are ready.</p>
-      <a href="https://wa.me/821029848823" onclick="handleWhatsAppClick(event)">Go to WhatsApp</a>
+      <a href="https://whatsapp.com/channel/0029VbDaNE5It5roZdu5et3g" onclick="handleWhatsAppClick(event)">Go to WhatsApp</a>
     </main>
   </body>
 </html>
