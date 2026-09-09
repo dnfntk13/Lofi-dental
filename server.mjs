@@ -3732,7 +3732,7 @@ See you soon!
 
 lofi esthetic dentistry
 Instagram: www.instagram.com/lofi_esthetic_dentistry
-WhatsApp: +82 10-2984-8823`,
+WhatsApp: https://whatsapp.com/channel/0029VbDaNE5It5roZdu5et3g`,
     html: `<!doctype html>
 <html lang="en">
   <body style="margin:0;padding:0;background:#f5f2ff;font-family:Arial,sans-serif;color:#3b2b78;">
@@ -3756,7 +3756,7 @@ WhatsApp: +82 10-2984-8823`,
                   <span style="display:inline-block;padding:12px 20px;border-radius:8px;background:#6f5cc4;color:#ffffff;font-size:14px;font-weight:700;">Open registration →</span>
                 </a>
                 <p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#7968bb;">See you soon!</p>
-                <p style="margin:20px 0 0;font-size:12px;line-height:1.7;color:#9689c0;">lofi esthetic dentistry<br />Instagram: www.instagram.com/lofi_esthetic_dentistry<br />WhatsApp: +82 10-2984-8823</p>
+                <p style="margin:20px 0 0;font-size:12px;line-height:1.7;color:#9689c0;">lofi esthetic dentistry<br />Instagram: www.instagram.com/lofi_esthetic_dentistry<br /><a href="https://whatsapp.com/channel/0029VbDaNE5It5roZdu5et3g" style="color:#7968bb;text-decoration:underline;">WhatsApp channel</a></p>
               </td>
             </tr>
           </table>
