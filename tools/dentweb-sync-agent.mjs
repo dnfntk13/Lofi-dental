@@ -70,11 +70,12 @@ function parseClickPoint(value) {
   return { x, y };
 }
 
-function runPowerShell(script) {
+function runPowerShell(script, extraEnv = {}) {
   return new Promise((resolve, reject) => {
     execFile("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script], {
       windowsHide: true,
       maxBuffer: 1024 * 1024,
+      env: { ...process.env, ...extraEnv },
     }, (error, stdout, stderr) => {
       if (error) {
         reject(new Error((stderr || stdout || error.message).trim()));
@@ -83,6 +84,145 @@ function runPowerShell(script) {
       resolve(String(stdout || "").trim());
     });
   });
+}
+
+function adminAuthHeader() {
+  return `Basic ${Buffer.from(`${adminUser}:${adminPass}`, "utf-8").toString("base64")}`;
+}
+
+async function updateDentwebJob(id, status, details = {}) {
+  const response = await fetch(`${serverUrl}/api/admin/reservations/${encodeURIComponent(id)}/dentweb-sync`, {
+    method: "POST",
+    headers: { Authorization: adminAuthHeader(), "Content-Type": "application/json" },
+    body: JSON.stringify({ status, ...details }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || `Dentweb job update failed with ${response.status}`);
+  return data;
+}
+
+async function claimDentwebJob() {
+  const response = await fetch(`${serverUrl}/api/admin/dentweb/jobs/next`, {
+    headers: { Authorization: adminAuthHeader(), Accept: "application/json" },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || `Dentweb job fetch failed with ${response.status}`);
+  return data.job || null;
+}
+
+async function createDentwebReservation(job) {
+  const connectionString = String(process.env.DENTWEB_SQL_CONNECTION_STRING || "").trim();
+  if (!connectionString) throw new Error("DENTWEB_SQL_CONNECTION_STRING is required on the clinic PC");
+
+  const payload = Buffer.from(JSON.stringify(job), "utf-8").toString("base64");
+  const script = `
+$ErrorActionPreference = 'Stop'
+$job = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:DENTWEB_JOB_BASE64)) | ConvertFrom-Json
+$date = [string]$job.date
+$time = [string]$job.time
+if ($date -notmatch '^\\d{4}-\\d{2}-\\d{2}$' -or $time -notmatch '^\\d{2}:\\d{2}$') { throw 'Invalid reservation date or time' }
+$appointmentAt = ($date -replace '-', '') + ($time -replace ':', '')
+$name = ([string]$job.name).Trim()
+$phoneDigits = ([string]$job.phone) -replace '[^0-9]', ''
+if (-not $name -or -not $phoneDigits) { throw 'Dentweb requires both patient name and phone number' }
+if ($name.Length -gt 40) { $name = $name.Substring(0, 40) }
+if ($phoneDigits -match '^(01[016789])(\\d{3,4})(\\d{4})$') { $phone = "$($matches[1])-$($matches[2])-$($matches[3])" } else { $phone = $phoneDigits }
+$memo = ([string]$job.concerns).Trim()
+
+$connection = [Data.SqlClient.SqlConnection]::new($env:DENTWEB_SQL_CONNECTION_STRING)
+$connection.Open()
+$transaction = $connection.BeginTransaction([Data.IsolationLevel]::Serializable)
+try {
+  $command = $connection.CreateCommand()
+  $command.Transaction = $transaction
+  $command.CommandText = @'
+SET NOCOUNT ON;
+DECLARE @existingId int;
+SELECT TOP (1) @existingId = nID
+FROM dbo.TB_예약목록 WITH (UPDLOCK, HOLDLOCK)
+WHERE n환자ID < 1 AND sz이름 = @name AND sz전화 = @phone AND sz예약시각 = @appointmentAt;
+
+IF @existingId IS NOT NULL
+BEGIN
+  SELECT @existingId AS reservationId, CAST(1 AS bit) AS duplicate;
+  RETURN;
+END;
+
+DECLARE @duration tinyint, @appointmentType tinyint, @textColor int, @backgroundColor int;
+SELECT TOP (1)
+  @duration = n소요시간,
+  @appointmentType = n예약종류,
+  @textColor = n글자색,
+  @backgroundColor = n배경색
+FROM dbo.TB_예약목록
+WHERE n환자ID < 1 AND n이행현황 = 0
+ORDER BY nID DESC;
+
+IF @appointmentType IS NULL
+  THROW 51000, 'No active Dentweb new-patient reservation exists to supply display defaults.', 1;
+
+INSERT INTO dbo.TB_신환예약자정보 (sz이름, sz휴대폰번호)
+VALUES (@name, @phone);
+DECLARE @patientId int = -CONVERT(int, SCOPE_IDENTITY());
+
+INSERT INTO dbo.TB_예약목록 (
+  sz예약시각, sz작성시각, n환자ID, n소요시간, n예약종류, n이행현황,
+  n담당의사, n담당직원, n치식, n임플치식, sz예약내용, nSMS전송일,
+  n글자색, n배경색, sz메모, nPMH, x변경내역, szN상품ID, szN예약ID,
+  t최종수정, sz이름, sz전화
+) VALUES (
+  @appointmentAt, @createdAt, @patientId, @duration, @appointmentType, 0,
+  0, 0, 0, 0, '', 0,
+  @textColor, @backgroundColor, @memo, 0, NULL, '', '',
+  GETDATE(), @name, @phone
+);
+DECLARE @reservationId int = CONVERT(int, SCOPE_IDENTITY());
+UPDATE dbo.TB_덴트웹설정 SET t예약최종수정 = GETDATE();
+SELECT @reservationId AS reservationId, CAST(0 AS bit) AS duplicate;
+'@
+  [void]$command.Parameters.Add('@name', [Data.SqlDbType]::NVarChar, 40)
+  [void]$command.Parameters.Add('@phone', [Data.SqlDbType]::VarChar, 30)
+  [void]$command.Parameters.Add('@appointmentAt', [Data.SqlDbType]::VarChar, 12)
+  [void]$command.Parameters.Add('@createdAt', [Data.SqlDbType]::VarChar, 14)
+  [void]$command.Parameters.Add('@memo', [Data.SqlDbType]::NVarChar, -1)
+  $command.Parameters['@name'].Value = $name
+  $command.Parameters['@phone'].Value = $phone
+  $command.Parameters['@appointmentAt'].Value = $appointmentAt
+  $command.Parameters['@createdAt'].Value = [DateTime]::Now.ToString('yyyyMMddHHmmss')
+  $command.Parameters['@memo'].Value = $memo
+  $reader = $command.ExecuteReader()
+  if (-not $reader.Read()) { throw 'Dentweb did not return a reservation ID' }
+  $result = [pscustomobject]@{ reservationId = $reader.GetInt32(0); duplicate = $reader.GetBoolean(1) }
+  $reader.Close()
+  $transaction.Commit()
+  $result | ConvertTo-Json -Compress
+} catch {
+  try { $transaction.Rollback() } catch {}
+  throw
+} finally {
+  $connection.Dispose()
+}
+`;
+  const output = await runPowerShell(script, { DENTWEB_JOB_BASE64: payload, DENTWEB_SQL_CONNECTION_STRING: connectionString });
+  return JSON.parse(output);
+}
+
+async function processDentwebJobs() {
+  if (syncInProgress) return;
+  syncInProgress = true;
+  let job = null;
+  try {
+    job = await claimDentwebJob();
+    if (!job) return;
+    const result = await createDentwebReservation(job);
+    await updateDentwebJob(job.id, "completed", { dentwebReservationId: result.reservationId });
+    console.log(`Dentweb reservation ${result.duplicate ? "already existed" : "created"}: ${result.reservationId}`);
+  } catch (error) {
+    console.error(`Dentweb SQL job failed: ${error.message || error}`);
+    if (job?.id) await updateDentwebJob(job.id, "failed", { error: error.message || String(error) }).catch(() => {});
+  } finally {
+    syncInProgress = false;
+  }
 }
 
 function getJsonBody(request, maxBytes = 1024 * 1024) {
@@ -996,6 +1136,9 @@ async function startDaemon() {
     console.log(`Saving screenshots to: ${screenshotDir}`);
     console.log("PC AI endpoint: POST /pc-ai-chat with { messages, apply }");
     console.log("Legacy Dentweb AI endpoint: POST /ai-step with { task, apply }");
+    console.log("Dentweb SQL queue polling is enabled (DENTWEB_SQL_CONNECTION_STRING required).");
+    void processDentwebJobs();
+    setInterval(() => void processDentwebJobs(), 5000);
   });
 }
 

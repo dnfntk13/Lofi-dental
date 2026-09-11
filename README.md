@@ -108,9 +108,12 @@ DENTWEB_PDF_DIR=C:\Users\USER\Downloads\lofi-dentweb-sync
 DENTWEB_SCREENSHOT_DIR=C:\Users\USER\Downloads\lofi-dentweb-sync
 DENTWEB_SCREENSHOT_DELAY_MS=1500
 DENTWEB_AGENT_PORT=5175
+DENTWEB_SQL_CONNECTION_STRING=Server=127.0.0.1,1436;Database=YOUR_DENTWEB_DATABASE;User ID=YOUR_USER;Password=YOUR_PASSWORD;TrustServerCertificate=True
 ```
 
 After the output dialog opens the reservation table, the agent captures the whole Windows virtual screen and saves it into `DENTWEB_SCREENSHOT_DIR`. If a Windows save dialog opens, the agent also tries to save a PDF into `DENTWEB_PDF_DIR` automatically. Imported PDF reservations are added to the reservation inbox and Patients. Existing same date/time slots are skipped.
+
+The Calendar's `Add to Dentweb` action queues that reservation for the clinic PC. While `npm run dentweb:agent` is running, the agent writes the patient's name, phone, appointment time, and concerns (as the Dentweb memo) directly to the local Dentweb SQL Server. The SQL connection string stays only in the clinic PC's local `.env`; never add it to source control or Render. The write runs in a serializable transaction and treats an existing reservation with the same time, name, and phone as already completed.
 
 ### Dentweb Local AI Control
 

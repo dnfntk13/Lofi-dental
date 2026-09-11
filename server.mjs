@@ -5503,7 +5503,7 @@ createServer(async (request, response) => {
     try {
       const payload = await getJsonBody(request);
       const status = String(payload.status || "").trim().toLowerCase();
-      if (!new Set(["pending", "completed", "failed"]).has(status)) {
+      if (!new Set(["pending", "processing", "completed", "failed"]).has(status)) {
         response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
         response.end(JSON.stringify({ message: "Invalid Dentweb sync status" }));
         return;
@@ -5515,7 +5515,20 @@ createServer(async (request, response) => {
         dentwebSyncUpdatedAt: now,
         dentwebSyncError: status === "failed" ? String(payload.error || "Dentweb registration failed").trim().slice(0, 500) : null,
       };
-      if (status === "completed") syncFields.dentwebSyncedAt = now;
+      if (status === "pending") {
+        syncFields.dentwebQueuedAt = now;
+        syncFields.dentwebProcessingAt = null;
+        syncFields.dentwebSyncedAt = null;
+        syncFields.dentwebReservationId = null;
+      }
+      if (status === "processing") syncFields.dentwebProcessingAt = now;
+      if (status === "completed") {
+        syncFields.dentwebSyncedAt = now;
+        const dentwebReservationId = Number(payload.dentwebReservationId);
+        if (Number.isInteger(dentwebReservationId) && dentwebReservationId > 0) {
+          syncFields.dentwebReservationId = dentwebReservationId;
+        }
+      }
 
       let savedRecord = null;
       const collection = await getInboxCollection();
@@ -5548,6 +5561,66 @@ createServer(async (request, response) => {
       console.error("Failed to update Dentweb sync status", error);
       response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ message: "Failed to update Dentweb sync status" }));
+    }
+    return;
+  }
+
+  if (pathname === "/api/admin/dentweb/jobs/next" && request.method === "GET") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+
+    try {
+      const now = new Date();
+      const staleBefore = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
+      let record = null;
+      const collection = await getInboxCollection();
+      if (collection) {
+        record = await collection.findOneAndUpdate(
+          {
+            source: { $ne: "dentweb" },
+            $or: [
+              { dentwebSyncStatus: "pending" },
+              { dentwebSyncStatus: "processing", dentwebProcessingAt: { $lt: staleBefore } },
+            ],
+          },
+          { $set: { dentwebSyncStatus: "processing", dentwebProcessingAt: now.toISOString(), dentwebSyncUpdatedAt: now.toISOString(), dentwebSyncError: null } },
+          { sort: { dentwebQueuedAt: 1, createdAt: 1 }, returnDocument: "after", projection: { _id: 0 } },
+        );
+      } else {
+        const inbox = await readInbox();
+        const index = inbox.findIndex((item) => item.source !== "dentweb" && (
+          item.dentwebSyncStatus === "pending"
+          || (item.dentwebSyncStatus === "processing" && String(item.dentwebProcessingAt || "") < staleBefore)
+        ));
+        if (index >= 0) {
+          inbox[index] = {
+            ...inbox[index],
+            dentwebSyncStatus: "processing",
+            dentwebProcessingAt: now.toISOString(),
+            dentwebSyncUpdatedAt: now.toISOString(),
+            dentwebSyncError: null,
+          };
+          record = inbox[index];
+          await mkdir(dataDir, { recursive: true });
+          await writeFile(inboxPath, JSON.stringify(inbox, null, 2), "utf-8");
+        }
+      }
+
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({
+        ok: true,
+        job: record ? {
+          id: record.id,
+          date: record.date,
+          time: record.time,
+          name: record.name,
+          phone: record.phone,
+          concerns: record.concerns,
+        } : null,
+      }));
+    } catch (error) {
+      console.error("Failed to claim Dentweb job", error);
+      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Failed to claim Dentweb job" }));
     }
     return;
   }

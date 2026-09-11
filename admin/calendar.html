@@ -1540,37 +1540,18 @@
         }
 
         const name = extractNameFromRecord(reservation);
-        if (!name || !reservation.date || !reservation.time) {
-          alert("A patient name, date, and time are required before adding to Dentweb.");
+        const phone = extractPhoneFromRecord(reservation);
+        if (!name || !phone || !reservation.date || !reservation.time) {
+          alert("Patient name, phone, date, and time are required before adding to Dentweb.");
           return;
         }
 
         try {
-          const controller = await dentwebExtensionRequest("status");
-          if (!controller.connected) throw new Error("Open Chrome Remote Desktop with Dentweb visible first.");
+          await markDentwebSyncStatus(id, "pending");
+          flashStatus("Queued for Dentweb. The clinic PC will add it automatically.", 4200);
         } catch (error) {
-          alert(error instanceof Error ? error.message : "Dentweb Controller is not available.");
-          return;
+          alert(error instanceof Error ? error.message : "Could not queue the Dentweb reservation.");
         }
-
-        dentwebTargetReservationId = String(id);
-        dentwebControlHistory = [];
-        pcAiMessages.innerHTML = "";
-        pcAiAuto.checked = true;
-        openPcAi();
-        appendPcAiMessage("user", `${reservation.date} ${reservation.time} · ${name}`);
-        await markDentwebSyncStatus(id, "pending");
-
-        const context = {
-          workflow: "create_appointment",
-          reservationId: String(id),
-          date: reservation.date,
-          time: reservation.time,
-          name,
-          phone: extractPhoneFromRecord(reservation),
-          concerns: String(reservation.concerns || "").trim(),
-        };
-        await sendPcAiChat("이 웹 예약 한 건만 덴트웹 예약으로 등록해줘.", context);
       }
 
       function pushUndo(action) {
@@ -2187,7 +2168,7 @@
               <p class="detail-concerns">${escHtml(concerns)}</p>
             </div>
             <div class="detail-actions">
-              ${String(r.source || "").toLowerCase() === "dentweb" ? "" : `<button class="detail-action dentweb" type="button" onclick="addReservationToDentweb('${escHtml(r.id)}')" ${dentwebStatus === "completed" ? "disabled" : ""}>${dentwebStatus === "completed" ? "Added to Dentweb" : dentwebStatus === "pending" ? "Continue Dentweb" : dentwebStatus === "failed" ? "Retry Dentweb" : "Add to Dentweb"}</button>`}
+              ${String(r.source || "").toLowerCase() === "dentweb" ? "" : `<button class="detail-action dentweb" type="button" onclick="addReservationToDentweb('${escHtml(r.id)}')" ${dentwebStatus === "completed" || dentwebStatus === "pending" || dentwebStatus === "processing" ? "disabled" : ""}>${dentwebStatus === "completed" ? "Added to Dentweb" : dentwebStatus === "pending" ? "Queued for Dentweb" : dentwebStatus === "processing" ? "Adding to Dentweb" : dentwebStatus === "failed" ? "Retry Dentweb" : "Add to Dentweb"}</button>`}
               <button class="detail-action" type="button" onclick="openEditModal('${escHtml(r.id)}')">Edit</button>
               <button class="detail-action delete" type="button" onclick="deleteReservation('${escHtml(r.id)}', '${escHtml(dateKey)}')">Delete</button>
             </div>
