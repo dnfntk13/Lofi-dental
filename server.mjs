@@ -4556,6 +4556,7 @@ createServer(async (request, response) => {
         time,
         email,
         name: email,
+        phone: "01012341234",
         concerns,
         createdAt: new Date().toISOString(),
       };
@@ -5686,7 +5687,8 @@ createServer(async (request, response) => {
         const existingEmail = String(existing?.email || "").trim();
         const dentwebIdentityUpdated = Number(existing?.dentwebReservationId) > 0 && (
           ((!existingName || existingName === existingEmail) && Boolean(name) && name !== existingName)
-          || (!String(existing?.phone || "").trim() && Boolean(phone))
+          || (["", "01012341234"].includes(String(existing?.phone || "").replace(/[^0-9]/g, ""))
+            && Boolean(phone) && phone.replace(/[^0-9]/g, "") !== "01012341234")
         );
         if (dentwebIdentityUpdated) {
           merged = {
@@ -5723,7 +5725,8 @@ createServer(async (request, response) => {
         const existingEmail = String(existing.email || "").trim();
         const dentwebIdentityUpdated = Number(existing.dentwebReservationId) > 0 && (
           ((!existingName || existingName === existingEmail) && Boolean(name) && name !== existingName)
-          || (!String(existing.phone || "").trim() && Boolean(phone))
+          || (["", "01012341234"].includes(String(existing.phone || "").replace(/[^0-9]/g, ""))
+            && Boolean(phone) && phone.replace(/[^0-9]/g, "") !== "01012341234")
         );
         if (dentwebIdentityUpdated) {
           merged = {
