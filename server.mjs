@@ -5615,6 +5615,7 @@ createServer(async (request, response) => {
           name: String(record.name || "").trim() || String(record.email || "").trim(),
           phone: String(record.phone || "").trim() || "01012341234",
           concerns: record.concerns,
+          dentwebReservationId: record.dentwebReservationId,
         } : null,
       }));
     } catch (error) {
@@ -5674,12 +5675,26 @@ createServer(async (request, response) => {
       const collection = await getInboxCollection();
       if (collection) {
         const existing = await collection.findOne({ id }, { projection: { _id: 0 } });
-        const merged = {
+        let merged = {
           ...(existing || {}),
           ...nextRecord,
           id,
           createdAt: existing?.createdAt || nextRecord.createdAt,
         };
+        const dentwebIdentityUpdated = Number(existing?.dentwebReservationId) > 0 && (
+          (!String(existing?.name || "").trim() && Boolean(name))
+          || (!String(existing?.phone || "").trim() && Boolean(phone))
+        );
+        if (dentwebIdentityUpdated) {
+          merged = {
+            ...merged,
+            dentwebSyncStatus: "pending",
+            dentwebQueuedAt: nextRecord.updatedAt,
+            dentwebProcessingAt: null,
+            dentwebSyncedAt: null,
+            dentwebSyncError: null,
+          };
+        }
         await collection.replaceOne({ id }, merged, { upsert: true });
         try {
           await saveOrUpdatePatient(merged, { name: merged.name || null, phone: merged.phone || null });
@@ -5695,12 +5710,27 @@ createServer(async (request, response) => {
       const idx = inbox.findIndex((r) => r.id === id);
       if (idx >= 0) {
         const existing = inbox[idx] || {};
-        inbox[idx] = {
+        let merged = {
           ...existing,
           ...nextRecord,
           id,
           createdAt: existing.createdAt || nextRecord.createdAt,
         };
+        const dentwebIdentityUpdated = Number(existing.dentwebReservationId) > 0 && (
+          (!String(existing.name || "").trim() && Boolean(name))
+          || (!String(existing.phone || "").trim() && Boolean(phone))
+        );
+        if (dentwebIdentityUpdated) {
+          merged = {
+            ...merged,
+            dentwebSyncStatus: "pending",
+            dentwebQueuedAt: nextRecord.updatedAt,
+            dentwebProcessingAt: null,
+            dentwebSyncedAt: null,
+            dentwebSyncError: null,
+          };
+        }
+        inbox[idx] = merged;
       } else {
         inbox.unshift(nextRecord);
       }

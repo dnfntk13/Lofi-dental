@@ -1125,6 +1125,10 @@
           <input class="edit-input" id="editName" type="text" placeholder="Patient name" />
         </div>
         <div class="edit-field">
+          <label class="edit-label" for="editPhone">Phone</label>
+          <input class="edit-input" id="editPhone" type="tel" placeholder="Patient phone" />
+        </div>
+        <div class="edit-field">
           <label class="edit-label" for="editTime">Time</label>
           <input class="edit-input" id="editTime" type="text" placeholder="e.g. 3:30 PM" />
         </div>
@@ -1280,6 +1284,7 @@
       const emptyCellMenu = document.getElementById("emptyCellMenu");
       const editOverlay = document.getElementById("editOverlay");
       const editName = document.getElementById("editName");
+      const editPhone = document.getElementById("editPhone");
       const editTime = document.getElementById("editTime");
       const createOverlay = document.getElementById("createOverlay");
       const createDate = document.getElementById("createDate");
@@ -2237,6 +2242,7 @@
         }
         editingReservationId = id;
         editName.value = extractNameFromRecord(reservation);
+        editPhone.value = extractPhoneFromRecord(reservation);
         editTime.value = String(reservation.time || "");
         editOverlay.classList.add("open");
         editName.focus();
@@ -2256,6 +2262,7 @@
         }
 
         const nextName = String(editName.value || "").trim();
+        const nextPhone = String(editPhone.value || "").trim();
         const nextTime = String(editTime.value || "").trim();
         if (!nextTime) {
           alert("Please enter time.");
@@ -2274,6 +2281,7 @@
         const updated = {
           ...current,
           name: nextName,
+          phone: nextPhone,
           time: nextTime,
           concerns,
           updatedAt: new Date().toISOString(),
