@@ -120,8 +120,16 @@ async function createDentwebReservation(job) {
 $ErrorActionPreference = 'Stop'
 $job = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:DENTWEB_JOB_BASE64)) | ConvertFrom-Json
 $date = [string]$job.date
-$time = [string]$job.time
-if ($date -notmatch '^\\d{4}-\\d{2}-\\d{2}$' -or $time -notmatch '^\\d{2}:\\d{2}$') { throw 'Invalid reservation date or time' }
+$time = ([string]$job.time).Trim()
+if ($date -notmatch '^\\d{4}-\\d{2}-\\d{2}$') { throw 'Invalid reservation date or time' }
+if ($time -match '^(?<hour>\\d{1,2}):(?<minute>\\d{2})\\s*(?<period>AM|PM)$') {
+  $hour = [int]$matches['hour']
+  if ($hour -lt 1 -or $hour -gt 12) { throw 'Invalid reservation date or time' }
+  if ($matches['period'] -eq 'AM') { if ($hour -eq 12) { $hour = 0 } }
+  elseif ($hour -ne 12) { $hour += 12 }
+  $time = '{0:D2}:{1}' -f $hour, $matches['minute']
+}
+if ($time -notmatch '^\\d{2}:\\d{2}$') { throw 'Invalid reservation date or time' }
 $appointmentAt = ($date -replace '-', '') + ($time -replace ':', '')
 $name = ([string]$job.name).Trim()
 $phoneDigits = ([string]$job.phone) -replace '[^0-9]', ''
@@ -149,10 +157,12 @@ BEGIN
   RETURN;
 END;
 
-DECLARE @duration tinyint, @appointmentType tinyint, @textColor int, @backgroundColor int;
+DECLARE @duration tinyint, @appointmentType tinyint, @doctor int, @staff int, @textColor int, @backgroundColor int;
 SELECT TOP (1)
   @duration = n소요시간,
   @appointmentType = n예약종류,
+  @doctor = n담당의사,
+  @staff = n담당직원,
   @textColor = n글자색,
   @backgroundColor = n배경색
 FROM dbo.TB_예약목록
@@ -173,7 +183,7 @@ INSERT INTO dbo.TB_예약목록 (
   t최종수정, sz이름, sz전화
 ) VALUES (
   @appointmentAt, @createdAt, @patientId, @duration, @appointmentType, 0,
-  0, 0, 0, 0, '', 0,
+  @doctor, @staff, 0, 0, '', 0,
   @textColor, @backgroundColor, @memo, 0, NULL, '', '',
   GETDATE(), @name, @phone
 );
