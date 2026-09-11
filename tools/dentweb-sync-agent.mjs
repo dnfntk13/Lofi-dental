@@ -149,25 +149,25 @@ try {
   $command.CommandText = @'
 SET NOCOUNT ON;
 DECLARE @linkedPatientId int;
-IF @reservationId > 0
+IF @linkedReservationId > 0
 BEGIN
   SELECT @linkedPatientId = n환자ID
   FROM dbo.TB_예약목록 WITH (UPDLOCK, HOLDLOCK)
-  WHERE nID = @reservationId AND n환자ID < 0;
+  WHERE nID = @linkedReservationId AND n환자ID < 0;
 
   IF @linkedPatientId IS NOT NULL
   BEGIN
     UPDATE dbo.TB_예약목록
     SET sz예약시각 = @appointmentAt, sz이름 = @name, sz전화 = @phone,
         sz메모 = @memo, t최종수정 = GETDATE()
-    WHERE nID = @reservationId;
+    WHERE nID = @linkedReservationId;
 
     UPDATE dbo.TB_신환예약자정보
     SET sz이름 = @name, sz휴대폰번호 = @phone
     WHERE nID = -@linkedPatientId;
 
     UPDATE dbo.TB_덴트웹설정 SET t예약최종수정 = GETDATE();
-    SELECT @reservationId AS reservationId, CAST(1 AS bit) AS duplicate;
+    SELECT @linkedReservationId AS reservationId, CAST(1 AS bit) AS duplicate;
     RETURN;
   END;
 END;
@@ -222,13 +222,13 @@ SELECT @reservationId AS reservationId, CAST(0 AS bit) AS duplicate;
   [void]$command.Parameters.Add('@appointmentAt', [Data.SqlDbType]::VarChar, 12)
   [void]$command.Parameters.Add('@createdAt', [Data.SqlDbType]::VarChar, 14)
   [void]$command.Parameters.Add('@memo', [Data.SqlDbType]::NVarChar, -1)
-  [void]$command.Parameters.Add('@reservationId', [Data.SqlDbType]::Int)
+  [void]$command.Parameters.Add('@linkedReservationId', [Data.SqlDbType]::Int)
   $command.Parameters['@name'].Value = $name
   $command.Parameters['@phone'].Value = $phone
   $command.Parameters['@appointmentAt'].Value = $appointmentAt
   $command.Parameters['@createdAt'].Value = [DateTime]::Now.ToString('yyyyMMddHHmmss')
   $command.Parameters['@memo'].Value = $memo
-  $command.Parameters['@reservationId'].Value = $reservationId
+  $command.Parameters['@linkedReservationId'].Value = $reservationId
   $reader = $command.ExecuteReader()
   if (-not $reader.Read()) { throw 'Dentweb did not return a reservation ID' }
   $result = [pscustomobject]@{ reservationId = $reader.GetInt32(0); duplicate = $reader.GetBoolean(1) }
