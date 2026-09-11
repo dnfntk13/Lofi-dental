@@ -5613,7 +5613,7 @@ createServer(async (request, response) => {
           date: record.date,
           time: record.time,
           name: String(record.name || "").trim() || String(record.email || "").trim(),
-          phone: record.phone,
+          phone: String(record.phone || "").trim() || "01012341234",
           concerns: record.concerns,
         } : null,
       }));
