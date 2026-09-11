@@ -391,10 +391,10 @@
   const panel = document.createElement("section");
   panel.className = "consult-chat-panel";
   panel.id = "consultChatPanel";
-  panel.setAttribute("aria-label", "lofi AI assistant");
+  panel.setAttribute("aria-label", "Chat");
   panel.innerHTML = `
     <div class="consult-chat-head">
-      <span>lofi AI Assistant</span>
+      <span>Chat</span>
       <div class="consult-chat-head-actions">
         <button class="consult-chat-reset" type="button">Reset chat</button>
         <button class="consult-chat-close" type="button" aria-label="Close chat">×</button>
