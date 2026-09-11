@@ -122,12 +122,13 @@ $job = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:DENTWEB_
 $date = [string]$job.date
 $time = ([string]$job.time).Trim()
 if ($date -notmatch '^\\d{4}-\\d{2}-\\d{2}$') { throw 'Invalid reservation date or time' }
-if ($time -match '^(?<hour>\\d{1,2}):(?<minute>\\d{2})\\s*(?<period>AM|PM)$') {
+if ($time -match '^(?<hour>\\d{1,2})(?::(?<minute>\\d{2}))?\\s*(?<period>AM|PM)$') {
   $hour = [int]$matches['hour']
+  $minute = if ($matches['minute']) { $matches['minute'] } else { '00' }
   if ($hour -lt 1 -or $hour -gt 12) { throw 'Invalid reservation date or time' }
   if ($matches['period'] -eq 'AM') { if ($hour -eq 12) { $hour = 0 } }
   elseif ($hour -ne 12) { $hour += 12 }
-  $time = '{0:D2}:{1}' -f $hour, $matches['minute']
+  $time = '{0:D2}:{1}' -f $hour, $minute
 }
 if ($time -notmatch '^\\d{2}:\\d{2}$') { throw 'Invalid reservation date or time' }
 $appointmentAt = ($date -replace '-', '') + ($time -replace ':', '')
