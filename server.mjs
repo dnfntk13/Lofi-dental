@@ -4555,6 +4555,7 @@ createServer(async (request, response) => {
         date,
         time,
         email,
+        name: email,
         concerns,
         createdAt: new Date().toISOString(),
       };
@@ -5681,8 +5682,10 @@ createServer(async (request, response) => {
           id,
           createdAt: existing?.createdAt || nextRecord.createdAt,
         };
+        const existingName = String(existing?.name || "").trim();
+        const existingEmail = String(existing?.email || "").trim();
         const dentwebIdentityUpdated = Number(existing?.dentwebReservationId) > 0 && (
-          (!String(existing?.name || "").trim() && Boolean(name))
+          ((!existingName || existingName === existingEmail) && Boolean(name) && name !== existingName)
           || (!String(existing?.phone || "").trim() && Boolean(phone))
         );
         if (dentwebIdentityUpdated) {
@@ -5716,8 +5719,10 @@ createServer(async (request, response) => {
           id,
           createdAt: existing.createdAt || nextRecord.createdAt,
         };
+        const existingName = String(existing.name || "").trim();
+        const existingEmail = String(existing.email || "").trim();
         const dentwebIdentityUpdated = Number(existing.dentwebReservationId) > 0 && (
-          (!String(existing.name || "").trim() && Boolean(name))
+          ((!existingName || existingName === existingEmail) && Boolean(name) && name !== existingName)
           || (!String(existing.phone || "").trim() && Boolean(phone))
         );
         if (dentwebIdentityUpdated) {

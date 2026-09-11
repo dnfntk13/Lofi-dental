@@ -2173,7 +2173,7 @@
         );
 
         detailList.innerHTML = events.map((r) => {
-          const patientName = extractNameFromRecord(r) || "Name unknown";
+          const patientName = extractNameFromRecord(r) || String(r.email || "").trim() || "Name unknown";
           const email = String(r.email || "").trim();
           const phone = extractPhoneFromRecord(r);
           const visitingFrom = String(r.visitingFrom || "").trim();
