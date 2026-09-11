@@ -1,6 +1,6 @@
-# Lofi Dentweb Browser Controller
+# Lofi Dentweb Appointment Controller
 
-This Chrome extension lets the Lofi admin calendar inspect and send reviewed Browser AI input actions to Dentweb running inside Chrome Remote Desktop. It captures the Remote Desktop tab directly, so browser screen sharing is not required.
+This Chrome extension adds a selected web reservation to Dentweb through a Chrome Remote Desktop tab. It is a one-way workflow from the Lofi admin calendar to Dentweb; it does not synchronize the Dentweb schedule back to the website.
 
 ## Install
 
@@ -9,8 +9,10 @@ This Chrome extension lets the Lofi admin calendar inspect and send reviewed Bro
 3. Click **Load unpacked**.
 4. Select `chrome-extension/dentweb-browser-controller`.
 5. Keep Chrome Remote Desktop open in a separate tab with Dentweb visible.
-6. Open the Lofi admin calendar and use **Browser AI**.
+6. Open the Lofi admin calendar and select a reservation.
+7. Click **Add to Dentweb**.
+8. Keep the Remote Desktop tab visible until the calendar reports **Added to Dentweb**.
 
-To load a reservation list for a specific period, choose **From** and **To** in the Browser AI panel and click **Load reservation range**. Browser AI opens Dentweb reservation search, selects `특정기간`, replaces both dates, runs the search, and stops when the result list is visible.
+Before saving, the controller checks the visible Dentweb schedule for the same date, time, and patient name. Reservations marked **Added to Dentweb** cannot be submitted again from the calendar.
 
 Chrome displays a debugging notice while the extension is attached to the Remote Desktop tab. This is expected. The extension restricts input to `remotedesktop.google.com` tabs and accepts commands only from a Lofi admin page.

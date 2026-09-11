@@ -601,7 +601,22 @@ function normalizeDentwebControlAction(value) {
 }
 
 function normalizeDentwebControlContext(value) {
-  if (String(value?.workflow || "") !== "reservation_range_search") return null;
+  const workflow = String(value?.workflow || "");
+  if (workflow === "create_appointment") {
+    const reservationId = String(value?.reservationId || "").trim().slice(0, 120);
+    const date = normalizeReservationDate(value?.date);
+    const time = normalizeReservationTime(value?.time);
+    const name = String(value?.name || "").trim().slice(0, 80);
+    const phone = String(value?.phone || "").trim().slice(0, 30);
+    const concerns = String(value?.concerns || "").trim().slice(0, 500);
+    if (!reservationId || !date || !time || !name) {
+      const error = new Error("Reservation id, date, time, and patient name are required");
+      error.statusCode = 400;
+      throw error;
+    }
+    return { workflow, reservationId, date, time, name, phone, concerns };
+  }
+  if (workflow !== "reservation_range_search") return null;
   const startDate = normalizeReservationDate(value?.startDate);
   const endDate = normalizeReservationDate(value?.endDate);
   if (!startDate || !endDate) {
@@ -667,6 +682,16 @@ async function planDentwebBrowserControlStep({ imageDataUrl, screenshotWidth, sc
         "Do not mark the task complete until the reservation result list is visibly loaded for the requested range.",
       ].join(" ")
     : "";
+  const createAppointmentWorkflow = controlContext?.workflow === "create_appointment"
+    ? [
+        `Structured workflow: Create exactly one Dentweb appointment for ${controlContext.date} at ${controlContext.time}.`,
+        `Patient name: ${controlContext.name}. Phone: ${controlContext.phone || "not provided"}. Memo: ${controlContext.concerns || "Web reservation"}.`,
+        "Open the Dentweb appointment creation screen for the exact date and time, then enter only the structured patient details above.",
+        "Before creating it, check the visible schedule for an appointment with the same date, time, and patient name. If it already exists, do not create a duplicate and mark the task complete.",
+        "Do not modify or delete any other appointment. Save only this new appointment.",
+        "Do not mark the task complete until the appointment is visibly saved in Dentweb or the matching existing appointment is visibly confirmed.",
+      ].join(" ")
+    : "";
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -698,7 +723,7 @@ async function planDentwebBrowserControlStep({ imageDataUrl, screenshotWidth, sc
         {
           role: "user",
           content: [
-            { type: "text", text: `Task: ${String(task || "").slice(0, 1500)}\n${rangeWorkflow}\nStructured context: ${JSON.stringify(controlContext || null)}\nScreenshot: ${width}x${height}\nRecent executed steps: ${JSON.stringify(recentHistory)}` },
+            { type: "text", text: `Task: ${String(task || "").slice(0, 1500)}\n${rangeWorkflow}\n${createAppointmentWorkflow}\nStructured context: ${JSON.stringify(controlContext || null)}\nScreenshot: ${width}x${height}\nRecent executed steps: ${JSON.stringify(recentHistory)}` },
             { type: "image_url", image_url: { url: imageDataUrl, detail: "high" } },
           ],
         },
@@ -5467,6 +5492,62 @@ createServer(async (request, response) => {
       const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
       response.writeHead(isPayloadError ? 400 : 500, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ message: "Failed to create reservation" }));
+    }
+    return;
+  }
+
+  const dentwebSyncMatch = pathname.match(/^\/api\/admin\/reservations\/([^/]+)\/dentweb-sync$/);
+  if (dentwebSyncMatch && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    const id = decodeURIComponent(dentwebSyncMatch[1]);
+    try {
+      const payload = await getJsonBody(request);
+      const status = String(payload.status || "").trim().toLowerCase();
+      if (!new Set(["pending", "completed", "failed"]).has(status)) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "Invalid Dentweb sync status" }));
+        return;
+      }
+
+      const now = new Date().toISOString();
+      const syncFields = {
+        dentwebSyncStatus: status,
+        dentwebSyncUpdatedAt: now,
+        dentwebSyncError: status === "failed" ? String(payload.error || "Dentweb registration failed").trim().slice(0, 500) : null,
+      };
+      if (status === "completed") syncFields.dentwebSyncedAt = now;
+
+      let savedRecord = null;
+      const collection = await getInboxCollection();
+      if (collection) {
+        savedRecord = await collection.findOneAndUpdate(
+          { id },
+          { $set: syncFields },
+          { returnDocument: "after", projection: { _id: 0 } },
+        );
+      } else {
+        const inbox = await readInbox();
+        const index = inbox.findIndex((record) => String(record.id) === id);
+        if (index >= 0) {
+          inbox[index] = { ...inbox[index], ...syncFields };
+          savedRecord = inbox[index];
+          await mkdir(dataDir, { recursive: true });
+          await writeFile(inboxPath, JSON.stringify(inbox, null, 2), "utf-8");
+        }
+      }
+
+      if (!savedRecord) {
+        response.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "Reservation not found" }));
+        return;
+      }
+
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ ok: true, record: savedRecord }));
+    } catch (error) {
+      console.error("Failed to update Dentweb sync status", error);
+      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Failed to update Dentweb sync status" }));
     }
     return;
   }

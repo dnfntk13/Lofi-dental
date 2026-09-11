@@ -458,6 +458,21 @@
 
       .detail-action:hover { background: var(--accent-light); }
 
+      .detail-action.dentweb {
+        border-color: #7b66c6;
+        background: #6f5cc4;
+        color: #ffffff;
+      }
+
+      .detail-action.dentweb:hover { background: #5947ad; }
+
+      .detail-action.dentweb:disabled {
+        border-color: #d4cdef;
+        background: #eeeafa;
+        color: #7968bb;
+        cursor: default;
+      }
+
       .detail-action.delete {
         border-color: #f5c6c6;
         background: #fff5f5;
@@ -1041,8 +1056,6 @@
           <button class="cal-nav-btn" id="nextBtn" aria-label="Next month">&#8250;</button>
           <button class="btn-today" id="todayBtn">Today</button>
           <button class="btn-today btn-undo" id="undoBtn" disabled>Undo</button>
-          <button class="btn-today btn-sync" id="dentwebSyncBtn" type="button">Control Dentweb</button>
-          <button class="btn-today" id="pcAiBtn" type="button">Browser AI</button>
         </div>
       </div>
 
@@ -1159,29 +1172,16 @@
     <div class="edit-overlay" id="pcAiOverlay" role="dialog" aria-modal="true" aria-labelledby="pcAiTitle">
       <div class="pc-ai-panel">
         <div class="pc-ai-head">
-          <h3 class="pc-ai-title" id="pcAiTitle">Dentweb Browser AI</h3>
+          <h3 class="pc-ai-title" id="pcAiTitle">Add to Dentweb</h3>
           <button class="pc-ai-close" id="pcAiClose" type="button" aria-label="Close">&#x2715;</button>
         </div>
         <div class="pc-ai-messages" id="pcAiMessages"></div>
-        <form class="pc-ai-form" id="pcAiForm">
-          <div class="dentweb-range">
-            <div class="dentweb-range-field">
-              <label for="dentwebRangeStart">From</label>
-              <input id="dentwebRangeStart" type="date" required />
-            </div>
-            <div class="dentweb-range-field">
-              <label for="dentwebRangeEnd">To</label>
-              <input id="dentwebRangeEnd" type="date" required />
-            </div>
-            <button class="btn-small primary" id="dentwebRangeRun" type="button">Load reservation range</button>
-          </div>
-          <textarea class="pc-ai-input" id="pcAiInput" placeholder="예: 8월 20일 예약 화면을 열어줘."></textarea>
+        <div class="pc-ai-form">
           <div class="pc-ai-actions">
             <button class="btn-small" id="pcAiShare" type="button">Check controller</button>
-            <label class="pc-ai-toggle"><input id="pcAiAuto" type="checkbox" /> Auto-run (max 12 steps)</label>
-            <button class="pc-ai-send" id="pcAiSend" type="submit">Start task</button>
+            <label class="pc-ai-toggle" style="display:none"><input id="pcAiAuto" type="checkbox" checked /> Auto-run</label>
           </div>
-        </form>
+        </div>
       </div>
     </div>
 
@@ -1291,27 +1291,15 @@
       const calWrap = document.getElementById("calWrap");
       const selectionBox = document.getElementById("selectionBox");
       const undoBtn = document.getElementById("undoBtn");
-      const dentwebSyncBtn = document.getElementById("dentwebSyncBtn");
-      const pcAiBtn = document.getElementById("pcAiBtn");
       const pcAiOverlay = document.getElementById("pcAiOverlay");
       const pcAiClose = document.getElementById("pcAiClose");
       const pcAiMessages = document.getElementById("pcAiMessages");
-      const pcAiForm = document.getElementById("pcAiForm");
-      const pcAiInput = document.getElementById("pcAiInput");
       const pcAiShare = document.getElementById("pcAiShare");
       const pcAiAuto = document.getElementById("pcAiAuto");
-      const pcAiSend = document.getElementById("pcAiSend");
-      const dentwebRangeStart = document.getElementById("dentwebRangeStart");
-      const dentwebRangeEnd = document.getElementById("dentwebRangeEnd");
-      const dentwebRangeRun = document.getElementById("dentwebRangeRun");
       const instagramStatus = document.getElementById("instagramStatus");
       const instagramOpen = document.getElementById("instagramOpen");
 
       const today = new Date();
-      const defaultDentwebRangeEnd = new Date(today);
-      defaultDentwebRangeEnd.setDate(defaultDentwebRangeEnd.getDate() + 7);
-      dentwebRangeStart.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-      dentwebRangeEnd.value = `${defaultDentwebRangeEnd.getFullYear()}-${String(defaultDentwebRangeEnd.getMonth() + 1).padStart(2, "0")}-${String(defaultDentwebRangeEnd.getDate()).padStart(2, "0")}`;
       let viewYear = today.getFullYear();
       let viewMonth = today.getMonth();
       let allReservations = [];
@@ -1324,6 +1312,7 @@
       let dentwebControlTask = "";
       let dentwebControlHistory = [];
       let dentwebControlRunning = false;
+      let dentwebTargetReservationId = null;
       const undoStack = [];
       const maxUndoStack = 30;
       const selectedReservationIds = new Set();
@@ -1364,28 +1353,8 @@
         instagramStatus.textContent = "Instagram opened. Log in there with any Instagram account.";
       }
 
-      async function syncWithDentweb() {
-        openPcAi();
-        try {
-          const status = await dentwebExtensionRequest("status");
-          appendPcAiMessage(
-            status.connected ? "assistant" : "assistant error",
-            status.connected
-              ? `Controller connected to: ${status.tab?.title || "Chrome Remote Desktop"}. Enter a Dentweb task below.`
-              : "Dentweb Controller extension is installed, but no Chrome Remote Desktop tab is open.",
-          );
-        } catch (error) {
-          appendPcAiMessage("assistant error", "Install or reload the Lofi Dentweb Browser Controller extension, then reload this page.");
-        }
-      }
-
       function openPcAi() {
         pcAiOverlay.classList.add("open");
-        if (!pcAiConversation.length) {
-          appendPcAiMessage("assistant", "Keep Dentweb visible in a Chrome Remote Desktop tab. Browser AI will inspect that tab and operate Dentweb one step at a time. Auto-run is off by default.");
-          pcAiConversation.push({ role: "assistant", content: "ready" });
-        }
-        pcAiInput.focus();
       }
 
       function closePcAi() {
@@ -1474,7 +1443,6 @@
       async function planDentwebControlStep(task, controlContext = null, autoStep = 0) {
         if (dentwebControlRunning) return;
         dentwebControlRunning = true;
-        pcAiSend.disabled = true;
         const pending = appendPcAiMessage("assistant", "Capturing the shared Chrome Remote Desktop tab...");
 
         try {
@@ -1523,14 +1491,18 @@
             });
             pending.appendChild(runButton);
           }
-          if (data.taskComplete || action.type === "done") flashStatus("Dentweb Browser AI task complete.", 4200);
+          if (data.taskComplete) {
+            await markDentwebSyncStatus(dentwebTargetReservationId, "completed");
+            pending.textContent = "Reservation added to Dentweb.";
+            flashStatus("Reservation added to Dentweb.", 4200);
+          }
         } catch (error) {
           const message = error instanceof Error ? error.message : "Dentweb Browser AI failed.";
           pending.className = "pc-ai-bubble assistant error";
           pending.textContent = message;
+          if (dentwebTargetReservationId) await markDentwebSyncStatus(dentwebTargetReservationId, "failed", message).catch(() => {});
         } finally {
           dentwebControlRunning = false;
-          pcAiSend.disabled = false;
         }
       }
 
@@ -1539,6 +1511,66 @@
         dentwebControlHistory = [];
         appendPcAiMessage("user", message);
         await planDentwebControlStep(message, controlContext, 0);
+      }
+
+      async function markDentwebSyncStatus(id, status, error = "") {
+        if (!id) return null;
+        const response = await fetch(`/api/admin/reservations/${encodeURIComponent(id)}/dentweb-sync`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status, error }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || "Could not save Dentweb status.");
+        const index = allReservations.findIndex((record) => String(record.id) === String(id));
+        if (index >= 0 && data.record) allReservations[index] = data.record;
+        if (currentDetailDateKey) renderDetailList(currentDetailDateKey);
+        return data.record;
+      }
+
+      async function addReservationToDentweb(id) {
+        const reservation = getReservationById(id);
+        if (!reservation) {
+          alert("Reservation not found.");
+          return;
+        }
+        if (reservation.dentwebSyncStatus === "completed") {
+          flashStatus("This reservation is already in Dentweb.", 3200);
+          return;
+        }
+
+        const name = extractNameFromRecord(reservation);
+        if (!name || !reservation.date || !reservation.time) {
+          alert("A patient name, date, and time are required before adding to Dentweb.");
+          return;
+        }
+
+        try {
+          const controller = await dentwebExtensionRequest("status");
+          if (!controller.connected) throw new Error("Open Chrome Remote Desktop with Dentweb visible first.");
+        } catch (error) {
+          alert(error instanceof Error ? error.message : "Dentweb Controller is not available.");
+          return;
+        }
+
+        dentwebTargetReservationId = String(id);
+        dentwebControlHistory = [];
+        pcAiMessages.innerHTML = "";
+        pcAiAuto.checked = true;
+        openPcAi();
+        appendPcAiMessage("user", `${reservation.date} ${reservation.time} · ${name}`);
+        await markDentwebSyncStatus(id, "pending");
+
+        const context = {
+          workflow: "create_appointment",
+          reservationId: String(id),
+          date: reservation.date,
+          time: reservation.time,
+          name,
+          phone: extractPhoneFromRecord(reservation),
+          concerns: String(reservation.concerns || "").trim(),
+        };
+        await sendPcAiChat("이 웹 예약 한 건만 덴트웹 예약으로 등록해줘.", context);
       }
 
       function pushUndo(action) {
@@ -2134,6 +2166,7 @@
           const received = fmtReceived(r.createdAt || r.updatedAt || "");
           const source = formatSourceLabel(r);
           const concerns = String(r.concerns || "No concerns recorded.").trim();
+          const dentwebStatus = String(r.dentwebSyncStatus || "");
           const metaHtml = [
             detailMeta("Email", email),
             detailMeta("Phone", phone),
@@ -2154,6 +2187,7 @@
               <p class="detail-concerns">${escHtml(concerns)}</p>
             </div>
             <div class="detail-actions">
+              ${String(r.source || "").toLowerCase() === "dentweb" ? "" : `<button class="detail-action dentweb" type="button" onclick="addReservationToDentweb('${escHtml(r.id)}')" ${dentwebStatus === "completed" ? "disabled" : ""}>${dentwebStatus === "completed" ? "Added to Dentweb" : dentwebStatus === "pending" ? "Continue Dentweb" : dentwebStatus === "failed" ? "Retry Dentweb" : "Add to Dentweb"}</button>`}
               <button class="detail-action" type="button" onclick="openEditModal('${escHtml(r.id)}')">Edit</button>
               <button class="detail-action delete" type="button" onclick="deleteReservation('${escHtml(r.id)}', '${escHtml(dateKey)}')">Delete</button>
             </div>
@@ -2556,8 +2590,6 @@
         renderCalendar();
       });
 
-      dentwebSyncBtn.addEventListener("click", syncWithDentweb);
-      pcAiBtn.addEventListener("click", openPcAi);
       pcAiShare.addEventListener("click", async () => {
         try {
           const status = await dentwebExtensionRequest("status");
@@ -2571,35 +2603,9 @@
           appendPcAiMessage("assistant error", error instanceof Error ? error.message : "Could not share the browser tab.");
         }
       });
-      dentwebRangeRun.addEventListener("click", async () => {
-        const startDate = dentwebRangeStart.value;
-        const endDate = dentwebRangeEnd.value;
-        if (!startDate || !endDate) {
-          appendPcAiMessage("assistant error", "Choose both From and To dates.");
-          return;
-        }
-        if (endDate < startDate) {
-          appendPcAiMessage("assistant error", "The To date must be on or after the From date.");
-          return;
-        }
-        const rangeDays = Math.round((new Date(`${endDate}T00:00:00Z`) - new Date(`${startDate}T00:00:00Z`)) / 86400000);
-        if (rangeDays > 366) {
-          appendPcAiMessage("assistant error", "Choose a reservation range of 366 days or less.");
-          return;
-        }
-        const message = `덴트웹 예약 검색에서 특정기간을 선택하고 ${startDate}부터 ${endDate}까지 예약 목록을 불러와줘.`;
-        await sendPcAiChat(message, { workflow: "reservation_range_search", startDate, endDate });
-      });
       pcAiClose.addEventListener("click", closePcAi);
       pcAiOverlay.addEventListener("click", (e) => {
         if (e.target === e.currentTarget) closePcAi();
-      });
-      pcAiForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const message = pcAiInput.value.trim();
-        if (!message) return;
-        pcAiInput.value = "";
-        await sendPcAiChat(message);
       });
       instagramOpen.addEventListener("click", openInstagramWindow);
 
