@@ -1564,14 +1564,16 @@
           return;
         }
 
-        const name = extractNameFromRecord(reservation);
-        const phone = extractPhoneFromRecord(reservation);
-        if (!name || !phone || !reservation.date || !reservation.time) {
-          alert("Patient name, phone, date, and time are required before adding to Dentweb.");
+        const name = extractNameFromRecord(reservation) || String(reservation.email || "").trim();
+        const phone = extractPhoneFromRecord(reservation) || "01012341234";
+        if (!name || !reservation.date || !reservation.time) {
+          alert("Patient email or name, date, and time are required before adding to Dentweb.");
           return;
         }
 
         try {
+          const normalizedReservation = await upsertReservation({ ...reservation, name, phone });
+          upsertLocalReservation(normalizedReservation);
           const agent = await startDentwebAgentIfNeeded();
           await markDentwebSyncStatus(id, "pending");
           flashStatus(
