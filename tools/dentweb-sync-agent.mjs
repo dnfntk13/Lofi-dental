@@ -57,6 +57,7 @@ const screenshotDelayMs = Number(args.get("screenshot-delay-ms") || process.env.
 const saveWaitMs = Number(args.get("save-wait-ms") || process.env.DENTWEB_SAVE_WAIT_MS || 45000);
 const saveDialogPattern = args.get("save-dialog") || process.env.DENTWEB_SAVE_DIALOG_PATTERN || "Save Print Output As|다른 이름으로 저장|인쇄 출력|저장|PDF";
 let syncInProgress = false;
+let sqlConfigurationWarningShown = false;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -209,6 +210,13 @@ SELECT @reservationId AS reservationId, CAST(0 AS bit) AS duplicate;
 
 async function processDentwebJobs() {
   if (syncInProgress) return;
+  if (!String(process.env.DENTWEB_SQL_CONNECTION_STRING || "").trim()) {
+    if (!sqlConfigurationWarningShown) {
+      console.error("Dentweb SQL queue is paused: DENTWEB_SQL_CONNECTION_STRING is not configured.");
+      sqlConfigurationWarningShown = true;
+    }
+    return;
+  }
   syncInProgress = true;
   let job = null;
   try {
@@ -1065,7 +1073,20 @@ async function startDaemon() {
 
     const url = new URL(request.url || "/", `http://127.0.0.1:${agentPort}`);
     if (url.pathname === "/health") {
-      sendJson(response, 200, { ok: true, syncInProgress, windowPattern, printButtonPattern, printDialogPattern, printConfirmPattern, printClick, pdfDir, screenshotDir, serverUrl, dryRun });
+      sendJson(response, 200, {
+        ok: true,
+        syncInProgress,
+        sqlConfigured: Boolean(String(process.env.DENTWEB_SQL_CONNECTION_STRING || "").trim()),
+        windowPattern,
+        printButtonPattern,
+        printDialogPattern,
+        printConfirmPattern,
+        printClick,
+        pdfDir,
+        screenshotDir,
+        serverUrl,
+        dryRun,
+      });
       return;
     }
 

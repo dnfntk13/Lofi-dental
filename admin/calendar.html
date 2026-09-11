@@ -1528,6 +1528,26 @@
         return data.record;
       }
 
+      async function startDentwebAgentIfNeeded() {
+        try {
+          const response = await fetch("http://127.0.0.1:5175/health", {
+            cache: "no-store",
+            signal: AbortSignal.timeout(1200),
+          });
+          if (response.ok) {
+            const health = await response.json().catch(() => ({}));
+            return { running: true, sqlConfigured: health.sqlConfigured !== false };
+          }
+        } catch {}
+
+        const launcher = document.createElement("iframe");
+        launcher.hidden = true;
+        launcher.src = "lofi-dentweb-agent://start";
+        document.body.appendChild(launcher);
+        setTimeout(() => launcher.remove(), 3000);
+        return { running: false, sqlConfigured: null };
+      }
+
       async function addReservationToDentweb(id) {
         const reservation = getReservationById(id);
         if (!reservation) {
@@ -1547,8 +1567,16 @@
         }
 
         try {
+          const agent = await startDentwebAgentIfNeeded();
           await markDentwebSyncStatus(id, "pending");
-          flashStatus("Queued for Dentweb. The clinic PC will add it automatically.", 4200);
+          flashStatus(
+            agent.running && agent.sqlConfigured
+              ? "Queued for Dentweb. The clinic PC will add it automatically."
+              : agent.running
+                ? "Dentweb agent is running, but its SQL connection is not configured."
+              : "Starting the Dentweb agent. Approve the browser prompt if it appears.",
+            5200,
+          );
         } catch (error) {
           alert(error instanceof Error ? error.message : "Could not queue the Dentweb reservation.");
         }
