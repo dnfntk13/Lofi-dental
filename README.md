@@ -87,9 +87,12 @@ To let the Calendar's `Add to Dentweb` button start the local agent automaticall
 
 ```bash
 npm run dentweb:install-launcher
+npm run dentweb:configure
 ```
 
 Chrome may show an external-application confirmation the first time `lofi-dentweb-agent://start` is opened. Approve it and select the option to remember the choice. Later clicks reuse the running agent; the launcher also prevents duplicate agent processes.
+
+`dentweb:configure` securely prompts for the SQL connection string, validates the Dentweb reservation table, and stores it for the current Windows user. The value is not printed to the terminal.
 
 The agent listens on `http://127.0.0.1:5175`. Open the Admin Calendar on the same computer and click `Sync with Dentweb` to run the print/PDF/upload sync.
 

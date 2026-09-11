@@ -14,5 +14,10 @@ $logFile = Join-Path $logDir 'dentweb-agent.log'
 $errorLogFile = Join-Path $logDir 'dentweb-agent-error.log'
 New-Item -ItemType Directory -Path $logDir -Force | Out-Null
 
+$userConnectionString = [Environment]::GetEnvironmentVariable('DENTWEB_SQL_CONNECTION_STRING', 'User')
+if ($userConnectionString) {
+  $env:DENTWEB_SQL_CONNECTION_STRING = $userConnectionString
+}
+
 $arguments = '"{0}" --daemon' -f $agent
 Start-Process -FilePath $node -ArgumentList $arguments -WorkingDirectory $projectRoot -WindowStyle Hidden -RedirectStandardOutput $logFile -RedirectStandardError $errorLogFile
