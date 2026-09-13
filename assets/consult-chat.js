@@ -30,33 +30,35 @@
       padding-bottom: 156px;
     }
 
-    .consult-chat-launch {
+    body .consult-chat-launch {
       position: fixed;
       left: 50%;
       right: auto;
-      bottom: 88px;
+      bottom: 28px;
       z-index: 21;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       width: min(360px, calc(100vw - 36px));
+      box-sizing: border-box;
+      height: 46px;
       min-height: 46px;
       padding: 0 20px;
-      border: 1px solid rgba(137, 117, 213, 0.2);
+      border: 1px solid rgba(137, 117, 213, 0.22);
       border-radius: 999px;
       background: rgba(255, 255, 255, 0.96);
       color: #3b2b78;
-      font: inherit;
-      font-weight: 700;
+      font: 700 16px "Paperlogy", "Noto Sans KR", sans-serif;
+      letter-spacing: 0;
       text-decoration: none;
       white-space: nowrap;
-      box-shadow: 0 12px 24px rgba(82, 65, 155, 0.14);
+      box-shadow: 0 12px 24px rgba(82, 65, 155, 0.12);
       cursor: pointer;
       transform: translateX(-50%);
       transition: transform 180ms ease, box-shadow 180ms ease;
     }
 
-    .consult-chat-launch:hover {
+    body .consult-chat-launch:hover {
       transform: translateX(-50%) translateY(-1px);
       box-shadow: 0 16px 30px rgba(82, 65, 155, 0.18);
     }
@@ -65,24 +67,28 @@
       position: fixed !important;
       left: 50% !important;
       right: auto !important;
-      bottom: 28px !important;
+      bottom: 88px !important;
       z-index: 21;
       display: flex;
+      align-items: center;
       justify-content: center;
       width: min(360px, calc(100vw - 36px));
+      box-sizing: border-box;
+      height: 48px;
+      min-height: 48px;
+      padding: 13px 20px;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 12px;
+      background: #6650b8;
+      color: #ffffff;
+      font: 600 16px "Paperlogy", "Noto Sans KR", sans-serif;
+      letter-spacing: 0;
+      text-decoration: none;
+      text-align: center;
+      white-space: nowrap;
+      box-shadow: 0 12px 28px rgba(55, 37, 121, 0.3);
       margin: 0;
       transform: translateX(-50%);
-    }
-
-    body.home-cta-swapped .consult-chat-launch {
-      bottom: 28px;
-      border-color: rgba(137, 117, 213, 0.22);
-      color: #3b2b78;
-      box-shadow: 0 12px 24px rgba(82, 65, 155, 0.12);
-    }
-
-    body.home-cta-swapped.lofi-floating-ctas .sticky-appointment {
-      bottom: 88px !important;
     }
 
     .consult-chat-panel {
@@ -337,21 +343,21 @@
         padding-bottom: 172px;
       }
 
-      .consult-chat-launch {
+      body .consult-chat-launch {
         left: 50%;
         right: auto;
-        bottom: 84px;
+        bottom: 18px;
         display: flex;
         width: min(360px, calc(100vw - 36px));
         margin: 0;
         justify-content: center;
       }
 
-      .sticky-appointment {
+      body.lofi-floating-ctas .sticky-appointment {
         position: fixed !important;
         left: 50% !important;
         right: auto !important;
-        bottom: 18px !important;
+        bottom: 84px !important;
         display: flex;
         width: min(360px, calc(100vw - 36px));
         margin: 0;
@@ -365,13 +371,6 @@
         width: auto;
       }
 
-      body.home-cta-swapped .consult-chat-launch {
-        bottom: 18px;
-      }
-
-      body.home-cta-swapped.lofi-floating-ctas .sticky-appointment {
-        bottom: 84px !important;
-      }
     }
   `;
   document.head.appendChild(style);
