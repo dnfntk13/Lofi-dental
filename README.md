@@ -155,6 +155,16 @@ Allowed actions are limited to `click`, `type`, `key`, `wait`, and `done`. The a
 
 ### AI Assist
 
+#### Instagram screenshot reservations
+
+On `/admin/ai`, use **인스타 대화 사진으로 예약 추가** to attach or paste up to four PNG/JPEG/WebP screenshots of one patient's conversation (4 MB each, 12 MB total). Add clarification such as the conversation year or timezone, then analyze. Review the transcript and warnings, edit the reservation fields, and check the confirmation box before saving. Dates and times are in Asia/Seoul. Missing or ambiguous required information must be entered by staff.
+
+Admin AI conversation, screenshot analysis, and the DM checker use `gpt-5.4-mini` by default with the existing `OPENAI_API_KEY`. Set `ADMIN_AI_MODEL` to override this independently of the public chat's `OPENAI_MODEL`. GPT-5 models use low reasoning effort; admin responses have an 8,000 completion-token cap (including reasoning) and omit sampling parameters for compatibility. Incomplete responses show an error rather than empty results. Images are sent to OpenAI for analysis without being written to local files or the database. Analysis only returns a draft. Confirmed saves use the existing reservation/patient workflow; an existing same-name/date/time record is returned without inserting another. Screenshot saves are serialized within one server process to protect against double-clicks and retries.
+
+Deploy the updated source and restart the server to activate the default, or explicitly set `ADMIN_AI_MODEL=gpt-5.4-mini`. Keeping `OPENAI_MODEL=gpt-4o-mini` does not override Admin AI. Real model access and recognition quality must be verified with the deployment's API key.
+
+Validation: `node --test tests/instagram-screenshot.test.mjs`. Tests use mocked AI responses and storage; a configured deployment is required to verify real screenshot recognition.
+
 The public chat widget and admin tools can generate AI-assisted information, summaries, and drafts:
 
 - Public website AI assistant: answers visitor questions from site content, explains reservation/contact flow, and saves the conversation to Patients for staff review.

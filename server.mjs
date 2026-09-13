@@ -10,6 +10,11 @@ import { MongoClient } from "mongodb";
 import nodemailer from "nodemailer";
 import Imap from "imap";
 import { simpleParser } from "mailparser";
+import { analyzeInstagramScreenshots } from "./lib/instagram-screenshot.mjs";
+import { getAdminAiModel, adminAiRequestOptions, parseAdminAiJson } from "./lib/admin-ai-model.mjs";
+
+// Serialize screenshot saves so retries/double-clicks cannot create duplicate records.
+let screenshotSaveQueue = Promise.resolve();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -95,6 +100,7 @@ const resendApiKey = process.env.RESEND_API_KEY || "";
 const resendFrom = process.env.RESEND_FROM || smtpFrom;
 const openaiApiKey = process.env.OPENAI_API_KEY || "";
 const openaiModel = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const adminAiModel = getAdminAiModel();
 const emailDnsServers = (process.env.EMAIL_DNS_SERVERS || "8.8.8.8,1.1.1.1")
   .split(",")
   .map((server) => server.trim())
@@ -2031,8 +2037,7 @@ async function generateAdminAiConsoleReply({ messages }) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: openaiModel,
-      temperature: 0.25,
+      ...adminAiRequestOptions(adminAiModel),
       response_format: { type: "json_object" },
       messages: [
         {
@@ -2051,10 +2056,7 @@ async function generateAdminAiConsoleReply({ messages }) {
     throw error;
   }
 
-  const content = data?.choices?.[0]?.message?.content || "{}";
-  let parsed = {};
-  try { parsed = JSON.parse(content); } catch { parsed = {}; }
-  return normalizeAdminAiConsolePayload(parsed);
+  return normalizeAdminAiConsolePayload(parseAdminAiJson(data));
 }
 
 function normalizeAiActionPayload(value) {
@@ -2181,8 +2183,7 @@ async function generateInstagramDmCheck() {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: openaiModel,
-      temperature: 0.2,
+      ...adminAiRequestOptions(adminAiModel),
       response_format: { type: "json_object" },
       messages: [
         {
@@ -2201,10 +2202,7 @@ async function generateInstagramDmCheck() {
     throw error;
   }
 
-  const content = data?.choices?.[0]?.message?.content || "{}";
-  let parsed = {};
-  try { parsed = JSON.parse(content); } catch { parsed = {}; }
-  return normalizeInstagramDmCheckPayload(parsed);
+  return normalizeInstagramDmCheckPayload(parseAdminAiJson(data));
 }
 
 async function generateInstagramScreenRead(snapshot) {
@@ -3351,15 +3349,24 @@ async function syncInstagramSettingsToRender({ serviceId, apiKey, settings, trig
 function getJsonBody(request, maxBytes = 1024 * 1024) {
   return new Promise((resolve, reject) => {
     let body = "";
+    let bytes = 0;
+    let tooLarge = false;
+    request.setEncoding("utf8");
 
     request.on("data", (chunk) => {
-      body += chunk;
-      if (body.length > maxBytes) {
+      if (tooLarge) return;
+      bytes += Buffer.byteLength(chunk, "utf8");
+      if (bytes > maxBytes) {
+        tooLarge = true;
+        body = "";
         reject(new Error("Payload too large"));
+        return;
       }
+      body += chunk;
     });
 
     request.on("end", () => {
+      if (tooLarge) return;
       try {
         resolve(body ? JSON.parse(body) : {});
       } catch {
@@ -5056,7 +5063,7 @@ createServer(async (request, response) => {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "no-store",
       });
-      response.end(JSON.stringify({ ok: true, check, model: openaiModel }));
+      response.end(JSON.stringify({ ok: true, check, model: adminAiModel }));
     } catch (error) {
       console.error("Failed to check Instagram DMs with AI", error);
       const statusCode = Number(error?.statusCode || 500);
@@ -5813,6 +5820,45 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname === "/api/admin/ai-screenshot" && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    try {
+      const payload = await getJsonBody(request, 17 * 1024 * 1024);
+      const draft = await analyzeInstagramScreenshots({ images: payload.images, note: payload.note, apiKey: openaiApiKey, model: adminAiModel });
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      response.end(JSON.stringify({ ok: true, draft, model: adminAiModel }));
+    } catch (error) {
+      const status = error.message === "Payload too large" ? 413 : error.message === "Invalid JSON" ? 400 : Number(error.statusCode || 500);
+      response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      response.end(JSON.stringify({ message: status === 413 ? "사진 용량이 너무 큽니다. 사진 수나 크기를 줄여주세요." : error.message }));
+    }
+    return;
+  }
+
+  if (pathname === "/api/admin/ai-screenshot/reservation" && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    try {
+      const payload = await getJsonBody(request);
+      if (payload.confirmed !== true) throw new Error("예약 내용을 확인해주세요.");
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(payload.reservation?.time || ""))) throw new Error("예약 시간을 확인해주세요.");
+      const fields = normalizeAdminAiReservationFields(payload.reservation);
+      const save = screenshotSaveQueue.then(async () => {
+        const records = await readInbox();
+        const existing = records.find(record => record.date === fields.date && record.time === fields.time && String(record.name || "").trim().toLowerCase() === fields.name.toLowerCase());
+        if (existing) return { record: existing, duplicate: true };
+        return { record: await createAdminAiReservation(fields), duplicate: false };
+      });
+      screenshotSaveQueue = save.catch(() => {});
+      const result = await save;
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      response.end(JSON.stringify({ ok: true, ...result }));
+    } catch (error) {
+      response.writeHead(400, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      response.end(JSON.stringify({ message: error.message || "예약 저장에 실패했습니다." }));
+    }
+    return;
+  }
+
   if (pathname === "/api/admin/ai-console" && request.method === "POST") {
     if (!adminAuthorized) { requestAuth(response); return; }
 
@@ -5823,7 +5869,7 @@ createServer(async (request, response) => {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "no-store",
       });
-      response.end(JSON.stringify({ ok: true, reply, model: openaiModel }));
+      response.end(JSON.stringify({ ok: true, reply, model: adminAiModel }));
     } catch (error) {
       console.error("Failed to generate admin AI console reply", error);
       const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
