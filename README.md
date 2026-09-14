@@ -155,6 +155,20 @@ Allowed actions are limited to `click`, `type`, `key`, `wait`, and `done`. The a
 
 ### AI Assist
 
+#### Admin AI management authority
+
+The Admin AI page exposes all implemented management operations: reservation creation/update/deletion, patient name updates/deletion, thread replies/deletion/read status, website source reading/editing, and production deployment/status checks. Every write now requires a server-created preview and an explicit staff confirmation. Preview tokens expire after ten minutes and are consumed before execution to prevent replay. A server restart invalidates outstanding previews. Model-generated confirmation flags cannot bypass review. Screenshots retain their separate reviewed reservation form.
+
+Website changes use an exact, unique before/after replacement in existing HTML, CSS, JS or MJS files in `dnfntk13/Lofi-dental` on `main`. Hidden files, secrets, dependency folders, tests and tooling are excluded. GitHub file SHA checks reject stale edits. Staff see the code changes before committing; code changes should be tested before approving. Committing to `main` can trigger any configured automatic deployment. Explicit Render deployment pins the commit displayed in the preview; a queued deployment is not reported as complete.
+
+Set these **server environment variables** to enable the external operations (never paste keys into Admin AI chat or commit them):
+
+- `ADMIN_AI_GITHUB_TOKEN`: a dedicated fine-grained GitHub token limited to `dnfntk13/Lofi-dental`, with repository Contents read/write. The assistant's desktop GitHub login is not reused or copied.
+- `RENDER_API_KEY`: the existing server-side Render API key, with access to the site's service.
+- `RENDER_SERVICE_ID`: the site's service ID; defaults to `srv-d8l6hspkh4rs73fqrtqg`.
+
+The permissions panel reports missing connections. There is no arbitrary shell execution, secret retrieval, credential management, billing access or cross-repository access. `readWebsiteFile` uses public repository reads when no GitHub token is configured. API request headers and credentials never enter model context. Run `node --test tests/*.test.mjs` to verify action confirmation, replay protection, missing integrations, source conflicts, and pinned deployments with mocked providers.
+
 #### Instagram screenshot reservations
 
 On `/admin/ai`, use **인스타 대화 사진으로 예약 추가** to attach or paste up to four PNG/JPEG/WebP screenshots of one patient's conversation (4 MB each, 12 MB total). Add clarification such as the conversation year or timezone, then analyze. Review the transcript and warnings, edit the reservation fields, and check the confirmation box before saving. Dates and times are in Asia/Seoul. Missing or ambiguous required information must be entered by staff.

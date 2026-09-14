@@ -144,6 +144,9 @@
       .import-btn:disabled { opacity: 0.58; cursor: wait; }
       .import-status { margin: 0; min-height: 1.3em; color: var(--soft); font-size: 0.84rem; line-height: 1.5; }
       .import-status.error { color: #a32626; }
+      .review-dialog { width: min(760px, 94vw); max-height: 90vh; overflow: auto; border: 1px solid var(--line); border-radius: 16px; color: var(--ink); padding: 24px; }
+      .review-dialog::backdrop { background: rgba(20, 20, 40, .55); }
+      .review-dialog pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; padding: 14px; background: #f5f7ff; }
 
       @media (max-width: 880px) {
         .layout { grid-template-columns: 1fr; }
@@ -157,6 +160,8 @@
         .bubble { max-width: 96%; }
       }
     </style>
+    <link rel="stylesheet" href="/admin/ai-embed.css" />
+    <script>if (window.self !== window.top && new URLSearchParams(location.search).get("embed") === "1") document.documentElement.classList.add("ai-embedded");</script>
   </head>
   <body>
     <div class="wrap">
@@ -226,9 +231,9 @@
               <button class="quick-btn" type="button" data-prompt="최근 환자 문의에 보낼 답장 초안을 만들어줘.">Draft replies</button>
             </div>
           </div>
-          <div class="messages" id="messages"></div>
+          <div class="messages" id="messages" role="log" aria-label="AI 대화" aria-live="polite"></div>
           <form class="composer" id="composer">
-            <textarea id="promptInput" placeholder="예: 최근 인스타 DM 중 답장 필요한 문의를 요약하고 답장 초안을 만들어줘."></textarea>
+            <textarea aria-label="Admin AI에게 보낼 메시지" id="promptInput" placeholder="예: 최근 인스타 DM 중 답장 필요한 문의를 요약하고 답장 초안을 만들어줘."></textarea>
             <div class="composer-actions">
               <span class="status" id="statusText">Ready</span>
               <button class="send-btn" id="sendBtn" type="submit">Send</button>
@@ -237,6 +242,11 @@
         </section>
 
         <aside class="side" aria-label="AI output details">
+          <section class="panel info-panel">
+            <span class="section-title">Admin AI 관리 권한</span>
+            <p class="panel-note">예약·환자·메시지와 사이트 소스·배포를 관리합니다. 변경 작업은 내용을 확인한 뒤 실행합니다.</p>
+            <div id="managementCapabilities" class="note-list" role="status">연결 상태 확인 중…</div>
+          </section>
           <section class="panel info-panel">
             <span class="section-title">Schedule notes</span>
             <ul class="note-list" id="scheduleNotes"></ul>
@@ -279,6 +289,15 @@
       </main>
     </div>
 
+    <dialog id="actionReview" class="review-dialog" aria-labelledby="actionReviewTitle">
+      <h2 id="actionReviewTitle">실행할 작업 확인</h2>
+      <p>대상과 변경 내용을 확인하세요. 아래 내용만 실행하며, 확인한 작업은 한 번만 사용할 수 있습니다.</p>
+      <pre id="actionReviewContent"></pre>
+      <form method="dialog" class="composer-actions">
+        <button class="quick-btn" value="cancel">취소</button>
+        <button class="send-btn" value="confirm">확인한 내용 실행</button>
+      </form>
+    </dialog>
     <script src="/admin/ai-screenshot.js" defer></script>
     <script>
       const messagesEl = document.getElementById("messages");
@@ -378,22 +397,41 @@
       async function runSuggestedAction(action, button) {
         if (!action?.operation) return;
         const resultEl = suggestedActionsEl.querySelector(`[data-action-result="${button.dataset.actionIndex}"]`);
-        const confirmText = `${action.label || action.operation}\n\n${action.details || ""}\n\nRun this Admin AI action?`;
-        if (action.requiresConfirmation !== false && !confirm(confirmText)) return;
         button.disabled = true;
+        let consumed = false;
         if (resultEl) {
           resultEl.className = "action-result";
           resultEl.textContent = "Running...";
         }
         try {
-          const response = await fetch("/api/admin/ai-action", {
+          const preparedResponse = await fetch("/api/admin/ai-action/prepare", {
             method: "POST",
             headers: { "Accept": "application/json", "Content-Type": "application/json" },
             body: JSON.stringify({ operation: action.operation, payload: action.payload || {} }),
           });
-          const data = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(data.message || "Action failed.");
-          if (resultEl) resultEl.textContent = `Done: ${data.operation || action.operation}`;
+          const prepared = await preparedResponse.json().catch(() => ({}));
+          if (!preparedResponse.ok) throw new Error(prepared.message || "작업 준비 실패");
+          let data = prepared;
+          if (!prepared.readOnly) {
+            const dialog = document.getElementById("actionReview");
+            document.getElementById("actionReviewContent").textContent = JSON.stringify(prepared.preview, null, 2);
+            dialog.returnValue = "cancel";
+            const approved = new Promise(resolve => dialog.addEventListener("close", () => resolve(dialog.returnValue === "confirm"), { once: true }));
+            dialog.showModal();
+            if (!await approved) { if (resultEl) resultEl.textContent = "취소했습니다."; return; }
+            consumed = true;
+            const response = await fetch("/api/admin/ai-action", {
+              method: "POST", headers: { "Accept": "application/json", "Content-Type": "application/json" },
+              body: JSON.stringify({ confirmationToken: prepared.confirmationToken, confirmed: true }),
+            });
+            data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.message || "실행 결과를 확인할 수 없습니다. 작업 이력을 확인해주세요.");
+          }
+          const resultText = JSON.stringify(data.result || data, null, 2).slice(0, 12000);
+          if (resultEl) resultEl.textContent = resultText;
+          conversation.push({ role: "assistant", content: `Server action result (${action.operation}): ${resultText}` });
+          addBubble("assistant", `${action.label || action.operation}\n${resultText}`);
+          button.textContent = prepared.readOnly ? "다시 조회" : "실행 완료";
           statusText.textContent = "Action complete";
         } catch (error) {
           if (resultEl) {
@@ -402,7 +440,7 @@
           }
           statusText.textContent = error.message || "Action failed.";
         } finally {
-          button.disabled = false;
+          button.disabled = consumed;
         }
       }
 
@@ -445,29 +483,9 @@
 
       async function applyReservationAction(action, button) {
         if (!action?.type) return;
-        const label = action.label || `Apply reservation ${action.type}`;
-        if (!confirm(`${label}\n\n${describeReservationAction(action)}\n\nApply this reservation change?`)) return;
-
-        const originalText = button.textContent;
-        button.disabled = true;
-        button.textContent = "Applying...";
-        try {
-          const response = await fetch("/api/admin/ai-console/actions", {
-            method: "POST",
-            headers: { "Accept": "application/json", "Content-Type": "application/json" },
-            body: JSON.stringify({ action }),
-          });
-          const data = await response.json().catch(() => ({}));
-          if (!response.ok || !data.ok) throw new Error(data.message || "Failed to apply reservation action.");
-          button.textContent = "Applied";
-          statusText.textContent = "Reservation action applied.";
-          conversation.push({ role: "assistant", content: `Applied reservation ${action.type}: ${label}` });
-        } catch (error) {
-          button.disabled = false;
-          button.textContent = originalText;
-          statusText.textContent = error.message || "Failed to apply reservation action.";
-          addBubble("assistant", statusText.textContent, true);
-        }
+        const operation = { create: "createReservation", update: "updateReservation", delete: "deleteReservation" }[action.type];
+        if (!operation) return;
+        return runSuggestedAction({ ...action, operation, payload: { ...action.payload, ...(action.id ? { id: action.id } : {}) } }, button);
       }
 
       async function sendPrompt(prompt) {
@@ -567,9 +585,17 @@
       });
 
       renderList(scheduleNotesEl, []);
+      fetch("/api/admin/ai-capabilities").then(async response => {
+        if (!response.ok) throw new Error("권한 상태를 확인하지 못했습니다.");
+        const data = await response.json();
+        const names = { createReservation: "예약 추가", updateReservation: "예약 수정", deleteReservation: "예약 삭제", updatePatientName: "환자 이름 수정", deletePatient: "환자 삭제", sendThreadReply: "답장 발송·저장", deleteThreadMessage: "메시지 삭제", markThreadRead: "읽음 처리", readWebsiteFile: "사이트 소스 조회", editWebsiteFile: "사이트 코드 수정", deployWebsite: "운영 배포", getDeploymentStatus: "배포 상태 조회" };
+        document.getElementById("managementCapabilities").innerHTML = data.operations.map(item => `<div class="action-meta">${escapeHtml(names[item.operation] || item.operation)}: ${item.available ? "사용 가능" : "서버 연결 필요"}</div>`).join("");
+      }).catch(error => { document.getElementById("managementCapabilities").textContent = error.message; });
       renderList(messageNotesEl, []);
       renderActions([], []);
       addBubble("assistant", "Ask me about today's reservations, Web/Email/Instagram messages, website information, or edits you want prepared. I can run approved admin actions after staff confirmation.");
     </script>
+    <script src="/admin/ai-embed.js"></script>
+  <script src="/admin/ai-widget.js" defer></script>
   </body>
 </html>
