@@ -179,7 +179,7 @@
 
       <div class="header">
         <h1>Admin AI</h1>
-        <p class="subtitle">Ask about schedules, patient messages, Instagram DMs, and website content. Approved actions can update admin records.</p>
+        <p class="subtitle">사진·파일을 첨부하고 필요한 작업을 말씀해주세요.</p>
       </div>
 
       <section class="panel info-panel" id="screenshotPanel" aria-labelledby="screenshotTitle" style="margin-bottom:18px">
@@ -232,8 +232,10 @@
           </div>
           <div class="messages" id="messages" role="log" aria-label="AI 대화" aria-live="polite"></div>
           <form class="composer" id="composer">
+            <div id="chatAttachments" style="display:flex;flex-wrap:wrap;gap:6px"></div>
             <textarea aria-label="Admin AI에게 보낼 메시지" aria-describedby="composerHint" id="promptInput" placeholder="메시지를 입력하세요"></textarea>
             <div class="composer-actions">
+              <button class="quick-btn" id="attachFilesBtn" type="button" aria-label="사진 또는 파일 첨부">＋ 첨부</button><input id="chatFiles" type="file" accept=".png,.jpg,.jpeg,.webp,.pdf,.txt,.csv,.md" multiple hidden />
               <span class="status" id="statusText">Ready</span>
               <button class="send-btn" id="sendBtn" type="submit">Send</button>
             </div>
@@ -300,7 +302,7 @@
         <button class="send-btn" value="confirm">확인한 내용 실행</button>
       </form>
     </dialog>
-    <script src="/admin/ai-screenshot.js" defer></script>
+    <script src="/admin/ai-attachments.js"></script>
     <script>
       const messagesEl = document.getElementById("messages");
       const composer = document.getElementById("composer");
@@ -403,7 +405,7 @@
 
       async function runSuggestedAction(action, button) {
         if (!action?.operation) return;
-        const resultEl = suggestedActionsEl.querySelector(`[data-action-result="${button.dataset.actionIndex}"]`);
+        const resultEl = button.closest('.action-card')?.querySelector('.action-result');
         button.disabled = true;
         let consumed = false;
         if (resultEl) {
@@ -486,6 +488,13 @@
         renderList(scheduleNotesEl, reply.scheduleNotes);
         renderList(messageNotesEl, reply.messageNotes);
         renderActions(reply.suggestedActions, reply.reservationActions);
+        const notes = [...(reply.scheduleNotes || []), ...(reply.messageNotes || [])];
+        if (notes.length) addBubble('assistant', notes.join('\n'));
+        const actions = document.createElement('div');
+        actions.className = 'chat-actions';
+        actions.append(...suggestedActionsEl.querySelectorAll('.action-card'));
+        if (actions.children.length) messagesEl.append(actions);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
       }
 
       async function applyReservationAction(action, button) {
@@ -497,10 +506,12 @@
 
       async function sendPrompt(prompt) {
         if (sendBtn.disabled) return;
-        const text = String(prompt || "").trim();
+        if (!window.adminAttachments.ready()) { statusText.textContent = '첨부 파일을 읽고 있습니다…'; return; }
+        const attachments = window.adminAttachments.get();
+        const text = String(prompt || "").trim() || (attachments.length ? '첨부한 내용을 확인해줘.' : '');
         if (!text) return;
         conversation.push({ role: "user", content: text });
-        addBubble("user", text);
+        addBubble("user", text + (attachments.length ? '\n📎 ' + attachments.map(f=>f.name).join(', ') : ''));
         promptInput.value = "";
         sendBtn.disabled = true;
         statusText.textContent = "AI is checking schedules and messages...";
@@ -509,11 +520,12 @@
           const response = await fetch("/api/admin/ai-console", {
             method: "POST",
             headers: { "Accept": "application/json", "Content-Type": "application/json" },
-            body: JSON.stringify({ messages: conversation.slice(-10), currentPage }),
+            body: JSON.stringify({ messages: conversation.slice(-10), currentPage, attachments }),
           });
           const data = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(data.message || "Failed to get AI reply.");
           renderReply(data.reply || {});
+          window.adminAttachments.clear();
           statusText.textContent = data.model ? `Ready · ${data.model}` : "Ready";
         } catch (error) {
           const message = error.message || "Failed to get AI reply.";
@@ -606,7 +618,7 @@
       }).catch(error => { document.getElementById("managementCapabilities").textContent = error.message; });
       renderList(messageNotesEl, []);
       renderActions([], []);
-      addBubble("assistant", "Ask me about today's reservations, Web/Email/Instagram messages, website information, or edits you want prepared. I can run approved admin actions after staff confirmation.");
+      addBubble("assistant", "무엇을 도와드릴까요? 사진이나 파일을 첨부해 예약 정리, 환자 문의 확인, 사이트 수정을 요청하세요.");
     </script>
     <script src="/admin/ai-usage.js"></script>
     <script src="/admin/ai-embed.js"></script>
