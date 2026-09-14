@@ -1,20 +1,48 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://lofiesthetic.com/</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://lofiesthetic.com/" />
     <xhtml:link rel="alternate" hreflang="ko" href="https://lofiesthetic.com/korean" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://lofiesthetic.com/" />
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
   </url>
   <url>
     <loc>https://lofiesthetic.com/korean</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://lofiesthetic.com/" />
     <xhtml:link rel="alternate" hreflang="ko" href="https://lofiesthetic.com/korean" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://lofiesthetic.com/" />
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://lofiesthetic.com/lofi-lab-en.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lofiesthetic.com/lofi-lab-en.html" />
+    <xhtml:link rel="alternate" hreflang="ko" href="https://lofiesthetic.com/lofi-lab.html" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lofiesthetic.com/lofi-lab-en.html" />
+  </url>
+  <url>
+    <loc>https://lofiesthetic.com/lofi-lab.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lofiesthetic.com/lofi-lab-en.html" />
+    <xhtml:link rel="alternate" hreflang="ko" href="https://lofiesthetic.com/lofi-lab.html" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lofiesthetic.com/lofi-lab-en.html" />
+  </url>
+  <url>
+    <loc>https://lofiesthetic.com/before-after-en.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lofiesthetic.com/before-after-en.html" />
+    <xhtml:link rel="alternate" hreflang="ko" href="https://lofiesthetic.com/before-after.html" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lofiesthetic.com/before-after-en.html" />
+  </url>
+  <url>
+    <loc>https://lofiesthetic.com/before-after.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://lofiesthetic.com/before-after-en.html" />
+    <xhtml:link rel="alternate" hreflang="ko" href="https://lofiesthetic.com/before-after.html" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://lofiesthetic.com/before-after-en.html" />
+  </url>
+  <url>
+    <loc>https://lofiesthetic.com/meetdrkim.html</loc>
+  </url>
+  <url>
+    <loc>https://lofiesthetic.com/price-guide.html</loc>
+  </url>
+  <url>
+    <loc>https://lofiesthetic.com/contact-options.html</loc>
   </url>
 </urlset>

@@ -1,6 +1,9 @@
+# Public pages are accessible to search crawlers, including OAI-SearchBot.
 User-agent: *
 Allow: /
-Disallow: /admin/
+Disallow: /admin
+Disallow: /api/
+Disallow: /display
 Disallow: /reservation/received.html
 
 Sitemap: https://lofiesthetic.com/sitemap.xml
