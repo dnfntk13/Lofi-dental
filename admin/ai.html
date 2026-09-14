@@ -232,11 +232,12 @@
           </div>
           <div class="messages" id="messages" role="log" aria-label="AI 대화" aria-live="polite"></div>
           <form class="composer" id="composer">
-            <textarea aria-label="Admin AI에게 보낼 메시지" id="promptInput" placeholder="예: 최근 인스타 DM 중 답장 필요한 문의를 요약하고 답장 초안을 만들어줘."></textarea>
+            <textarea aria-label="Admin AI에게 보낼 메시지" aria-describedby="composerHint" id="promptInput" placeholder="메시지를 입력하세요"></textarea>
             <div class="composer-actions">
               <span class="status" id="statusText">Ready</span>
               <button class="send-btn" id="sendBtn" type="submit">Send</button>
             </div>
+            <span class="status" id="composerHint">Enter로 전송 · Shift+Enter로 줄바꿈</span>
           </form>
         </section>
 
@@ -520,6 +521,11 @@
       composer.addEventListener("submit", (event) => {
         event.preventDefault();
         sendPrompt(promptInput.value);
+      });
+      promptInput.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" || event.shiftKey || event.isComposing || event.keyCode === 229) return;
+        event.preventDefault();
+        if (!event.repeat && !sendBtn.disabled) composer.requestSubmit();
       });
 
       document.querySelectorAll(".quick-btn").forEach((button) => {
