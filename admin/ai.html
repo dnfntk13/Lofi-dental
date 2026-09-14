@@ -319,6 +319,11 @@
       const instagramCheckStatus = document.getElementById("instagramCheckStatus");
       const instagramCheckResults = document.getElementById("instagramCheckResults");
       const conversation = [];
+      let currentPage = { path: location.pathname, title: document.title };
+      window.addEventListener('message', event => {
+        if (window.parent === window || event.source !== window.parent || event.origin !== location.origin || event.data?.type !== 'admin-ai-page-context') return;
+        currentPage = { path: String(event.data.path || '').slice(0, 300), title: String(event.data.title || '').slice(0, 200) };
+      });
 
       function escapeHtml(value) {
         return String(value ?? "").replace(/[&<>"]/g, (char) => ({
@@ -504,7 +509,7 @@
           const response = await fetch("/api/admin/ai-console", {
             method: "POST",
             headers: { "Accept": "application/json", "Content-Type": "application/json" },
-            body: JSON.stringify({ messages: conversation.slice(-10) }),
+            body: JSON.stringify({ messages: conversation.slice(-10), currentPage }),
           });
           const data = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(data.message || "Failed to get AI reply.");

@@ -46,6 +46,9 @@
       frame = document.createElement('iframe');
       frame.title = 'Admin AI 채팅 및 관리 도구';
       frame.src = '/admin/ai?embed=1';
+      frame.addEventListener('load', () => frame.contentWindow.postMessage({
+        type: 'admin-ai-page-context', path: location.pathname, title: document.title,
+      }, location.origin));
       panel.append(frame);
     }
     panel.hidden = !open;

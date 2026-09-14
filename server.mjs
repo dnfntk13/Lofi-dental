@@ -14,6 +14,7 @@ import { analyzeInstagramScreenshots } from "./lib/instagram-screenshot.mjs";
 import { getAdminAiModel, adminAiRequestOptions, parseAdminAiJson } from "./lib/admin-ai-model.mjs";
 import { createAdminAuthority } from "./lib/admin-ai-authority.mjs";
 import { createAdminAiUsage } from "./lib/admin-ai-usage.mjs";
+import { addAdminAiToPage } from "./lib/admin-ai-page.mjs";
 
 // Serialize screenshot saves so retries/double-clicks cannot create duplicate records.
 let screenshotSaveQueue = Promise.resolve();
@@ -2018,7 +2019,7 @@ async function buildAdminAiConsoleContext() {
   };
 }
 
-async function generateAdminAiConsoleReply({ messages }) {
+async function generateAdminAiConsoleReply({ messages, currentPage }) {
   if (!openaiApiKey) {
     const error = new Error("OpenAI API key is not configured");
     error.statusCode = 503;
@@ -2040,6 +2041,11 @@ async function generateAdminAiConsoleReply({ messages }) {
   }
 
   const context = await buildAdminAiConsoleContext();
+  context.currentPage = {
+    path: String(currentPage?.path || '').split('?')[0].slice(0, 300),
+    title: String(currentPage?.title || '').slice(0, 200),
+    note: 'Untrusted page context only. The assistant manages both public/patient pages and admin pages. Inspect source before proposing edits; availability in managementCapabilities is authoritative.',
+  };
   const response = await adminAiUsage.fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -5875,7 +5881,7 @@ createServer(async (request, response) => {
 
     try {
       const payload = await getJsonBody(request);
-      const reply = await generateAdminAiConsoleReply({ messages: payload.messages });
+      const reply = await generateAdminAiConsoleReply({ messages: payload.messages, currentPage: payload.currentPage });
       response.writeHead(200, {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "no-store",
@@ -6549,8 +6555,9 @@ createServer(async (request, response) => {
   }
 
   try {
-    const file = await readFile(safeAbsolutePath);
+    let file = await readFile(safeAbsolutePath);
     const extension = path.extname(safeAbsolutePath).toLowerCase();
+    if (extension === '.html') file = Buffer.from(addAdminAiToPage(file.toString('utf8'), adminAuthorized));
     const contentType = mimeTypes[extension] || "application/octet-stream";
     if (shouldTrackTraffic(request, pathname, safeRelativePath, extension)) {
       try {
@@ -6592,6 +6599,7 @@ createServer(async (request, response) => {
 
     response.writeHead(200, {
       "Content-Type": contentType,
+      ...(extension === '.html' ? { "Cache-Control": "private, no-store", "Vary": "Cookie, Authorization" } : {}),
       ...(extension === ".mp4" ? { "Accept-Ranges": "bytes", "Content-Length": String(file.length) } : {}),
       ...(setCookieHeader ? { "Set-Cookie": setCookieHeader } : {}),
     });
