@@ -16,6 +16,7 @@ import { createAdminAuthority } from "./lib/admin-ai-authority.mjs";
 import { createAdminAiUsage } from "./lib/admin-ai-usage.mjs";
 import { addAdminAiToPage } from "./lib/admin-ai-page.mjs";
 import { prepareAdminAttachments } from "./lib/admin-ai-attachments.mjs";
+import { autoQueueDentweb } from "./lib/dentweb-auto-queue.mjs";
 
 // Serialize screenshot saves so retries/double-clicks cannot create duplicate records.
 let screenshotSaveQueue = Promise.resolve();
@@ -296,6 +297,7 @@ async function readInbox() {
 }
 
 async function addInboxRecord(record) {
+  Object.assign(record, autoQueueDentweb(record, { date: normalizeReservationDate(record.date), time: normalizeReservationTime(record.time) }));
   const collection = await getInboxCollection();
   if (collection) {
     await collection.insertOne(record);
@@ -1230,6 +1232,7 @@ async function upsertInboxRecord(record) {
       id: record.id,
       createdAt: existing?.createdAt || record.createdAt,
     };
+    Object.assign(merged, autoQueueDentweb(merged, { date: normalizeReservationDate(merged.date), time: normalizeReservationTime(merged.time) }));
     await collection.replaceOne({ id: record.id }, merged, { upsert: true });
     return merged;
   }
@@ -1246,9 +1249,11 @@ async function upsertInboxRecord(record) {
   } else {
     messages.unshift(record);
   }
+  const saved = index >= 0 ? messages[index] : record;
+  Object.assign(saved, autoQueueDentweb(saved, { date: normalizeReservationDate(saved.date), time: normalizeReservationTime(saved.time) }));
   await mkdir(dataDir, { recursive: true });
   await writeFile(inboxPath, JSON.stringify(messages, null, 2), "utf-8");
-  return index >= 0 ? messages[index] : record;
+  return saved;
 }
 
 async function deleteInboxRecord(id) {
@@ -5727,6 +5732,7 @@ createServer(async (request, response) => {
             dentwebSyncError: null,
           };
         }
+        Object.assign(merged, autoQueueDentweb(merged, { date: normalizeReservationDate(merged.date), time: normalizeReservationTime(merged.time) }));
         await collection.replaceOne({ id }, merged, { upsert: true });
         try {
           await saveOrUpdatePatient(merged, { name: merged.name || null, phone: merged.phone || null });
@@ -5765,15 +5771,15 @@ createServer(async (request, response) => {
             dentwebSyncError: null,
           };
         }
-        inbox[idx] = merged;
+        inbox[idx] = autoQueueDentweb(merged, { date: normalizeReservationDate(merged.date), time: normalizeReservationTime(merged.time) });
       } else {
-        inbox.unshift(nextRecord);
+        inbox.unshift(autoQueueDentweb(nextRecord, { date: normalizeReservationDate(nextRecord.date), time: normalizeReservationTime(nextRecord.time) }));
       }
 
       await mkdir(dataDir, { recursive: true });
       await writeFile(inboxPath, JSON.stringify(inbox, null, 2), "utf-8");
 
-      const savedRecord = idx >= 0 ? inbox[idx] : nextRecord;
+      const savedRecord = idx >= 0 ? inbox[idx] : inbox[0];
       try {
         await saveOrUpdatePatient(savedRecord, { name: savedRecord.name || null, phone: savedRecord.phone || null });
       } catch (error) {
