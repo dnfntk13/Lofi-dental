@@ -13,6 +13,7 @@ import { simpleParser } from "mailparser";
 import { analyzeInstagramScreenshots } from "./lib/instagram-screenshot.mjs";
 import { getAdminAiModel, adminAiRequestOptions, parseAdminAiJson } from "./lib/admin-ai-model.mjs";
 import { createAdminAuthority } from "./lib/admin-ai-authority.mjs";
+import { createAdminAiUsage } from "./lib/admin-ai-usage.mjs";
 
 // Serialize screenshot saves so retries/double-clicks cannot create duplicate records.
 let screenshotSaveQueue = Promise.resolve();
@@ -102,6 +103,7 @@ const resendFrom = process.env.RESEND_FROM || smtpFrom;
 const openaiApiKey = process.env.OPENAI_API_KEY || "";
 const openaiModel = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const adminAiModel = getAdminAiModel();
+const adminAiUsage = createAdminAiUsage({ uri: mongoUri, database: mongoDatabaseName });
 const adminAiAuthority = createAdminAuthority({ executeRecord: executeAdminAiAction });
 const emailDnsServers = (process.env.EMAIL_DNS_SERVERS || "8.8.8.8,1.1.1.1")
   .split(",")
@@ -2038,7 +2040,7 @@ async function generateAdminAiConsoleReply({ messages }) {
   }
 
   const context = await buildAdminAiConsoleContext();
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await adminAiUsage.fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${openaiApiKey}`,
@@ -5833,7 +5835,7 @@ createServer(async (request, response) => {
     if (!adminAuthorized) { requestAuth(response); return; }
     try {
       const payload = await getJsonBody(request, 17 * 1024 * 1024);
-      const draft = await analyzeInstagramScreenshots({ images: payload.images, note: payload.note, apiKey: openaiApiKey, model: adminAiModel });
+      const draft = await analyzeInstagramScreenshots({ images: payload.images, note: payload.note, apiKey: openaiApiKey, model: adminAiModel, fetchImpl: adminAiUsage.fetch });
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
       response.end(JSON.stringify({ ok: true, draft, model: adminAiModel }));
     } catch (error) {
@@ -5888,6 +5890,19 @@ createServer(async (request, response) => {
         "Cache-Control": "no-store",
       });
       response.end(JSON.stringify({ message: isPayloadError ? "Invalid request" : error instanceof Error ? error.message : "Failed to generate admin AI reply" }));
+    }
+    return;
+  }
+
+  if (pathname === "/api/admin/ai-usage" && request.method === "GET") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    try {
+      const usage = await adminAiUsage.summary();
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      response.end(JSON.stringify(usage));
+    } catch {
+      response.writeHead(503, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+      response.end(JSON.stringify({ message: "Usage storage unavailable" }));
     }
     return;
   }

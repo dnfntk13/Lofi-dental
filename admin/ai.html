@@ -238,6 +238,8 @@
               <button class="send-btn" id="sendBtn" type="submit">Send</button>
             </div>
             <span class="status" id="composerHint">Enter로 전송 · Shift+Enter로 줄바꿈</span>
+            <div class="status" id="aiUsage" aria-live="polite">사용 비용 확인 중…</div>
+            <details class="status"><summary>비용 집계 안내</summary>Admin AI 채팅·사진 분석의 기록 시작 이후 사용분입니다. 한국 시간 기준 월별 합계이며 전체 관리자 공용입니다. USD 표준 API 요금 기준 추정액으로, 세금·환율·다른 서비스 사용분은 제외합니다.</details>
           </form>
         </section>
 
@@ -515,6 +517,7 @@
         } finally {
           sendBtn.disabled = false;
           promptInput.focus();
+          document.dispatchEvent(new Event('admin-ai-usage-refresh'));
         }
       }
 
@@ -600,6 +603,7 @@
       renderActions([], []);
       addBubble("assistant", "Ask me about today's reservations, Web/Email/Instagram messages, website information, or edits you want prepared. I can run approved admin actions after staff confirmation.");
     </script>
+    <script src="/admin/ai-usage.js"></script>
     <script src="/admin/ai-embed.js"></script>
   <script src="/admin/ai-widget.js" defer></script>
   </body>

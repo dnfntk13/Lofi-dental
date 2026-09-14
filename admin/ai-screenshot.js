@@ -67,6 +67,7 @@
   async function post(url, body) {
     const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(75000) });
     const data = await response.json().catch(() => ({}));
+    document.dispatchEvent(new Event('admin-ai-usage-refresh'));
     if (!response.ok || !data.ok) throw new Error(data.message || (response.status === 401 ? '관리자 로그인이 필요합니다. 새로고침 후 다시 로그인해주세요.' : '요청에 실패했습니다. 다시 시도해주세요.'));
     return data;
   }
