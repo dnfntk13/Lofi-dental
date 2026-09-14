@@ -2229,7 +2229,14 @@
         return koreanHolidays.has(dateValue);
       }
 
+      // Special opening hours in Korea time, overriding holiday/weekend closures.
+      const specialOpeningHours = {
+        "2026-09-26": [[10 * 60, 16 * 60]],
+        "2026-09-27": [[10 * 60, 16 * 60]],
+      };
+
       function getClosedType(dateValue) {
+        if (specialOpeningHours[dateValue]) return null;
         if (isKoreanHoliday(dateValue)) return "holiday";
         if (isSunday(dateValue)) return "weekend";
         return null;
@@ -2261,7 +2268,7 @@
         const dateForSlots = selectedDateISO;
         timeGrid.innerHTML = "";
 
-        if (isSunday(dateForSlots) || isKoreanHoliday(dateForSlots)) {
+        if (getClosedType(dateForSlots)) {
           timeTitle.textContent = text.closed;
           const closedBanner = document.createElement("div");
           closedBanner.className = "closed-banner";
@@ -2270,7 +2277,9 @@
           return;
         }
 
-        timeTitle.textContent = text.availableTimes;
+        timeTitle.textContent = specialOpeningHours[dateForSlots]
+          ? `${text.availableTimes} · 10:00–16:00`
+          : text.availableTimes;
 
         const now = new Date();
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -2278,12 +2287,12 @@
         const reservedTimes = await loadReservedTimes(dateForSlots);
         if (dateForSlots !== selectedDateISO) return;
 
-        const ranges = isSaturday(dateForSlots)
+        const ranges = specialOpeningHours[dateForSlots] || (isSaturday(dateForSlots)
           ? [[10 * 60, 14 * 60]]
           : [
               [10 * 60, 13 * 60],
               [14 * 60, 19 * 60],
-            ];
+            ]);
 
         ranges.forEach(([start, end]) => {
           for (let minutes = start; minutes < end; minutes += 30) {
