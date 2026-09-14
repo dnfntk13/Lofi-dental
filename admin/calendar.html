@@ -1533,6 +1533,8 @@
       }
 
       async function startDentwebAgentIfNeeded() {
+        // Phones enqueue on the server; the clinic PC's scheduled agent processes them.
+        if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return { running: false, remote: true };
         try {
           const response = await fetch("http://127.0.0.1:5175/health", {
             cache: "no-store",
@@ -1576,7 +1578,9 @@
           const agent = await startDentwebAgentIfNeeded();
           await markDentwebSyncStatus(id, "pending");
           flashStatus(
-            agent.running && agent.sqlConfigured
+            agent.remote
+              ? "Queued for Dentweb. The clinic PC will process it automatically while Windows is signed in and online."
+              : agent.running && agent.sqlConfigured
               ? "Queued for Dentweb. The clinic PC will add it automatically."
               : agent.running
                 ? "Dentweb agent is running, but its SQL connection is not configured."
