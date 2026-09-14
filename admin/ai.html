@@ -321,6 +321,7 @@
       const instagramCheckStatus = document.getElementById("instagramCheckStatus");
       const instagramCheckResults = document.getElementById("instagramCheckResults");
       const conversation = [];
+      let retainedAttachments = [];
       let currentPage = { path: location.pathname, title: document.title };
       window.addEventListener('message', event => {
         if (window.parent === window || event.source !== window.parent || event.origin !== location.origin || event.data?.type !== 'admin-ai-page-context') return;
@@ -507,11 +508,12 @@
       async function sendPrompt(prompt) {
         if (sendBtn.disabled) return;
         if (!window.adminAttachments.ready()) { statusText.textContent = '첨부 파일을 읽고 있습니다…'; return; }
-        const attachments = window.adminAttachments.get();
-        const text = String(prompt || "").trim() || (attachments.length ? '첨부한 내용을 확인해줘.' : '');
+        const newAttachments = window.adminAttachments.get();
+        const attachments = newAttachments.length ? newAttachments : retainedAttachments;
+        const text = String(prompt || "").trim() || (newAttachments.length ? '첨부한 내용을 확인해줘.' : '');
         if (!text) return;
         conversation.push({ role: "user", content: text });
-        addBubble("user", text + (attachments.length ? '\n📎 ' + attachments.map(f=>f.name).join(', ') : ''));
+        addBubble("user", text + (newAttachments.length ? '\n📎 ' + newAttachments.map(f=>f.name).join(', ') : ''));
         promptInput.value = "";
         sendBtn.disabled = true;
         statusText.textContent = "AI is checking schedules and messages...";
@@ -520,11 +522,12 @@
           const response = await fetch("/api/admin/ai-console", {
             method: "POST",
             headers: { "Accept": "application/json", "Content-Type": "application/json" },
-            body: JSON.stringify({ messages: conversation.slice(-10), currentPage, attachments }),
+            body: JSON.stringify({ messages: conversation, currentPage, attachments }),
           });
           const data = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(data.message || "Failed to get AI reply.");
           renderReply(data.reply || {});
+          retainedAttachments = attachments;
           window.adminAttachments.clear();
           statusText.textContent = data.model ? `Ready · ${data.model}` : "Ready";
         } catch (error) {
