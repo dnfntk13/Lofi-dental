@@ -280,6 +280,21 @@
         background-repeat: no-repeat;
       }
 
+      .compare-photo-pair {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr);
+        aspect-ratio: 16 / 5;
+        background: #17141d;
+      }
+      .case-card .compare-photo-pair img {
+        width: 100%;
+        height: 100%;
+        min-width: 0;
+        min-height: 0;
+        object-fit: contain;
+      }
+
       .compare-divider {
         position: absolute;
         top: 0;
@@ -757,6 +772,30 @@
                 <strong class="case-price-krw">₩399,000</strong>
                 <span class="case-price-usd">≈ $296 USD</span>
               </span>
+            </figcaption>
+          </figure>
+          <figure class="case-card case-card-compare">
+            <div
+              class="before-after-compare"
+              tabindex="0"
+              data-start="50"
+              aria-label="Before and after veneer case 4 front and right side view comparison"
+            >
+              <div class="compare-image compare-base-image compare-photo-pair">
+                <img src="assets/before-after/case-04-front-after.jpg" alt="Case 4 after, front view" loading="lazy" />
+                <img src="assets/before-after/case-04-side-after.jpg" alt="Case 4 after, side view" loading="lazy" />
+              </div>
+              <div class="compare-image compare-overlay-image compare-photo-pair">
+                <img src="assets/before-after/case-04-front-before.jpg" alt="Case 4 before, front view" loading="lazy" />
+                <img src="assets/before-after/case-04-side-before.jpg" alt="Case 4 before, side view" loading="lazy" />
+              </div>
+              <div class="compare-divider" aria-hidden="true">
+                <span class="compare-handle">↔</span>
+              </div>
+            </div>
+            <div class="compare-label-row"><span>BEFORE</span><button class="compare-zoom" type="button" aria-label="Zoom comparison 200%"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></button><span>AFTER</span></div>
+            <figcaption class="case-caption">
+              <span class="case-details">Before: 2026.09.08<br />After: 2026.09.15</span>
             </figcaption>
           </figure>
         </section>
