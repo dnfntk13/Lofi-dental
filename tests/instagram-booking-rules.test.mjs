@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validatedInstagramExtraction } from '../lib/instagram-booking-rules.mjs';
+import { validatedInstagramExtraction, currentKoreanClock } from '../lib/instagram-booking-rules.mjs';
+test('server clock follows Korean midnight, month and year boundaries', () => {
+  assert.deepEqual(currentKoreanClock(new Date('2026-12-31T15:00:00Z')), {
+    timezone: 'Asia/Seoul', date: '2027-01-01', time: '00:00:00',
+    weekday: '금요일', year: 2027, month: 1, iso: '2027-01-01T00:00:00+09:00',
+  });
+  assert.equal(currentKoreanClock(new Date('2026-09-14T15:01:00Z')).date, '2026-09-15');
+});
 test('inquiries, cancellations and unclassified extractions cannot schedule', () => {
   for (const bookingStatus of ['inquiry', 'cancelled', 'uncertain', undefined]) {
     const result = validatedInstagramExtraction({ bookingStatus, date: '2026-09-26', time: '13:00' });
