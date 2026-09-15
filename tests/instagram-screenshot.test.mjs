@@ -25,7 +25,7 @@ test('sends actual vision content and returns only a draft even if model invents
     sent = JSON.parse(options.body);
     return { ok: true, json: async () => ({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ summary: '예약 확인', reservation: { name: 'Test', date: '2026-09-20', time: '14:00' }, actions: [{ operation: 'deletePatient' }] }) } }] }) };
   } });
-  assert.equal(sent.messages[1].content.filter(part => part.type === 'image_url').length, 2);
+  assert.equal(sent.messages.find(message => message.role === "user").content.filter(part => part.type === 'image_url').length, 2);
   assert.equal(sent.store, false);
   assert.equal(draft.reservation.name, 'Test');
   assert.equal(draft.actions, undefined);
