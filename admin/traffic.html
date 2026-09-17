@@ -231,6 +231,13 @@
         </div>
       </section>
 
+      <section class="panel" style="margin-bottom:18px" aria-labelledby="bookingInsightsTitle">
+        <h2 class="panel-title" id="bookingInsightsTitle">Booking requests · Last 30 days</h2>
+        <p><strong id="bookingRequests">0</strong> saved requests · <strong id="googleAdsBookingRequests">0</strong> attributed to Google Ads</p>
+        <p class="panel-note">Successful website submissions, not confirmed appointments. First-party attribution is session-based and may be unavailable. No patient data is sent to Google.</p>
+        <div class="list" id="bookingSources"></div>
+      </section>
+
       <div class="layout">
         <div class="stack">
           <section class="panel">
@@ -407,6 +414,9 @@
 
       function render(data) {
         const totals = data.totals || {};
+        setText("bookingRequests", data.bookings?.total);
+        setText("googleAdsBookingRequests", data.bookings?.googleAds);
+        renderRows("bookingSources", Array.isArray(data.bookings?.bySource) ? data.bookings.bySource : []);
         setText("todayViews", totals.todayViews);
         setText("todayVisitors", totals.todayVisitors);
         setText("yesterdayViews", totals.yesterdayViews);

@@ -3,14 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-ZKDLXLXDRE"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-ZKDLXLXDRE');
-      gtag('config', 'AW-18173901982');
-    </script>
+    <script src="/assets/visitor-attribution.js" defer></script>
     <style>
       @font-face {
         font-family: 'Paperlogy';
@@ -194,16 +187,7 @@
       document.getElementById("dateChip").textContent = `${isKorean ? "날짜" : "Date"}: ${date}`;
       document.getElementById("timeChip").textContent = `${isKorean ? "시간" : "Time"}: ${time}`;
 
-      if (typeof gtag === "function") {
-        gtag("event", "reservation_received", {
-          event_category: "reservation",
-          event_label: `${date} ${time}`,
-          reservation_date: date,
-          reservation_time: time,
-          reservation_lang: isKorean ? "ko" : "en",
-          transport_type: "beacon",
-        });
-      }
+      // Booking completion is recorded by the server, not by viewing this page.
     </script>
   </body>
 </html>

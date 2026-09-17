@@ -19,6 +19,7 @@ import { prepareAdminAttachments } from "./lib/admin-ai-attachments.mjs";
 import { selectConversation, searchAdminRecords } from "./lib/admin-ai-context.mjs";
 import { instagramBookingRules, validatedInstagramExtraction, currentKoreanClock } from "./lib/instagram-booking-rules.mjs";
 import { autoQueueDentweb } from "./lib/dentweb-auto-queue.mjs";
+import { normalizeBookingAttribution, summarizeBookingAttribution } from "./lib/booking-attribution.mjs";
 
 // Serialize screenshot saves so retries/double-clicks cannot create duplicate records.
 let screenshotSaveQueue = Promise.resolve();
@@ -4594,6 +4595,8 @@ createServer(async (request, response) => {
         name: email,
         phone: "01012341234",
         concerns,
+        acquisition: isTrafficOptedOut(request) || isExcludedTrafficIp(request) ? null : normalizeBookingAttribution(payload.acquisition),
+        measurement: { event: "booking_request", version: 1, googleReportingConsent: false },
         createdAt: new Date().toISOString(),
       };
 
@@ -6277,6 +6280,7 @@ createServer(async (request, response) => {
       });
       response.end(JSON.stringify({
         ...summarizeTraffic(events),
+        bookings: summarizeBookingAttribution(await readInbox(), sinceDay),
         optOut: {
           currentComputer: isTrafficOptedOut(request),
           currentIpExcluded: isExcludedTrafficIp(request),
@@ -6296,7 +6300,7 @@ createServer(async (request, response) => {
       const today = getKoreanDay();
       const sinceDay = addDaysToDay(today, -29);
       const events = await readTrafficEvents({ sinceDay, limit: 15000 });
-      const assist = await generateTrafficAiAssist(summarizeTraffic(events));
+      const assist = await generateTrafficAiAssist({ ...summarizeTraffic(events), bookings: summarizeBookingAttribution(await readInbox(), sinceDay) });
       response.writeHead(200, {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "no-store",

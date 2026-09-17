@@ -13,7 +13,7 @@ for (const url of urls) {
 }
 
 test('sitemap includes distinct public canonical pages with complete metadata', () => {
-  assert.equal(urls.length, 9);
+  assert.equal(urls.length, 11);
   assert.equal(new Set(urls).size, urls.length);
   for (const [url, html] of pages) {
     assert.equal(new URL(url).origin, origin);
@@ -57,7 +57,7 @@ test('home pages describe the same clinic with valid JSON-LD', () => {
 });
 
 test('search crawling stays open while administrative routes are excluded', async () => {
-  const robots = await readFile(new URL('../robots.txt', import.meta.url), 'utf8');
+  const robots = (await readFile(new URL('../robots.txt', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
   assert.match(robots, /User-agent: \*\nAllow: \/\n/);
   for (const path of ['/admin', '/api/', '/reservation/received.html']) assert.ok(robots.includes(`Disallow: ${path}\n`));
   assert.ok(robots.includes(`Sitemap: ${origin}/sitemap.xml`));
