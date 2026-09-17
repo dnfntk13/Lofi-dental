@@ -480,7 +480,7 @@
         padding: 18px 20px 20px;
         border-top: 1px solid var(--line);
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1fr);
         align-items: end;
         gap: 10px 28px;
         color: rgba(31, 45, 102, 0.78);
@@ -506,37 +506,6 @@
 
       .case-details {
         min-width: 0;
-      }
-
-      .case-price {
-        display: grid;
-        justify-items: end;
-        min-width: 154px;
-        padding-left: 28px;
-        border-left: 1px solid var(--line);
-        line-height: 1.35;
-        text-align: right;
-      }
-
-      .case-price-label {
-        margin-bottom: 4px;
-        color: var(--soft-ink);
-        font-size: 0.66rem;
-        font-weight: 700;
-        letter-spacing: 0.12em;
-      }
-
-      .case-price-krw {
-        color: var(--ink);
-        font-size: 1.04rem;
-        font-weight: 700;
-        letter-spacing: -0.02em;
-      }
-
-      .case-price-usd {
-        color: rgba(31, 45, 102, 0.58);
-        font-size: 0.75rem;
-        font-weight: 600;
       }
 
       .bottom-cta {
@@ -630,14 +599,6 @@
           text-align: left;
         }
 
-        .case-price {
-          min-width: 128px;
-          padding-left: 16px;
-        }
-
-        .case-price-krw {
-          font-size: 0.92rem;
-        }
       }
     </style>
   </head>
@@ -686,11 +647,6 @@
             <div class="compare-label-row"><span>BEFORE</span><button class="compare-zoom" type="button" aria-label="200% 확대"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></button><span>AFTER</span></div>
             <figcaption class="case-caption">
               <span class="case-details">Material: Composite<br />Shade: A1</span>
-              <span class="case-price" aria-label="치아당 99,000원, 미화 약 73달러">
-                <span class="case-price-label">치아당</span>
-                <strong class="case-price-krw">₩99,000</strong>
-                <span class="case-price-usd">≈ $73 USD</span>
-              </span>
             </figcaption>
           </figure>
           <figure class="case-card case-card-compare">
@@ -717,11 +673,6 @@
             <div class="compare-label-row"><span>BEFORE</span><button class="compare-zoom" type="button" aria-label="200% 확대"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></button><span>AFTER</span></div>
             <figcaption class="case-caption">
               <span class="case-details">Material: Porcelain(Rosetta)<br />Shade: A1</span>
-              <span class="case-price" aria-label="치아당 259,000원, 미화 약 192달러">
-                <span class="case-price-label">치아당</span>
-                <strong class="case-price-krw">₩259,000</strong>
-                <span class="case-price-usd">≈ $192 USD</span>
-              </span>
             </figcaption>
           </figure>
           <figure class="case-card case-card-compare">
@@ -748,11 +699,6 @@
             <div class="compare-label-row"><span>BEFORE</span><button class="compare-zoom" type="button" aria-label="200% 확대"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></button><span>AFTER</span></div>
             <figcaption class="case-caption">
               <span class="case-details">Material: Porcelain(Emax)<br />Shade: A1</span>
-              <span class="case-price" aria-label="치아당 399,000원, 미화 약 296달러">
-                <span class="case-price-label">치아당</span>
-                <strong class="case-price-krw">₩399,000</strong>
-                <span class="case-price-usd">≈ $296 USD</span>
-              </span>
             </figcaption>
           </figure>
           <figure class="case-card case-card-compare">
