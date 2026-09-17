@@ -273,19 +273,38 @@
         background-repeat: no-repeat;
       }
 
-      .compare-photo-pair {
+      .case-view-grid {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        grid-template-rows: minmax(0, 1fr);
-        aspect-ratio: 16 / 5;
+        gap: 14px;
+      }
+      .compare-view { min-width: 0; }
+      .compare-view-title {
+        margin: 5px 6px 10px;
+        color: var(--soft-ink);
+        font-size: 0.8rem;
+        font-weight: 700;
+      }
+      .compare-panel-photo {
+        display: block;
+        aspect-ratio: var(--view-aspect);
+        overflow: hidden;
         background: #17141d;
       }
-      .case-card .compare-photo-pair img {
+      .case-card .compare-panel-photo img {
+        display: block;
         width: 100%;
         height: 100%;
-        min-width: 0;
-        min-height: 0;
         object-fit: contain;
+      }
+      .case-card .compare-panel-photo .compare-sprite {
+        width: 200%;
+        max-width: none;
+        object-fit: fill;
+        transform: translateX(var(--view-offset, 0%));
+      }
+      @media (max-width: 640px) {
+        .case-view-grid { grid-template-columns: minmax(0, 1fr); }
       }
 
       .compare-divider {
@@ -384,7 +403,7 @@
         stroke-linejoin: round;
       }
 
-      .case-card-compare:fullscreen {
+      :is(.case-card-compare, .compare-view):fullscreen {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -398,7 +417,7 @@
         background: #f8faff;
       }
 
-      .case-card-compare.compare-zoom-fallback {
+      :is(.case-card-compare, .compare-view).compare-zoom-fallback {
         position: fixed;
         inset: 0;
         z-index: 100;
@@ -416,8 +435,8 @@
         background: #f8faff;
       }
 
-      .case-card-compare.is-zooming:fullscreen .before-after-compare,
-      .case-card-compare.is-zooming.compare-zoom-fallback .before-after-compare {
+      :is(.case-card-compare, .compare-view).is-zooming:fullscreen .before-after-compare,
+      :is(.case-card-compare, .compare-view).is-zooming.compare-zoom-fallback .before-after-compare {
         flex: 0 0 auto;
         width: min(86vw, 860px);
         max-width: none;
@@ -426,13 +445,13 @@
         transform-origin: center;
       }
 
-      .case-card-compare.is-zooming.compare-zoom-fallback.compare-mobile-zoom .before-after-compare {
+      :is(.case-card-compare, .compare-view).is-zooming.compare-zoom-fallback.compare-mobile-zoom .before-after-compare {
         width: min(76dvh, 860px);
         margin-top: calc(24dvh + 72px);
         transform: rotate(90deg) scale(1.18);
       }
 
-      .case-card-compare.compare-zoom-fallback.compare-mobile-zoom {
+      :is(.case-card-compare, .compare-view).compare-zoom-fallback.compare-mobile-zoom {
         justify-content: flex-start;
         height: 100dvh;
         overflow-x: hidden;
@@ -440,8 +459,8 @@
         padding: 72px 18px 36px;
       }
 
-      .case-card-compare.is-zooming:fullscreen .compare-label-row,
-      .case-card-compare.is-zooming.compare-zoom-fallback .compare-label-row {
+      :is(.case-card-compare, .compare-view).is-zooming:fullscreen .compare-label-row,
+      :is(.case-card-compare, .compare-view).is-zooming.compare-zoom-fallback .compare-label-row {
         position: fixed;
         top: 14px;
         left: 50%;
@@ -454,16 +473,23 @@
         transform: translateX(-50%);
       }
 
-      .case-card-compare.is-zooming.compare-zoom-fallback.compare-mobile-zoom .compare-label-row {
+      :is(.case-card-compare, .compare-view).is-zooming.compare-zoom-fallback.compare-mobile-zoom .compare-label-row {
         top: 50%;
         left: 30px;
         width: min(420px, calc(100dvh - 28px));
         transform: translate(-50%, -50%) rotate(90deg);
       }
 
-      .case-card-compare.is-zooming:fullscreen .case-caption,
-      .case-card-compare.is-zooming.compare-zoom-fallback .case-caption {
+      :is(.case-card-compare, .compare-view).is-zooming:fullscreen .case-caption,
+      :is(.case-card-compare, .compare-view).is-zooming.compare-zoom-fallback .case-caption {
         display: none;
+      }
+
+      .compare-view.is-zooming .compare-view-title { display: none; }
+      .compare-view.is-zooming:is(:fullscreen, .compare-zoom-fallback) .before-after-compare {
+        width: min(90vw, calc(78dvh * var(--view-ratio)));
+        margin: 64px 0 0;
+        transform: none;
       }
 
       body.compare-zoom-open {
@@ -661,27 +687,26 @@
             </figcaption>
           </figure>
           <figure class="case-card case-card-compare">
-            <div
-              class="before-after-compare"
-              tabindex="0"
-              data-start="50"
-              aria-label="Before and after veneer case 2 front, left side, and right side view comparison"
-            >
-              <img
-                class="compare-image compare-base-image"
-                src="assets/before-after/case-02-after.png"
-                alt="Veneer after front, left side, and right side view image"
-              />
-              <img
-                class="compare-image compare-overlay-image"
-                src="assets/before-after/case-02-before.png"
-                alt="Veneer before front, left side, and right side view image"
-              />
-              <div class="compare-divider" aria-hidden="true">
-                <span class="compare-handle">↔</span>
-              </div>
+            <div class="case-view-grid">
+              <section class="compare-view" style="--view-aspect: 706 / 495; --view-ratio: 1.4262626263; --view-offset: 0%">
+                <h2 class="compare-view-title">Front</h2>
+                <div class="before-after-compare" tabindex="0" data-start="50" aria-label="Case 2 Front before and after">
+                  <div class="compare-image compare-base-image compare-panel-photo"><img class="compare-sprite" src="assets/before-after/case-02-after.png" alt="Case 2 after, front view" loading="lazy" /></div>
+                  <div class="compare-image compare-overlay-image compare-panel-photo"><img class="compare-sprite" src="assets/before-after/case-02-before.png" alt="Case 2 before, front view" loading="lazy" /></div>
+                  <div class="compare-divider" aria-hidden="true"><span class="compare-handle">↔</span></div>
+                </div>
+                <div class="compare-label-row"><span>BEFORE</span><button class="compare-zoom" type="button" aria-label="Enlarge front comparison"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></button><span>AFTER</span></div>
+              </section>
+              <section class="compare-view" style="--view-aspect: 706 / 495; --view-ratio: 1.4262626263; --view-offset: -50%">
+                <h2 class="compare-view-title">Side</h2>
+                <div class="before-after-compare" tabindex="0" data-start="50" aria-label="Case 2 Side before and after">
+                  <div class="compare-image compare-base-image compare-panel-photo"><img class="compare-sprite" src="assets/before-after/case-02-after.png" alt="Case 2 after, side view" loading="lazy" /></div>
+                  <div class="compare-image compare-overlay-image compare-panel-photo"><img class="compare-sprite" src="assets/before-after/case-02-before.png" alt="Case 2 before, side view" loading="lazy" /></div>
+                  <div class="compare-divider" aria-hidden="true"><span class="compare-handle">↔</span></div>
+                </div>
+                <div class="compare-label-row"><span>BEFORE</span><button class="compare-zoom" type="button" aria-label="Enlarge side comparison"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></button><span>AFTER</span></div>
+              </section>
             </div>
-            <div class="compare-label-row"><span>BEFORE</span><button class="compare-zoom" type="button" aria-label="Zoom comparison 200%"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></button><span>AFTER</span></div>
             <figcaption class="case-caption">
               <span class="case-details">Material: Porcelain(Rosetta)<br />Shade: A1</span>
             </figcaption>
@@ -713,25 +738,26 @@
             </figcaption>
           </figure>
           <figure class="case-card case-card-compare">
-            <div
-              class="before-after-compare"
-              tabindex="0"
-              data-start="50"
-              aria-label="Before and after veneer case 4 front and right side view comparison"
-            >
-              <div class="compare-image compare-base-image compare-photo-pair">
-                <img src="assets/before-after/case-04-front-after.jpg" alt="Case 4 after, front view" loading="lazy" />
-                <img src="assets/before-after/case-04-side-after.jpg" alt="Case 4 after, side view" loading="lazy" />
-              </div>
-              <div class="compare-image compare-overlay-image compare-photo-pair">
-                <img src="assets/before-after/case-04-front-before.jpg" alt="Case 4 before, front view" loading="lazy" />
-                <img src="assets/before-after/case-04-side-before.jpg" alt="Case 4 before, side view" loading="lazy" />
-              </div>
-              <div class="compare-divider" aria-hidden="true">
-                <span class="compare-handle">↔</span>
-              </div>
+            <div class="case-view-grid">
+              <section class="compare-view" style="--view-aspect: 8 / 5; --view-ratio: 1.6; --view-offset: 0%">
+                <h2 class="compare-view-title">Front</h2>
+                <div class="before-after-compare" tabindex="0" data-start="50" aria-label="Case 4 Front before and after">
+                  <div class="compare-image compare-base-image compare-panel-photo"><img src="assets/before-after/case-04-front-after.jpg" alt="Case 4 after, front view" loading="lazy" /></div>
+                  <div class="compare-image compare-overlay-image compare-panel-photo"><img src="assets/before-after/case-04-front-before.jpg" alt="Case 4 before, front view" loading="lazy" /></div>
+                  <div class="compare-divider" aria-hidden="true"><span class="compare-handle">↔</span></div>
+                </div>
+                <div class="compare-label-row"><span>BEFORE</span><button class="compare-zoom" type="button" aria-label="Enlarge front comparison"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></button><span>AFTER</span></div>
+              </section>
+              <section class="compare-view" style="--view-aspect: 8 / 5; --view-ratio: 1.6; --view-offset: -50%">
+                <h2 class="compare-view-title">Side</h2>
+                <div class="before-after-compare" tabindex="0" data-start="50" aria-label="Case 4 Side before and after">
+                  <div class="compare-image compare-base-image compare-panel-photo"><img src="assets/before-after/case-04-side-after.jpg" alt="Case 4 after, side view" loading="lazy" /></div>
+                  <div class="compare-image compare-overlay-image compare-panel-photo"><img src="assets/before-after/case-04-side-before.jpg" alt="Case 4 before, side view" loading="lazy" /></div>
+                  <div class="compare-divider" aria-hidden="true"><span class="compare-handle">↔</span></div>
+                </div>
+                <div class="compare-label-row"><span>BEFORE</span><button class="compare-zoom" type="button" aria-label="Enlarge side comparison"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></button><span>AFTER</span></div>
+              </section>
             </div>
-            <div class="compare-label-row"><span>BEFORE</span><button class="compare-zoom" type="button" aria-label="Zoom comparison 200%"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></button><span>AFTER</span></div>
             <figcaption class="case-caption">
               <span class="case-details">Material: Composite<br />Shade: A1</span>
             </figcaption>
@@ -759,14 +785,17 @@
         };
 
         components.forEach((compare) => {
-          const card = compare.closest(".case-card-compare");
+          const card = compare.closest(".compare-view") || compare.closest(".case-card-compare");
           const zoomButton = card?.querySelector(".compare-zoom");
           const overlayImage = compare.querySelector(".compare-overlay-image");
           const divider = compare.querySelector(".compare-divider");
           let isDragging = false;
+          compare.setAttribute("role", "slider");
+          compare.setAttribute("aria-valuemin", "0");
+          compare.setAttribute("aria-valuemax", "100");
 
           const shouldLockLandscape = () => window.matchMedia("(max-width: 820px)").matches || (window.matchMedia("(pointer: coarse)").matches && window.innerWidth < 1200);
-          const shouldUseMobileZoom = shouldLockLandscape;
+          const shouldUseMobileZoom = () => !card?.classList.contains("compare-view") && shouldLockLandscape();
 
           const unlockOrientation = () => {
             try { screen.orientation?.unlock?.(); } catch {}
@@ -851,6 +880,7 @@
             const clamped = Math.min(100, Math.max(0, next));
             overlayImage.style.clipPath = `inset(0 ${100 - clamped}% 0 0)`;
             divider.style.left = `${clamped}%`;
+            compare.setAttribute("aria-valuenow", String(Math.round(clamped)));
           });
 
           zoomButton?.addEventListener("click", async () => {
@@ -874,7 +904,7 @@
             card.classList.add("is-zooming");
             try {
               await card.requestFullscreen();
-              if (shouldLockLandscape()) await screen.orientation?.lock?.("landscape").catch(() => {});
+              if (!card.classList.contains("compare-view") && shouldLockLandscape()) await screen.orientation?.lock?.("landscape").catch(() => {});
             } catch {
               openZoomFallback();
             }
