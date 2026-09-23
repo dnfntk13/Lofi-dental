@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
-    <meta name="theme-color" content="#000000" />
-    <title>lofi | Logo Display</title>
+    <meta name="theme-color" content="#fbfaff" />
+    <title>로우파이 치과의원 | 사이니지</title>
     <style>
       html,
       body {
@@ -14,23 +14,30 @@
         margin: 0;
         padding: 0;
         overflow: hidden;
-        background: #000000;
+        background: #f0edfb;
+      }
+      body {
+        background:
+          radial-gradient(circle at 12% 8%, rgba(137, 117, 213, 0.18), transparent 42%),
+          radial-gradient(circle at 88% 14%, rgba(103, 128, 245, 0.2), transparent 46%),
+          linear-gradient(170deg, #fbfaff 0%, #f0edfb 100%);
       }
       #displayLogo {
         position: absolute;
-        top: 0;
-        left: 0;
+        top: 7%;
+        left: 8%;
         display: block;
-        width: 100%;
-        height: 100%;
+        width: 84%;
+        height: 32%;
         border: 0;
         object-fit: contain;
+        object-position: center top;
         user-select: none;
         -webkit-user-drag: none;
       }
     </style>
   </head>
   <body data-display="logo">
-    <img id="displayLogo" src="/assets/lofi-logo-violet.png" alt="lofi esthetic dentistry" draggable="false" />
+    <img id="displayLogo" src="/assets/%ED%95%9C%EA%B8%80%EB%A1%9C%EA%B3%A0.png" alt="로우파이 치과의원" draggable="false" />
   </body>
 </html>
