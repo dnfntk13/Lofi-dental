@@ -1,0 +1,46 @@
+@font-face {
+  font-family: Pretendard;
+  src: url('/assets/fonts/Pretendard-SemiBold.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+body {
+  color: #3b2b78;
+  font: 600 16px Pretendard, 'Malgun Gothic', sans-serif;
+  background: #f0edfb;
+  background: radial-gradient(circle at 12% 8%, rgba(137,117,213,.18), transparent 42%), radial-gradient(circle at 88% 14%, rgba(103,128,245,.2), transparent 46%), linear-gradient(170deg,#fbfaff,#f0edfb);
+}
+.display-header { position: absolute; left: 3%; right: 3%; top: 2%; height: 10%; }
+.display-logo { display: block; width: 16%; height: 100%; }
+.display-time { position: absolute; right: 0; top: 8%; text-align: right; }
+#displayClock { display: block; font-size: 4vh; line-height: 1.1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+#displayDate { display: block; font-size: 1.45vh; margin-top: .75vh; color: #7968bb; }
+.display-stage {
+  position: absolute; left: 3%; right: 3%; top: 14%; bottom: 11%;
+  overflow: hidden; border-radius: 2vh; background: #100e18;
+  box-shadow: 0 1.5vh 4vh rgba(59,43,120,.12);
+}
+.display-video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; border: 0; background: #100e18; opacity: 0; transition: opacity 600ms ease; pointer-events: none; }
+.display-video.is-active { opacity: 1; }
+.display-standby { position: absolute; width: 100%; top: 50%; transform: translateY(-50%); text-align: center; color: #c8bdee; }
+.display-standby img { width: 20%; max-height: 25vh; object-fit: contain; }
+.display-standby p { margin: 2vh 0 0; font-size: 1.7vh; }
+.display-standby.is-hidden { visibility: hidden; }
+.display-footer { position: absolute; left: 3%; right: 3%; bottom: 2.5%; height: 5.5%; }
+.display-caption span { display: block; }
+#displayCategory { font-size: 1.15vh; color: #7968bb; letter-spacing: .16em; line-height: 1.4; }
+#displayTitle { margin-top: .45vh; font-size: 2vh; }
+.display-position { position: absolute; top: 0; right: 0; width: 24%; text-align: right; }
+#displayCount { font-size: 1.4vh; color: #7968bb; font-variant-numeric: tabular-nums; }
+.display-progress { display: flex; gap: .6vw; margin-top: 1vh; }
+.progress-segment { display: block; flex: 1; height: .4vh; min-height: 2px; overflow: hidden; border-radius: 9px; background: #dcd5ef; }
+.progress-fill { display: block; width: 0; height: 100%; background: #795de0; }
+@media (max-aspect-ratio: 1/1) {
+  .display-logo { width: 30%; }
+  .display-position { width: 30%; }
+  #displayTitle { font-size: 1.8vh; }
+}
+@media (prefers-reduced-motion: reduce) { .display-video { transition: none; } }

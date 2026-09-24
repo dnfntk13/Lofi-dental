@@ -1,160 +1,32 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="robots" content="noindex, nofollow" />
-    <title>lofi esthetic dentistry | Clinic Display</title>
-    <style>
-      html,
-      body {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-        background: #000000;
-      }
-
-      #displayVideo {
-        position: absolute;
-        top: 0;
-        left: 0;
-        z-index: 1;
-        width: 100%;
-        height: 100%;
-        border: 0;
-        background: #000000;
-        object-fit: contain;
-      }
-
-      #displayLogo {
-        position: absolute;
-        top: 42px;
-        left: 52px;
-        z-index: 2;
-        width: 240px;
-        height: auto;
-        border: 0;
-      }
-
-      #displayClock {
-        position: absolute;
-        top: 46px;
-        right: 52px;
-        z-index: 2;
-        margin: 0;
-        color: #7657dc;
-        font-family: "Arial Rounded MT Bold", "Trebuchet MS", Arial, sans-serif;
-        font-size: 32px;
-        font-weight: bold;
-        letter-spacing: 1px;
-        text-shadow: 0 2px 6px #000000;
-      }
-    </style>
-  </head>
-  <body>
-    <video
-      id="displayVideo"
-      autoplay="autoplay"
-      muted="muted"
-      playsinline="playsinline"
-      webkit-playsinline="webkit-playsinline"
-      preload="auto"
-    >
-      <source src="/assets/lofi%20veneer%20videos/nojima-before-after.mp4" type="video/mp4" />
-    </video>
-    <img id="displayLogo" src="/assets/lofi-logo-violet.png" alt="lofi esthetic dentistry" />
-    <p id="displayClock"></p>
-
-    <script type="text/javascript">
-      (function () {
-        var video = document.getElementById("displayVideo");
-        var clock = document.getElementById("displayClock");
-        var playlist = [
-          "/assets/lofi%20veneer%20videos/nojima-before-after.mp4",
-          "/assets/display-videos/angelica-before-after.mp4",
-          "/assets/lofi%20veneer%20videos/lofi-lab-dentistryisart.mp4",
-          "/assets/lofi%20veneer%20videos/lofi-lab-primemill.mp4",
-          "/assets/lofi%20veneer%20videos/Hongkong%20patient.mp4"
-        ];
-        var current = 0;
-        var changing = false;
-        var serverTime = 0;
-        var deviceTimeAtSync = 0;
-
-        function twoDigits(number) {
-          return number < 10 ? "0" + number : String(number);
-        }
-
-        function updateClock() {
-          var deviceNow = new Date().getTime();
-          var currentTime = serverTime ? serverTime + (deviceNow - deviceTimeAtSync) : deviceNow;
-          var koreaTime = new Date(currentTime + (9 * 60 * 60 * 1000));
-          clock.innerHTML = twoDigits(koreaTime.getUTCHours()) + ":" + twoDigits(koreaTime.getUTCMinutes());
-        }
-
-        function syncClock() {
-          var request = new XMLHttpRequest();
-          request.onreadystatechange = function () {
-            var receivedTime;
-            if (request.readyState !== 4 || request.status !== 200) {
-              return;
-            }
-            receivedTime = parseInt(request.responseText, 10);
-            if (!isNaN(receivedTime)) {
-              serverTime = receivedTime;
-              deviceTimeAtSync = new Date().getTime();
-              updateClock();
-            }
-          };
-          request.open("GET", "/api/time?display=" + new Date().getTime(), true);
-          request.send(null);
-        }
-
-        function playVideo() {
-          video.muted = true;
-          video.volume = 0;
-          video.src = playlist[current];
-          try {
-            video.play();
-          } catch (ignore) {}
-        }
-
-        function nextVideo() {
-          if (changing) {
-            return;
-          }
-          changing = true;
-          current = (current + 1) % playlist.length;
-          window.setTimeout(function () {
-            changing = false;
-            playVideo();
-          }, 500);
-        }
-
-        video.onended = nextVideo;
-        video.onerror = nextVideo;
-        video.muted = true;
-        video.volume = 0;
-
-        window.setInterval(function () {
-          if (video.paused && !video.ended && video.readyState > 1) {
-            try {
-              video.play();
-            } catch (ignore) {}
-          }
-        }, 5000);
-
-        updateClock();
-        window.setInterval(updateClock, 30000);
-        syncClock();
-        window.setInterval(syncClock, 600000);
-
-        try {
-          video.play();
-        } catch (ignore) {}
-      }());
-    </script>
-  </body>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#f0edfb" />
+  <title>lofi esthetic dentistry | Clinic Display</title>
+  <link rel="stylesheet" href="/display/display.css" />
+</head>
+<body data-display="video">
+  <header class="display-header">
+    <svg class="display-logo" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 658 478" role="img" aria-labelledby="logoTitle">
+      <title id="logoTitle">로우파이 치과의원</title>
+      <svg width="658" height="380" viewBox="0 0 658 380" overflow="hidden" aria-hidden="true"><image width="658" height="478" xlink:href="/assets/lofi-logo-violet.png" /></svg>
+      <text x="329" y="446" text-anchor="middle" fill="#7256db" font-family="Pretendard, sans-serif" font-size="64" font-weight="600" aria-hidden="true">로우파이 치과의원</text>
+    </svg>
+    <div class="display-time"><time id="displayClock" aria-label="한국 현재 시간"></time><span id="displayDate"></span></div>
+  </header>
+  <main class="display-stage" aria-label="로우파이 치과 영상">
+    <div id="displayStandby" class="display-standby"><img src="/assets/lofi-logo-violet.png" alt="lofi esthetic dentistry" /><p>영상을 준비하고 있습니다</p></div>
+    <video id="displayVideo" class="display-video" muted playsinline webkit-playsinline preload="auto" aria-label="사이니지 영상" disablepictureinpicture></video>
+    <video id="displayVideoNext" class="display-video" muted playsinline webkit-playsinline preload="auto" aria-label="다음 사이니지 영상" disablepictureinpicture></video>
+  </main>
+  <footer class="display-footer">
+    <div class="display-caption"><span id="displayCategory">LOFI ESTHETIC DENTISTRY</span><span id="displayTitle">로우파이 치과의원</span></div>
+    <div class="display-position"><span id="displayCount">01 / 05</span><div id="displayProgress" class="display-progress" aria-label="영상 재생 순서"></div></div>
+  </footer>
+  <script src="/display/player.js"></script>
+  <script src="/display/display.js"></script>
+</body>
 </html>
