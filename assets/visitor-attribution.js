@@ -5,7 +5,7 @@
 (() => {
   const key = 'lofi_visit_source_v1';
   const maxAge = 24 * 60 * 60 * 1000;
-  const clean = value => String(value || '').trim().replace(/[^a-z0-9 ._\-/]/gi, '').slice(0, 120);
+  const clean = value => String(value || '').trim().replace(/[^\p{L}\p{N} ._\-/]/gu, '').slice(0, 120);
   let attribution = null;
   try {
     const saved = JSON.parse(sessionStorage.getItem(key) || 'null');

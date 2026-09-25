@@ -238,6 +238,21 @@
         <div class="list" id="bookingSources"></div>
       </section>
 
+      <section class="panel" style="margin-bottom:18px">
+        <h2 class="panel-title">Instagram · Booked patients by video</h2>
+        <p><strong id="instagramBooked">0</strong> unique patients with saved calendar bookings · <strong id="instagramUnknown">0</strong> campaign unknown</p>
+        <p class="panel-note">All saved calendar bookings, excluding cancelled entries and DM inquiries without a date and time. Patients are matched by contact details or Instagram account, never by name alone. Patients linked to multiple campaigns may appear in each row. Campaigns seen in the last 30 days are also listed. Missing attribution is not proof of zero conversions.</p>
+        <p class="panel-note" id="instagramUnidentified"></p>
+        <div id="instagramCampaigns"></div>
+        <details style="margin-top:16px"><summary>Set video title for a campaign</summary>
+          <form id="campaignTitleForm" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+            <input name="campaignId" aria-label="Campaign ID" placeholder="Campaign ID" required maxlength="120">
+            <input name="videoTitle" aria-label="Video title" placeholder="Video title" required maxlength="160">
+            <button class="btn" type="submit">Save video title</button>
+          </form><p id="campaignSaveStatus" role="status"></p>
+        </details>
+      </section>
+
       <div class="layout">
         <div class="stack">
           <section class="panel">
@@ -412,7 +427,30 @@
         }
       }
 
+      function renderInstagram(data = {}) {
+        setText('instagramBooked', data.totalPatients);
+        setText('instagramUnknown', data.unknownCampaignPatients);
+        document.getElementById('instagramUnidentified').textContent = data.unidentifiedRecords ? data.unidentifiedRecords + ' booking records lack a stable patient identifier and are excluded from patient counts.' : '';
+        const rows = data.byCampaign || [];
+        const target = document.getElementById('instagramCampaigns');
+        target.replaceChildren();
+        if (!rows.length) { target.textContent = 'No campaign-linked bookings found. Instagram bookings with missing campaign data are counted above.'; return; }
+        rows.forEach((row, index) => {
+          const item = document.createElement('div'); item.className = 'row';
+          const label = document.createElement('span'); label.className = 'row-label'; label.textContent = row.titleMissing ? 'Video title not set · item ' + (index + 1) : row.label;
+          const count = document.createElement('strong'); count.textContent = row.patients + ' patients';
+          const edit = document.createElement('button'); edit.className = 'btn'; edit.textContent = 'Set video title';
+          edit.onclick = () => { const form = document.getElementById('campaignTitleForm'); form.parentElement.open = true; form.elements.campaignId.value = row.id; form.elements.videoTitle.value = row.titleMissing ? '' : row.label; form.elements.videoTitle.focus(); };
+          item.append(label, count, edit); target.append(item);
+        });
+      }
+      document.getElementById('campaignTitleForm').addEventListener('submit', async event => {
+        event.preventDefault(); const form = event.currentTarget, button = form.querySelector('button'), status = document.getElementById('campaignSaveStatus'); button.disabled = true;
+        try { const response = await fetch('/api/admin/traffic/campaign-title', {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:form.elements.campaignId.value,title:form.elements.videoTitle.value})}); if(!response.ok) throw new Error('Could not save video title.'); status.textContent='Saved'; await loadTraffic(); }
+        catch(error) {status.textContent=error.message;} finally {button.disabled=false;}
+      });
       function render(data) {
+        renderInstagram(data.instagramCampaigns);
         const totals = data.totals || {};
         setText("bookingRequests", data.bookings?.total);
         setText("googleAdsBookingRequests", data.bookings?.googleAds);

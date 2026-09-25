@@ -1,3 +1,4 @@
+import { summarizeInstagramCampaigns, campaignLabel } from './lib/instagram-campaign-insights.mjs';
 import { createServer } from "node:http";
 import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { Resolver } from "node:dns/promises";
@@ -278,6 +279,27 @@ async function getInboxCollection() {
   }
 
   return inboxCollectionPromise;
+}
+
+let campaignTitlesCollectionPromise;
+async function campaignTitlesCollection() {
+  if (!mongoUri) return null;
+  if (!campaignTitlesCollectionPromise) campaignTitlesCollectionPromise = (async () => {
+    const client = new MongoClient(mongoUri, { connectTimeoutMS: 8000, serverSelectionTimeoutMS: 8000 });
+    await client.connect();
+    return client.db(mongoDatabaseName).collection('instagram_campaign_titles');
+  })().catch(error => { campaignTitlesCollectionPromise = null; throw error; });
+  return campaignTitlesCollectionPromise;
+}
+async function readCampaignTitles() {
+  const collection = await campaignTitlesCollection();
+  if (collection) return Object.fromEntries((await collection.find({}).toArray()).map(r => [r._id, r.title]));
+  try { return JSON.parse(await readFile(path.join(dataDir, 'instagram-campaign-titles.json'), 'utf8')); }
+  catch (error) { if (error.code === 'ENOENT') return {}; throw error; }
+}
+async function readAllBookingRecords() {
+  const collection = await getInboxCollection();
+  return collection ? collection.find({}, {projection:{_id:0,id:1,patientId:1,email:1,phone:1,instagramSenderId:1,acquisition:1,measurement:1,channel:1,source:1,date:1,time:1,status:1,createdAt:1}}).toArray() : readInbox();
 }
 
 async function readInbox() {
@@ -1125,11 +1147,12 @@ function getReferrerUrl(referrer) {
   }
 }
 
-function getAcquisitionPath(event) {
+function getAcquisitionPath(event, titles = {}) {
   const campaign = event.campaign || {};
   const source = String(campaign.source || "").trim();
   const medium = String(campaign.medium || "").trim();
-  const name = String(campaign.name || "").trim();
+  const rawName = String(campaign.name || "").trim();
+  const name = rawName ? campaignLabel(rawName, titles) : "";
   const clickId = String(campaign.clickId || "").trim();
   if (source || medium || name) {
     return [source || "unknown source", medium, name].filter(Boolean).join(" / ");
@@ -1138,7 +1161,7 @@ function getAcquisitionPath(event) {
   return getReferrerUrl(event.referrer) || "Direct / none";
 }
 
-function summarizeTraffic(events) {
+function summarizeTraffic(events, titles = {}) {
   const today = getKoreanDay();
   const yesterday = addDaysToDay(today, -1);
   const sevenDayStart = addDaysToDay(today, -6);
@@ -1182,7 +1205,7 @@ function summarizeTraffic(events) {
       incrementCount(referrerMap, getReferrerLabel(event.referrer));
       const externalSite = event.externalReferrerSite || getExternalReferrerSite(event.referrer);
       if (externalSite) incrementCount(externalSiteMap, externalSite);
-      incrementCount(acquisitionMap, event.acquisitionPath || getAcquisitionPath(event));
+      incrementCount(acquisitionMap, getAcquisitionPath(event, titles));
       incrementCount(deviceMap, event.device || "unknown");
       incrementCount(browserMap, event.browser || "Other");
     }
@@ -1218,7 +1241,7 @@ function summarizeTraffic(events) {
       page: event.page || event.path || "/",
       referrer: getReferrerLabel(event.referrer),
       externalReferrerSite: event.externalReferrerSite || getExternalReferrerSite(event.referrer),
-      acquisitionPath: event.acquisitionPath || getAcquisitionPath(event),
+      acquisitionPath: getAcquisitionPath(event, titles),
       device: event.device || "unknown",
       browser: event.browser || "Other",
     })),
@@ -6268,19 +6291,37 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname === '/api/admin/traffic/campaign-title' && request.method === 'PUT') {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    try {
+      const payload = await getJsonBody(request);
+      const id = String(payload.id || '').trim(), title = String(payload.title || '').trim();
+      if (!id || id.length > 120 || !title || title.length > 160) {
+        response.writeHead(400, {'Content-Type':'application/json'}); response.end(JSON.stringify({message:'Campaign ID and video title are required.'})); return;
+      }
+      const collection = await campaignTitlesCollection();
+      if (collection) await collection.updateOne({_id:id}, {$set:{title}}, {upsert:true});
+      else { const titles = await readCampaignTitles(); Object.defineProperty(titles,id,{value:title,enumerable:true,configurable:true}); await mkdir(dataDir,{recursive:true}); await writeFile(path.join(dataDir,'instagram-campaign-titles.json'),JSON.stringify(titles)); }
+      response.writeHead(200, {'Content-Type':'application/json'}); response.end(JSON.stringify({ok:true}));
+    } catch(error) { console.error('Campaign title save failed',error); response.writeHead(500, {'Content-Type':'application/json'}); response.end(JSON.stringify({message:'Could not save video title.'})); }
+    return;
+  }
+
   if (pathname === "/api/admin/traffic" && request.method === "GET") {
     if (!adminAuthorized) { requestAuth(response); return; }
     try {
       const today = getKoreanDay();
       const sinceDay = addDaysToDay(today, -29);
       const events = await readTrafficEvents({ sinceDay, limit: 15000 });
+      const [titles, records] = await Promise.all([readCampaignTitles(), readAllBookingRecords()]);
       response.writeHead(200, {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "no-store",
       });
       response.end(JSON.stringify({
-        ...summarizeTraffic(events),
-        bookings: summarizeBookingAttribution(await readInbox(), sinceDay),
+        ...summarizeTraffic(events, titles),
+        instagramCampaigns: summarizeInstagramCampaigns(records, events, titles),
+        bookings: summarizeBookingAttribution(records, sinceDay, titles),
         optOut: {
           currentComputer: isTrafficOptedOut(request),
           currentIpExcluded: isExcludedTrafficIp(request),
@@ -6300,7 +6341,7 @@ createServer(async (request, response) => {
       const today = getKoreanDay();
       const sinceDay = addDaysToDay(today, -29);
       const events = await readTrafficEvents({ sinceDay, limit: 15000 });
-      const assist = await generateTrafficAiAssist({ ...summarizeTraffic(events), bookings: summarizeBookingAttribution(await readInbox(), sinceDay) });
+      const assist = await generateTrafficAiAssist({ ...summarizeTraffic(events), bookings: summarizeBookingAttribution(await readInbox(), sinceDay, await readCampaignTitles()) });
       response.writeHead(200, {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "no-store",
