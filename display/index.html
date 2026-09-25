@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,22 +10,14 @@
 </head>
 <body data-display="video">
   <header class="display-header">
-    <svg class="display-logo" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 658 478" role="img" aria-labelledby="logoTitle">
-      <title id="logoTitle">로우파이 치과의원</title>
-      <svg width="658" height="380" viewBox="0 0 658 380" overflow="hidden" aria-hidden="true"><image width="658" height="478" xlink:href="/assets/lofi-logo-violet.png" /></svg>
-      <text x="329" y="446" text-anchor="middle" fill="#7256db" font-family="Pretendard, sans-serif" font-size="64" font-weight="600" aria-hidden="true">로우파이 치과의원</text>
-    </svg>
-    <div class="display-time"><time id="displayClock" aria-label="한국 현재 시간"></time><span id="displayDate"></span></div>
+    <img class="display-logo" src="/assets/lofi-logo-violet.png" alt="lofi esthetic dentistry" />
+    <div class="display-time"><time id="displayClock" aria-label="Current time in Korea"></time><span id="displayDate"></span></div>
   </header>
-  <main class="display-stage" aria-label="로우파이 치과 영상">
-    <div id="displayStandby" class="display-standby"><img src="/assets/lofi-logo-violet.png" alt="lofi esthetic dentistry" /><p>영상을 준비하고 있습니다</p></div>
-    <video id="displayVideo" class="display-video" muted playsinline webkit-playsinline preload="auto" aria-label="사이니지 영상" disablepictureinpicture></video>
-    <video id="displayVideoNext" class="display-video" muted playsinline webkit-playsinline preload="auto" aria-label="다음 사이니지 영상" disablepictureinpicture></video>
+  <main class="display-stage" aria-label="Lofi dentistry videos">
+    <div id="displayStandby" class="display-standby"><img src="/assets/lofi-logo-violet.png" alt="lofi esthetic dentistry" /></div>
+    <video id="displayVideo" class="display-video" muted playsinline webkit-playsinline preload="auto" aria-label="Signage video" disablepictureinpicture></video>
+    <video id="displayVideoNext" class="display-video" muted playsinline webkit-playsinline preload="auto" aria-label="Next signage video" disablepictureinpicture></video>
   </main>
-  <footer class="display-footer">
-    <div class="display-caption"><span id="displayCategory">LOFI ESTHETIC DENTISTRY</span><span id="displayTitle">로우파이 치과의원</span></div>
-    <div class="display-position"><span id="displayCount">01 / 05</span><div id="displayProgress" class="display-progress" aria-label="영상 재생 순서"></div></div>
-  </footer>
   <script src="/display/player.js"></script>
   <script src="/display/display.js"></script>
 </body>

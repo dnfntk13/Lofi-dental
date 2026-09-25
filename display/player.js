@@ -68,7 +68,7 @@
           videos[spare].pause();
           videos[spare].onerror = null;
           prepare(spare, (item + 1) % playlist.length);
-        }, 700);
+        }, 0);
       };
       video.onended = function () { if (active === slot && pending < 0 && token === attempt) request((item + 1) % playlist.length); };
       video.onerror = function () { if (token === attempt) fail(token); };
