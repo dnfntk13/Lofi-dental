@@ -1,4 +1,5 @@
-import { summarizeInstagramCampaigns, campaignLabel } from './lib/instagram-campaign-insights.mjs';
+import { campaignLabel } from './lib/instagram-campaign-insights.mjs';
+import { validateCampaignAudit, summarizeCampaignAudit } from './lib/instagram-campaign-audit.mjs';
 import { createServer } from "node:http";
 import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { Resolver } from "node:dns/promises";
@@ -296,6 +297,22 @@ async function readCampaignTitles() {
   if (collection) return Object.fromEntries((await collection.find({}).toArray()).map(r => [r._id, r.title]));
   try { return JSON.parse(await readFile(path.join(dataDir, 'instagram-campaign-titles.json'), 'utf8')); }
   catch (error) { if (error.code === 'ENOENT') return {}; throw error; }
+}
+let campaignAuditCollectionPromise;
+async function campaignAuditCollection() {
+  if (!mongoUri) return null;
+  if (!campaignAuditCollectionPromise) campaignAuditCollectionPromise = (async () => {
+    const client = new MongoClient(mongoUri, { connectTimeoutMS:8000, serverSelectionTimeoutMS:8000 });
+    await client.connect();
+    return client.db(mongoDatabaseName).collection('instagram_campaign_audits');
+  })().catch(error => { campaignAuditCollectionPromise = null; throw error; });
+  return campaignAuditCollectionPromise;
+}
+async function readCampaignAudit() {
+  const collection = await campaignAuditCollection();
+  if (collection) return collection.findOne({_id:'latest'}, {projection:{_id:0}});
+  try { return JSON.parse(await readFile(path.join(dataDir,'instagram-campaign-audit.json'),'utf8')); }
+  catch(error) { if(error.code === 'ENOENT') return null; throw error; }
 }
 async function readAllBookingRecords() {
   const collection = await getInboxCollection();
@@ -6291,6 +6308,29 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname === '/api/admin/traffic/instagram-audit' && ['GET','PUT'].includes(request.method)) {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    try {
+      if (request.method === 'GET') {
+        response.writeHead(200, {'Content-Type':'application/json','Cache-Control':'no-store'});
+        response.end(JSON.stringify(await readCampaignAudit())); return;
+      }
+      let audit;
+      try { audit = validateCampaignAudit(await getJsonBody(request)); }
+      catch(error) { response.writeHead(400, {'Content-Type':'application/json'}); response.end(JSON.stringify({message:error.message})); return; }
+      const previous = await readCampaignAudit();
+      if (previous && Date.parse(previous.auditedAt) > Date.parse(audit.auditedAt)) {
+        response.writeHead(409, {'Content-Type':'application/json'}); response.end(JSON.stringify({message:'A newer audit already exists'})); return;
+      }
+      const collection = await campaignAuditCollection();
+      if (collection) await collection.replaceOne({_id:'latest'}, {_id:'latest',...audit}, {upsert:true});
+      else { await mkdir(dataDir,{recursive:true}); await writeFile(path.join(dataDir,'instagram-campaign-audit.json'),JSON.stringify(audit)); }
+      response.writeHead(200, {'Content-Type':'application/json','Cache-Control':'no-store'});
+      response.end(JSON.stringify({ok:true,summary:summarizeCampaignAudit(audit,await readCampaignTitles())}));
+    } catch(error) { console.error('Instagram audit failed',error); response.writeHead(500, {'Content-Type':'application/json'}); response.end(JSON.stringify({message:'Could not load or save audit'})); }
+    return;
+  }
+
   if (pathname === '/api/admin/traffic/campaign-title' && request.method === 'PUT') {
     if (!adminAuthorized) { requestAuth(response); return; }
     try {
@@ -6313,14 +6353,14 @@ createServer(async (request, response) => {
       const today = getKoreanDay();
       const sinceDay = addDaysToDay(today, -29);
       const events = await readTrafficEvents({ sinceDay, limit: 15000 });
-      const [titles, records] = await Promise.all([readCampaignTitles(), readAllBookingRecords()]);
+      const [titles, records, audit] = await Promise.all([readCampaignTitles(), readAllBookingRecords(), readCampaignAudit()]);
       response.writeHead(200, {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "no-store",
       });
       response.end(JSON.stringify({
         ...summarizeTraffic(events, titles),
-        instagramCampaigns: summarizeInstagramCampaigns(records, events, titles),
+        instagramCampaigns: summarizeCampaignAudit(audit, titles),
         bookings: summarizeBookingAttribution(records, sinceDay, titles),
         optOut: {
           currentComputer: isTrafficOptedOut(request),

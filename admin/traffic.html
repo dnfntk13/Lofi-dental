@@ -239,9 +239,11 @@
       </section>
 
       <section class="panel" style="margin-bottom:18px">
-        <h2 class="panel-title">Instagram · Booked patients by video</h2>
-        <p><strong id="instagramBooked">0</strong> unique patients with saved calendar bookings · <strong id="instagramUnknown">0</strong> campaign unknown</p>
-        <p class="panel-note">All saved calendar bookings, excluding cancelled entries and DM inquiries without a date and time. Patients are matched by contact details or Instagram account, never by name alone. Patients linked to multiple campaigns may appear in each row. Campaigns seen in the last 30 days are also listed. Missing attribution is not proof of zero conversions.</p>
+        <h2 class="panel-title">Instagram · Confirmed patients · Last 14 days</h2>
+        <p id="instagramPeriod" class="panel-note"></p>
+        <p><strong id="instagramBooked">—</strong> confirmed patients · <strong id="instagramLinked">—</strong> campaign-linked · <strong id="instagramUnknown">—</strong> campaign unknown · <strong id="instagramPending">—</strong> pending verification</p>
+        <p class="panel-note">Verified Instagram DM confirmations, based on the first confirmation date in Korea time, not the visit date. Each new patient counts once. Cancellations, follow-ups and rescheduling of earlier bookings are excluded. Video attribution comes from the conversation; unknown sources and unreadable replies are kept separate.</p>
+        <p id="instagramAuditStatus" class="panel-note" role="status"></p>
         <p class="panel-note" id="instagramUnidentified"></p>
         <div id="instagramCampaigns"></div>
         <details style="margin-top:16px"><summary>Set video title for a campaign</summary>
@@ -428,16 +430,19 @@
       }
 
       function renderInstagram(data = {}) {
-        setText('instagramBooked', data.totalPatients);
-        setText('instagramUnknown', data.unknownCampaignPatients);
-        document.getElementById('instagramUnidentified').textContent = data.unidentifiedRecords ? data.unidentifiedRecords + ' booking records lack a stable patient identifier and are excluded from patient counts.' : '';
+        document.getElementById('instagramPeriod').textContent = data.sinceDay ? data.sinceDay + ' – ' + data.throughDay + ' · Asia/Seoul · rolling 14 days' : '';
+        for (const [id,key] of [['instagramBooked','totalPatients'],['instagramLinked','campaignPatients'],['instagramUnknown','unknownCampaignPatients'],['instagramPending','pendingPatients']]) document.getElementById(id).textContent = data.available ? data[key] : '—';
+        const auditStatus = document.getElementById('instagramAuditStatus');
+        auditStatus.textContent = !data.available ? 'Awaiting the first verified DM audit.' : (data.stale ? 'Update needed: this is a partial count from the last audit. ' : 'Verified through the last audit. ') + 'Last checked: ' + new Date(data.auditedAt).toLocaleString('en-GB',{timeZone:'Asia/Seoul'}) + ' KST.';
+        auditStatus.style.color = data.stale ? '#a34b19' : '';
+        document.getElementById('instagramUnidentified').textContent = data.limitations || '';
         const rows = data.byCampaign || [];
         const target = document.getElementById('instagramCampaigns');
         target.replaceChildren();
-        if (!rows.length) { target.textContent = 'No campaign-linked bookings found. Instagram bookings with missing campaign data are counted above.'; return; }
+        if (!rows.length) { target.textContent = data.available ? 'No verified campaign-linked confirmations in this period.' : 'DM audit data is not yet available.'; return; }
         rows.forEach((row, index) => {
           const item = document.createElement('div'); item.className = 'row';
-          const label = document.createElement('span'); label.className = 'row-label'; label.textContent = row.titleMissing ? 'Video title not set · item ' + (index + 1) : row.label;
+          const label = document.createElement('span'); label.className = 'row-label'; label.textContent = row.label;
           const count = document.createElement('strong'); count.textContent = row.patients + ' patients';
           const edit = document.createElement('button'); edit.className = 'btn'; edit.textContent = 'Set video title';
           edit.onclick = () => { const form = document.getElementById('campaignTitleForm'); form.parentElement.open = true; form.elements.campaignId.value = row.id; form.elements.videoTitle.value = row.titleMissing ? '' : row.label; form.elements.videoTitle.focus(); };
