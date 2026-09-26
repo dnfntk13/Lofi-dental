@@ -23,8 +23,8 @@ body {
   overflow: hidden; border-radius: 2vh; background: #100e18;
   box-shadow: 0 1.5vh 4vh rgba(59,43,120,.12);
 }
-.display-video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; border: 0; background: #100e18; opacity: 0; pointer-events: none; }
-.display-video.is-active { opacity: 1; }
+.display-video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; border: 0; background: #100e18; visibility: hidden; z-index: 0; pointer-events: none; }
+.display-video.is-active { visibility: visible; z-index: 1; }
 .display-standby { position: absolute; width: 100%; top: 50%; transform: translateY(-50%); text-align: center; color: #c8bdee; }
 .display-standby img { width: 20%; max-height: 25vh; object-fit: contain; }
 .display-standby.is-hidden { visibility: hidden; }

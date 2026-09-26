@@ -51,6 +51,9 @@
       var token = ++attempt;
       index = item; pending = slot;
       var video = videos[slot];
+      // Freeze the outgoing frame before starting the next decoder, including retries.
+      // The previous frame remains visible until the incoming video is playing.
+      if (active >= 0) videos[active].pause();
       video.pause();
       video.className = 'display-video';
       video.onplaying = function () {
@@ -60,7 +63,10 @@
         active = slot; pending = -1; failures = 0;
         progressAt = now(); lastTime = video.currentTime;
         video.className = 'display-video is-active';
-        if (previous >= 0) videos[previous].className = 'display-video';
+        if (previous >= 0) {
+          videos[previous].pause();
+          videos[previous].className = 'display-video';
+        }
         notify('onStandby', false); notify('onItem', item);
         fadeTimer = later(function () {
           if (disposed || token !== attempt) return;

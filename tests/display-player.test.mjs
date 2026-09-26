@@ -59,6 +59,18 @@ test('failed preloading does not interrupt current video and reloads when needed
   a.onended(); assert.equal(b.loads,2); b.onplaying();
   assert.deepEqual(s.items,[0,1]); s.player.destroy();
 });
+test('retry freezes the outgoing video before starting the next and exposes only one layer', () => {
+  const s=setup(), [a,b]=s.videos;
+  a.onplaying(); s.tick(1);
+  assert.equal(a.paused,false); assert.equal(b.paused,true);
+  s.player.retry();
+  assert.equal(a.paused,true); assert.equal(b.paused,false);
+  assert.match(a.className,/is-active/); assert.doesNotMatch(b.className,/is-active/);
+  b.onplaying();
+  assert.equal(a.paused,true);
+  assert.doesNotMatch(a.className,/is-active/); assert.match(b.className,/is-active/);
+  s.player.destroy();
+});
 test('load timeout skips a broken clip, late callbacks cannot select it', () => {
   const s=setup(), [a]=s.videos, stale=a.onplaying;
   s.tick(15250); assert.equal(a.src,'b.mp4'); stale();
