@@ -6655,7 +6655,7 @@ createServer(async (request, response) => {
   try {
     let file = await readFile(safeAbsolutePath);
     const extension = path.extname(safeAbsolutePath).toLowerCase();
-    if (extension === '.html') file = Buffer.from(addAdminAiToPage(file.toString('utf8'), adminAuthorized, pathname));
+    if (extension === '.html') file = Buffer.from(addAdminAiToPage(file.toString('utf8'), adminAuthorized));
     const contentType = mimeTypes[extension] || "application/octet-stream";
     if (shouldTrackTraffic(request, pathname, safeRelativePath, extension)) {
       try {
