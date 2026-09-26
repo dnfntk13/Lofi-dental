@@ -26,15 +26,18 @@
     };
     request.send(null);
   }
-  var player = window.createDisplayPlayer({
+  var player;
+  window.cacheDisplayMedia(playlist, function (cachedPlaylist) {
+    player = window.createDisplayPlayer({
     videos: [document.getElementById('displayVideo'), document.getElementById('displayVideoNext')],
-    playlist: playlist,
+    playlist: cachedPlaylist,
     onStandby: function (visible) { standby.className = 'display-standby' + (visible ? '' : ' is-hidden'); }
   });
-  player.start();
+    player.start();
+  });
   updateClock(); syncClock();
   window.setInterval(updateClock, 1000);
   window.setInterval(syncClock, 600000);
-  window.addEventListener('online', function () { player.retry(); syncClock(); });
-  document.addEventListener('click', function () { if (standby.className.indexOf('is-hidden') < 0) player.retry(); });
+  window.addEventListener('online', function () { syncClock(); });
+  document.addEventListener('click', function () { if (player && standby.className.indexOf('is-hidden') < 0) player.retry(); });
 }());
