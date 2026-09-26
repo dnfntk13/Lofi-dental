@@ -1,4 +1,5 @@
 (() => {
+  if (!/^\/admin(?:\/|$)/.test(location.pathname)) return;
   if (window.self !== window.top || document.getElementById('admin-ai-widget')) return;
   const host = document.createElement('div');
   host.id = 'admin-ai-widget';
