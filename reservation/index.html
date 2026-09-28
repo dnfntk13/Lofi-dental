@@ -1801,7 +1801,7 @@
         date: isKorean ? "날짜" : "Date",
         availableTimes: isKorean ? "예약 가능 시간" : "Available times",
         closed: isKorean ? "휴진" : "Closed",
-        closedBanner: isKorean ? "일요일과 공휴일은 휴진입니다." : "Closed on Sundays and Korean public holidays.",
+        closedBanner: isKorean ? "공휴일은 휴진입니다." : "Closed on Korean public holidays.",
         holiday: isKorean ? "공휴일" : "Korean holiday",
         closedHint: isKorean ? "휴진" : "Closed",
         usageTitle: isKorean ? "예약 방법" : "How to book",
@@ -2270,7 +2270,7 @@
           return;
         }
 
-        timeTitle.textContent = specialOpeningHours[dateForSlots]
+        timeTitle.textContent = (specialOpeningHours[dateForSlots] || isSunday(dateForSlots))
           ? `${text.availableTimes} · 10:00–16:00`
           : text.availableTimes;
 
@@ -2280,7 +2280,9 @@
         const reservedTimes = await loadReservedTimes(dateForSlots);
         if (dateForSlots !== selectedDateISO) return;
 
-        const ranges = specialOpeningHours[dateForSlots] || (isSaturday(dateForSlots)
+        const ranges = specialOpeningHours[dateForSlots] || (isSunday(dateForSlots)
+          ? [[10 * 60, 16 * 60]]
+          : isSaturday(dateForSlots)
           ? [[10 * 60, 14 * 60]]
           : [
               [10 * 60, 13 * 60],
