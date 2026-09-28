@@ -21,6 +21,7 @@ import { prepareAdminAttachments } from "./lib/admin-ai-attachments.mjs";
 import { selectConversation, searchAdminRecords } from "./lib/admin-ai-context.mjs";
 import { instagramBookingRules, validatedInstagramExtraction, currentKoreanClock } from "./lib/instagram-booking-rules.mjs";
 import { autoQueueDentweb } from "./lib/dentweb-auto-queue.mjs";
+import { dentwebReservationId, sameDentwebReservation } from "./lib/dentweb-import-identity.mjs";
 import { normalizeBookingAttribution, summarizeBookingAttribution } from "./lib/booking-attribution.mjs";
 
 // Serialize screenshot saves so retries/double-clicks cannot create duplicate records.
@@ -526,10 +527,10 @@ function normalizeDentwebBrowserRows(rows, fallbackYear = new Date().getFullYear
     const concerns = String(row?.concerns || row?.memo || "Imported from Dentweb browser scan").trim().slice(0, 500);
     if (!date || !time || !name) continue;
 
-    const key = `${date}|${time}|${normalizePatientPhone(phone)}|${name}`;
+    const key = dentwebReservationId(row) ? `dentweb:${dentwebReservationId(row)}` : `${date}|${time}|${normalizePatientPhone(phone)}|${name}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    normalized.push({ date, time, name, phone, concerns });
+    normalized.push({ date, time, name, phone, concerns, dentwebReservationId: dentwebReservationId(row) });
   }
 
   return normalized.slice(0, 150);
@@ -809,7 +810,7 @@ async function planDentwebBrowserControlStep({ imageDataUrl, screenshotWidth, sc
 
 async function importDentwebReservations(rows, { fileName = "dentweb.pdf", dryRun = false } = {}) {
   const existingRecords = await readInbox();
-  const existingSlots = new Set(existingRecords.map((record) => `${normalizeReservationDate(record?.date)}|${normalizeReservationTime(record?.time)}`));
+  const knownReservations = existingRecords.map(record => ({ ...record, date: normalizeReservationDate(record?.date), time: normalizeReservationTime(record?.time) }));
   const imported = [];
   const skipped = [];
 
@@ -825,9 +826,10 @@ async function importDentwebReservations(rows, { fileName = "dentweb.pdf", dryRu
       continue;
     }
 
-    const slotKey = `${date}|${time}`;
-    if (existingSlots.has(slotKey)) {
-      skipped.push({ row: { date, time, name, phone }, reason: "slot already exists" });
+    const linkedId = dentwebReservationId(row);
+    const candidate = { date, time, name, phone, concerns, dentwebReservationId: linkedId };
+    if (knownReservations.some(existing => sameDentwebReservation(existing, candidate))) {
+      skipped.push({ row: candidate, reason: "reservation already exists" });
       continue;
     }
 
@@ -842,6 +844,12 @@ async function importDentwebReservations(rows, { fileName = "dentweb.pdf", dryRu
       createdAt: new Date().toISOString(),
     };
     if (phone) record.phone = phone;
+    if (linkedId) {
+      record.dentwebReservationId = linkedId;
+      record.dentwebSyncStatus = "completed";
+      record.dentwebSyncedAt = record.createdAt;
+      record.dentwebSyncUpdatedAt = record.createdAt;
+    }
 
     if (!dryRun) {
       await addInboxRecord(record);
@@ -860,8 +868,8 @@ async function importDentwebReservations(rows, { fileName = "dentweb.pdf", dryRu
       } catch (error) {
         console.error("Failed to save Dentweb import thread", error);
       }
-      existingSlots.add(slotKey);
     }
+    knownReservations.push(record);
     imported.push(record);
   }
 
