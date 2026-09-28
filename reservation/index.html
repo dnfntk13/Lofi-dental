@@ -2231,7 +2231,6 @@
       function getClosedType(dateValue) {
         if (specialOpeningHours[dateValue]) return null;
         if (isKoreanHoliday(dateValue)) return "holiday";
-        if (isSunday(dateValue)) return "weekend";
         return null;
       }
 
