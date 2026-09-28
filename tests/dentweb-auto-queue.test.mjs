@@ -12,3 +12,18 @@ test('unscheduled, invalid and past appointments are excluded',()=>{
   for(const o of [{...options,time:''},{...options,date:''},{...options,date:'2026-09-13'}]) assert.equal(autoQueueDentweb({name:'Test'},o).dentwebSyncStatus,undefined);
   assert.equal(autoQueueDentweb({},options).dentwebSyncStatus,undefined);
 });
+test('rescheduling a completed booking queues an update while preserving linked identity',()=>{
+  const previous={name:'Test',date:'2026-09-13',time:'14:00',dentwebSyncStatus:'completed',dentwebReservationId:716};
+  const result=autoQueueDentweb({...previous,date:options.date,time:options.time},{...options,previous});
+  assert.equal(result.dentwebSyncStatus,'pending');
+  assert.equal(result.dentwebReservationId,716);
+  assert.equal(result.dentwebSyncedAt,null);
+  assert.equal(autoQueueDentweb(previous,{...options,previous}),previous);
+});
+test('pending-reschedule notes on linked past appointments sync without losing the old booking',()=>{
+  const previous={name:'Test',date:'2026-09-13',time:'14:00',concerns:'Consult',dentwebSyncStatus:'completed',dentwebReservationId:717};
+  const result=autoQueueDentweb({...previous,concerns:'Reschedule pending'},{...options,date:previous.date,previous});
+  assert.equal(result.dentwebSyncStatus,'pending');
+  assert.equal(result.dentwebReservationId,717);
+  assert.equal(result.date,previous.date);
+});

@@ -5779,7 +5779,7 @@ createServer(async (request, response) => {
             dentwebSyncError: null,
           };
         }
-        Object.assign(merged, autoQueueDentweb(merged, { date: normalizeReservationDate(merged.date), time: normalizeReservationTime(merged.time) }));
+        Object.assign(merged, autoQueueDentweb(merged, { previous: existing, date: normalizeReservationDate(merged.date), time: normalizeReservationTime(merged.time) }));
         await collection.replaceOne({ id }, merged, { upsert: true });
         try {
           await saveOrUpdatePatient(merged, { name: merged.name || null, phone: merged.phone || null });
@@ -5818,7 +5818,7 @@ createServer(async (request, response) => {
             dentwebSyncError: null,
           };
         }
-        inbox[idx] = autoQueueDentweb(merged, { date: normalizeReservationDate(merged.date), time: normalizeReservationTime(merged.time) });
+        inbox[idx] = autoQueueDentweb(merged, { previous: existing, date: normalizeReservationDate(merged.date), time: normalizeReservationTime(merged.time) });
       } else {
         inbox.unshift(autoQueueDentweb(nextRecord, { date: normalizeReservationDate(nextRecord.date), time: normalizeReservationTime(nextRecord.time) }));
       }
