@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="/assets/visitor-attribution.js" defer></script>
+    <script src="/assets/booking-funnel.js" defer></script>
     <style>
       @font-face {
         font-family: 'Paperlogy';
@@ -1782,6 +1783,9 @@
     </div>
 
     <script>
+    (function(){const ko=new URLSearchParams(location.search).get('lang')==='ko';const info=document.createElement('p');info.style.cssText='padding:12px;line-height:1.6;color:#59457d';info.textContent=ko?'영어 상담 가능 · 서울 강남구 압구정로28길 49, 3층 · 상담 비용은 보험 적용 여부에 따라 달라집니다. 예약 신청 후 병원이 이메일로 최종 확인합니다.':'English-speaking care · 3F, 49 Apgujeong-ro 28-gil, Seoul · Consultation fees depend on insurance eligibility. The clinic confirms your request by email.';const a=document.createElement('a');a.href='/price-guide.html';a.textContent=ko?' 비용 안내':' View fees';info.appendChild(a);document.querySelector('section').appendChild(info);})();
+    </script>
+    <script>
       const selectedDayText = document.getElementById("selectedDayText");
       const cursorTooltip = document.getElementById("cursorTooltip");
       const priceGuideButton = document.getElementById("priceGuideButton");
@@ -2147,6 +2151,7 @@
         "2027-12-25",
       ]);
 
+      function koreaNow() { return new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Seoul'})); }
       function parseLocalDate(value) {
         const [year, month, day] = value.split("-").map(Number);
         return new Date(year, month - 1, day);
@@ -2202,9 +2207,7 @@
           reservedTimesByDate.set(dateValue, reservedTimes);
           return reservedTimes;
         } catch {
-          const reservedTimes = new Set();
-          reservedTimesByDate.set(dateValue, reservedTimes);
-          return reservedTimes;
+          return null;
         }
       }
 
@@ -2269,20 +2272,21 @@
           return;
         }
 
-        timeTitle.textContent = (specialOpeningHours[dateForSlots] || isSunday(dateForSlots))
+        timeTitle.textContent = (specialOpeningHours[dateForSlots] || isSunday(dateForSlots) || isSaturday(dateForSlots))
           ? `${text.availableTimes} · 10:00–16:00`
           : text.availableTimes;
 
-        const now = new Date();
+        const now = koreaNow();
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
         const isToday = dateForSlots === formatISODate(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
         const reservedTimes = await loadReservedTimes(dateForSlots);
         if (dateForSlots !== selectedDateISO) return;
+        if (!reservedTimes) { timeGrid.textContent=isKorean?'예약 시간을 불러오지 못했습니다. 새로고침해주세요.':'Could not load availability. Please refresh.'; return; }
 
         const ranges = specialOpeningHours[dateForSlots] || (isSunday(dateForSlots)
           ? [[10 * 60, 16 * 60]]
           : isSaturday(dateForSlots)
-          ? [[10 * 60, 14 * 60]]
+          ? [[10 * 60, 16 * 60]]
           : [
               [10 * 60, 13 * 60],
               [14 * 60, 19 * 60],
@@ -2318,6 +2322,7 @@
               if (isKorean) {
                 params.set("lang", "ko");
               }
+              window.lofiFunnel?.track('time_selected');
               window.location.href = `/reservation/concerns.html?${params.toString()}`;
             });
             timeGrid.appendChild(button);
@@ -2325,12 +2330,13 @@
         });
       }
 
-      const today = new Date();
+      const today = koreaNow();
       const minDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       const maxDate = new Date(minDate);
       maxDate.setMonth(maxDate.getMonth() + 3);
       const defaultDate = getDefaultDate(minDate, maxDate);
 
+      let userSelectedDate = false;
       let selectedDateISO = formatISODate(defaultDate);
       let viewYear = defaultDate.getFullYear();
       let viewMonth = defaultDate.getMonth();
@@ -2396,6 +2402,7 @@
 
           if (!isClosed && !isDisabledRange) {
             button.addEventListener("click", () => {
+              userSelectedDate = true;
               selectedDateISO = iso;
               selectedDayText.textContent = formatLongDate(selectedDateISO);
               renderCalendar();
@@ -2465,6 +2472,28 @@
       selectedDayText.textContent = formatLongDate(selectedDateISO);
       timePanel.classList.remove("is-hidden");
       renderCalendar();
+      const rec=document.createElement('div'); rec.id='recommendedTimes';rec.style.cssText='display:grid;gap:8px;margin:12px 0';
+      const title=document.createElement('h2');title.textContent=isKorean?'가장 빠른 예약 시간':'Next available appointments';
+      const calendar=document.getElementById('calendarGrid').parentNode;calendar.parentNode.insertBefore(title,calendar);calendar.parentNode.insertBefore(rec,calendar);
+      async function recommendTimes() {
+        rec.textContent=isKorean?'예약 가능 시간을 찾고 있습니다…':'Finding available times…';
+        const now=koreaNow(), candidate=new Date(minDate);
+        for(;candidate<=maxDate;candidate.setDate(candidate.getDate()+1)) {
+          if(userSelectedDate){rec.textContent='';return;}
+          const iso=formatISODate(candidate);if(getClosedType(iso))continue;
+          const ranges=specialOpeningHours[iso]||((isSunday(iso)||isSaturday(iso))?[[600,960]]:[[600,780],[840,1140]]);
+          const times=ranges.flatMap(([a,b])=>Array.from({length:(b-a)/30},(_,i)=>a+i*30)).filter(m=>iso!==formatISODate(now)||m>now.getHours()*60+now.getMinutes());
+          if(!times.length)continue;
+          const reserved=await loadReservedTimes(iso);
+          if(!reserved){rec.textContent=isKorean?'시간 조회에 실패했습니다. 날짜를 선택해 다시 확인해주세요.':'Availability unavailable. Select a date to retry.';return;}
+          if(userSelectedDate){rec.textContent='';return;}
+          const available=times.filter(m=>!reserved.has(formatTimeKey(m)));if(!available.length)continue;
+          selectedDateISO=iso;viewYear=candidate.getFullYear();viewMonth=candidate.getMonth();selectedDayText.textContent=formatLongDate(iso);renderCalendar();await buildTimeSlots();rec.textContent='';
+          available.slice(0,3).forEach(m=>{const b=document.createElement('button');b.type='button';b.className='time-slot';b.textContent=formatLongDate(iso)+' · '+formatTime(m);b.onclick=()=>{window.lofiFunnel?.track('time_selected');const q=new URLSearchParams({date:iso,time:formatTime(m)});if(isKorean)q.set('lang','ko');location.href='/reservation/concerns.html?'+q;};rec.appendChild(b);});return;
+        }
+        rec.textContent=isKorean?'현재 가능한 시간이 없습니다. 병원으로 문의해주세요.':'No available times. Please contact the clinic.';
+      }
+      recommendTimes();
       buildTimeSlots();
     </script>
     <script src="../assets/treatment-clips.js"></script>

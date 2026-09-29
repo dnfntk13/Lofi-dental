@@ -1,3 +1,4 @@
+import { funnelSteps, funnelSession, summarizeFunnel } from './lib/booking-funnel.mjs';
 import { campaignLabel } from './lib/instagram-campaign-insights.mjs';
 import { validateCampaignAudit, summarizeCampaignAudit } from './lib/instagram-campaign-audit.mjs';
 import { createServer } from "node:http";
@@ -1187,6 +1188,7 @@ function getAcquisitionPath(event, titles = {}) {
 }
 
 function summarizeTraffic(events, titles = {}) {
+  events = events.filter(event => event.kind !== "booking_funnel");
   const today = getKoreanDay();
   const yesterday = addDaysToDay(today, -1);
   const sevenDayStart = addDaysToDay(today, -6);
@@ -2483,10 +2485,10 @@ async function getPublicSiteKnowledge() {
       website: "https://lofiesthetic.com",
       hours: {
         weekdays: "Monday-Friday 10:00 AM-1:00 PM, 2:00 PM-7:00 PM",
-        saturday: "Saturday 10:00 AM-2:00 PM",
+        saturday: "Saturday 10:00 AM-4:00 PM",
         sunday: "Sunday 10:00 AM-4:00 PM",
         closed: "Closed on Korean public holidays",
-        korean: "월-금 오전 10:00-오후 1:00, 오후 2:00-오후 7:00 / 토요일 오전 10:00-오후 2:00 / 일요일 오전 10:00-오후 4:00 / 공휴일 휴진",
+        korean: "월-금 오전 10:00-오후 1:00, 오후 2:00-오후 7:00 / 토요일 오전 10:00-오후 4:00 / 일요일 오전 10:00-오후 4:00 / 공휴일 휴진",
       },
     },
     pages,
@@ -2594,8 +2596,8 @@ function getDeterministicPublicConsultReply(content) {
   if (/(which days|what days|what time|what hours|opening hours|clinic hours|are you open|when are you open|hours|open\?)/.test(normalized) || /(진료\s*시간|운영\s*시간|영업\s*시간|언제\s*열|몇\s*시|토요일|일요일|휴진)/.test(String(content || ""))) {
     return {
       answer: isKorean
-        ? "진료시간은 월-금 오전 10:00-오후 1:00, 오후 2:00-오후 7:00이고, 토요일은 오전 10:00-오후 2:00입니다. 일요일은 오전 10:00-오후 4:00에 진료하며, 한국 공휴일은 휴진입니다."
-        : "We are open Monday-Friday from 10:00 AM-1:00 PM and 2:00 PM-7:00 PM, and Saturday from 10:00 AM-2:00 PM. Sunday hours are 10:00 AM-4:00 PM. We are closed on Korean public holidays.",
+        ? "진료시간은 월-금 오전 10:00-오후 1:00, 오후 2:00-오후 7:00이고, 토요일은 오전 10:00-오후 4:00입니다. 일요일은 오전 10:00-오후 4:00에 진료하며, 한국 공휴일은 휴진입니다."
+        : "We are open Monday-Friday from 10:00 AM-1:00 PM and 2:00 PM-7:00 PM, and Saturday from 10:00 AM-4:00 PM. Sunday hours are 10:00 AM-4:00 PM. We are closed on Korean public holidays.",
       quickActions: ["book-appointment"],
       suggestedQuestions: isKorean
         ? ["이번 주 가능한 시간은 있나요?", "검진 비용은 얼마인가요?", "위치는 어디인가요?"]
@@ -2684,7 +2686,7 @@ async function generatePublicConsultAiReply({ conversation, patientInfo, attachm
       messages: [
         {
           role: "system",
-          content: "You are lofi AI, lofi esthetic dentistry's public website assistant. Be friendly, concise, and goal-directed. For every visitor message, respond in this flow: answer briefly, ask one context-appropriate follow-up question, and move the conversation toward booking an appointment. Usually keep the answer to 1-3 short sentences total. Use only the supplied site context and safe general dental-clinic guidance. Never diagnose, prescribe, evaluate photos clinically, guarantee treatment suitability/results, or quote exact prices unless the site context explicitly says so. For symptoms, side effects, photos, suitability, or treatment decisions, say a clinical review or in-person consultation is needed, then ask a useful follow-up question such as their main concern, preferred treatment, timing, or whether they would like to book a consultation. If the visitor asks which days the clinic is open, clinic hours, or whether a specific day is open, answer with both days and hours: Monday-Friday 10:00 AM-1:00 PM and 2:00 PM-7:00 PM; Saturday 10:00 AM-2:00 PM; Sunday 10:00 AM-4:00 PM; closed Korean public holidays. Do not end with a generic \"let me know\". Always include quickActions: [\"book-appointment\"] and 2-4 suggestedQuestions that the visitor can click as their next reply. Make suggestedQuestions specific to the visitor's topic, such as price, payment installments, treatment duration, options, hours, or availability. Do not duplicate what buttons already do: if quickActions includes book-appointment, do not explain the reservation page, say \"click the booking button\", or include suggestedQuestions like \"How do I book an appointment?\" or \"Can I book?\". Return only JSON with keys: answer, quickActions, suggestedQuestions, shouldCollectContact, needsHumanReview, safetyNote. Match the visitor's language.",
+          content: "You are lofi AI, lofi esthetic dentistry's public website assistant. Be friendly, concise, and goal-directed. For every visitor message, respond in this flow: answer briefly, ask one context-appropriate follow-up question, and move the conversation toward booking an appointment. Usually keep the answer to 1-3 short sentences total. Use only the supplied site context and safe general dental-clinic guidance. Never diagnose, prescribe, evaluate photos clinically, guarantee treatment suitability/results, or quote exact prices unless the site context explicitly says so. For symptoms, side effects, photos, suitability, or treatment decisions, say a clinical review or in-person consultation is needed, then ask a useful follow-up question such as their main concern, preferred treatment, timing, or whether they would like to book a consultation. If the visitor asks which days the clinic is open, clinic hours, or whether a specific day is open, answer with both days and hours: Monday-Friday 10:00 AM-1:00 PM and 2:00 PM-7:00 PM; Saturday 10:00 AM-4:00 PM; Sunday 10:00 AM-4:00 PM; closed Korean public holidays. Do not end with a generic \"let me know\". Always include quickActions: [\"book-appointment\"] and 2-4 suggestedQuestions that the visitor can click as their next reply. Make suggestedQuestions specific to the visitor's topic, such as price, payment installments, treatment duration, options, hours, or availability. Do not duplicate what buttons already do: if quickActions includes book-appointment, do not explain the reservation page, say \"click the booking button\", or include suggestedQuestions like \"How do I book an appointment?\" or \"Can I book?\". Return only JSON with keys: answer, quickActions, suggestedQuestions, shouldCollectContact, needsHumanReview, safetyNote. Match the visitor's language.",
         },
         { role: "user", content: JSON.stringify(prompt) },
       ],
@@ -4650,7 +4652,9 @@ createServer(async (request, response) => {
       };
 
       await addInboxRecord(record);
-
+      if (!adminAuthorized && !isTrafficOptedOut(request) && !isExcludedTrafficIp(request) && !isLikelyBot(request.headers['user-agent']) && funnelSession(payload.funnelSession)) {
+        try { const source=record.acquisition; await saveTrafficEvent({id:randomBytes(12).toString('hex'),timestamp:record.createdAt,day:getKoreanDay(),kind:'booking_funnel',step:'accepted',session:payload.funnelSession,device:getDeviceType(request.headers['user-agent']||''),source:[source?.source,source?.medium].filter(Boolean).join(' / ')||source?.referrerHost||'Direct / unknown'}); } catch(error) { console.error('Booking measurement unavailable'); }
+      }
       removeEmailVerification(email);
 
       // 이메일 스레드에 예약 요청 메시지 추가 (실패해도 예약은 정상 처리)
@@ -6356,6 +6360,19 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname === '/api/booking-funnel' && request.method === 'POST') {
+    try {
+      const payload=await getJsonBody(request,4096);
+      if (!funnelSteps.slice(0,-1).includes(payload.step)||!funnelSession(payload.session)) { response.writeHead(400);response.end();return; }
+      if (!adminAuthorized&&!isTrafficOptedOut(request)&&!isExcludedTrafficIp(request)&&!isLikelyBot(request.headers['user-agent'])&&request.headers.origin && new URL(request.headers.origin).host===requestUrl.host) {
+        const source=normalizeBookingAttribution(payload.acquisition);
+        await saveTrafficEvent({id:randomBytes(12).toString('hex'),timestamp:new Date().toISOString(),day:getKoreanDay(),kind:'booking_funnel',step:payload.step,session:payload.session,device:getDeviceType(request.headers['user-agent']||''),source:[source?.source,source?.medium].filter(Boolean).join(' / ')||source?.referrerHost||'Direct / unknown'});
+      }
+      response.writeHead(204);response.end();
+    } catch { response.writeHead(400);response.end(); }
+    return;
+  }
+
   if (pathname === "/api/admin/traffic" && request.method === "GET") {
     if (!adminAuthorized) { requestAuth(response); return; }
     try {
@@ -6369,6 +6386,7 @@ createServer(async (request, response) => {
       });
       response.end(JSON.stringify({
         ...summarizeTraffic(events, titles),
+        bookingFunnel: summarizeFunnel(events),
         instagramCampaigns: summarizeCampaignAudit(audit, titles),
         bookings: summarizeBookingAttribution(records, sinceDay, titles),
         optOut: {

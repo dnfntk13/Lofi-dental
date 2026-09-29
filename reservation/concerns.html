@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="/assets/visitor-attribution.js" defer></script>
+    <script src="/assets/booking-funnel.js" defer></script>
     <style>
       @font-face {
         font-family: 'Paperlogy';
@@ -296,8 +297,8 @@
           </div>
 
           <div class="field">
-            <label class="field-label" id="concernsLabel" for="concerns">Patient concerns</label>
-            <textarea id="concerns" class="concern-input" placeholder="Example: I want to fix dark front teeth and discuss veneers. I also have sensitivity on the upper left side." required></textarea>
+            <label class="field-label" id="concernsLabel" for="treatment">Patient concerns</label>
+            <select id="treatment" class="text-input" required><option value="">Choose a treatment</option><option>Veneers</option><option>Whitening</option><option>Check-up</option><option>Clear aligners</option><option>Other</option></select><label for="concerns" id="optionalLabel">Additional details (optional)</label><textarea id="concerns" class="concern-input" placeholder="Example: I want to fix dark front teeth and discuss veneers. I also have sensitivity on the upper left side."></textarea>
           </div>
 
           <div class="btn-row">
@@ -308,12 +309,15 @@
     </div>
 
     <script>
+    (function(){const ko=new URLSearchParams(location.search).get('lang')==='ko';const info=document.createElement('p');info.style.cssText='padding:12px;line-height:1.6;color:#59457d';info.textContent=ko?'영어 상담 가능 · 서울 강남구 압구정로28길 49, 3층 · 상담 비용은 보험 적용 여부에 따라 달라집니다. 예약 신청 후 병원이 이메일로 최종 확인합니다.':'English-speaking care · 3F, 49 Apgujeong-ro 28-gil, Seoul · Consultation fees depend on insurance eligibility. The clinic confirms your request by email.';const a=document.createElement('a');a.href='/price-guide.html';a.textContent=ko?' 비용 안내':' View fees';info.appendChild(a);document.querySelector('section').appendChild(info);})();
+    </script>
+    <script>
       const params = new URLSearchParams(window.location.search);
       const date = params.get("date") || "-";
       const time = params.get("time") || "-";
       const isKorean = params.get("lang") === "ko";
       const text = {
-        title: isKorean ? "예약 내용을 적어주세요" : "Tell us about your dental/esthetic concerns",
+        title: isKorean ? "예약을 신청하세요" : "Request your appointment",
         copy: isKorean ? "" : "Please describe your symptoms, goals, or any treatment you are considering.",
         dateLabel: isKorean ? "날짜" : "Date",
         timeLabel: isKorean ? "시간" : "Time",
@@ -326,9 +330,9 @@
         verify: isKorean ? "확인" : "Verify",
         verifying: isKorean ? "확인 중..." : "Verifying...",
         verified: isKorean ? "이메일 인증이 완료되었습니다." : "Email verified.",
-        concerns: isKorean ? "상담 내용" : "Patient concerns",
+        concerns: isKorean ? "진료 항목" : "Treatment",
         concernsPlaceholder: isKorean ? "예: 앞니 색이 어두워서 라미네이트 상담을 받고 싶어요. 왼쪽 위 치아가 시립니다." : "Example: I want to fix dark front teeth and discuss veneers. I also have sensitivity on the upper left side.",
-        submit: isKorean ? "예약 신청하기" : "Confirm reservation",
+        submit: isKorean ? "예약 신청하기" : "Request appointment",
         sendTimeout: isKorean ? "인증 메일 전송이 지연되고 있습니다. 다시 시도하거나 병원으로 연락해주세요." : "Verification email is taking too long. Please try again or contact us directly.",
         sendFail: isKorean ? "인증 코드를 보내지 못했습니다." : "Failed to send verification code",
         verifyTimeout: isKorean ? "인증 확인이 지연되고 있습니다. 다시 시도해주세요." : "Verification is taking too long. Please try again.",
@@ -358,6 +362,11 @@
       document.getElementById("dateChip").textContent = `${text.dateLabel}: ${date}`;
       document.getElementById("timeChip").textContent = `${text.timeLabel}: ${time}`;
 
+      document.getElementById('optionalLabel').textContent=isKorean?'추가 설명 (선택)':'Additional details (optional)';
+      const photoNote=document.createElement('p');photoNote.textContent=isKorean?'사진은 선택사항입니다. 필요하면 예약 관련 이메일에 첨부해 보내주세요.':'Photos are optional. If helpful, attach them to your booking email reply.';document.getElementById('concerns').after(photoNote);
+      if(isKorean) Array.from(document.getElementById('treatment').options).forEach((o,i)=>{o.value=['','Veneers','Whitening','Check-up','Clear aligners','Other'][i];o.textContent=['진료 항목 선택','라미네이트','미백','검진','투명교정','기타'][i];});
+      document.getElementById('pageCopy').style.display='block';
+      document.getElementById('pageCopy').textContent=isKorean?'이메일 인증 후 예약을 신청합니다. 병원 확인 후 이메일로 최종 안내드립니다.':'Verify your email to request an appointment. The clinic will confirm by email after reviewing your request.';
       const concernForm = document.getElementById("concernForm");
       const emailInput = document.getElementById("email");
       const emailCodeInput = document.getElementById("emailCode");
@@ -489,9 +498,12 @@
       concernForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         if (submitting) return;
+        window.lofiFunnel?.track("submit_attempt");
         const email = emailInput.value.trim();
         const emailCode = emailCodeInput.value.trim();
-        const concerns = document.getElementById("concerns").value.trim();
+        const treatment=document.getElementById('treatment').value;
+        const details=document.getElementById('concerns').value.trim();
+        const concerns=treatment ? treatment+(details?': '+details:'') : '';
 
         if (!email || !emailCode || !concerns) {
           return;
@@ -521,6 +533,7 @@
               emailCode,
               concerns,
               acquisition: window.lofiAttribution?.get() || null,
+              funnelSession: window.lofiFunnel?.session || null,
             }),
           });
 

@@ -208,6 +208,7 @@
       <p class="status" id="statusMsg">Loading insights...</p>
       <section class="ai-panel" id="aiInsightsPanel" aria-live="polite"></section>
 
+      <section class="panel"><h2>Web booking journey · Last 30 days</h2><p>Unique browser sessions at each step, measured from launch. Not unique patients. Admin sessions, opted-out traffic and known bots excluded. Earlier bookings are not backfilled.</p><div id="bookingFunnel"></div><div id="funnelBreakdown"></div></section>
       <section class="metric-grid" aria-label="Insights summary">
         <div class="metric">
           <p class="metric-label">Today</p>
@@ -455,6 +456,13 @@
         catch(error) {status.textContent=error.message;} finally {button.disabled=false;}
       });
       function render(data) {
+        const f=data.bookingFunnel||{}, steps=f.steps||{};
+        const labels={booking_open:'Booking opened',time_selected:'Time selected',details_started:'Details started',submit_attempt:'Submit attempted',accepted:'Request accepted'};
+        const area=document.getElementById('bookingFunnel');area.textContent='';
+        for(const [key,label] of Object.entries(labels)){const p=document.createElement('p');p.textContent=label+': '+(steps[key]||0)+' sessions'+(steps.booking_open?' · '+Math.round((steps[key]||0)/steps.booking_open*100)+'% of opens':'');area.appendChild(p);}
+        const breakdown=document.getElementById('funnelBreakdown');breakdown.textContent='';
+        for(const [label,rows] of [['Device',f.byDevice||[]],['Source',f.bySource||[]]]){for(const row of rows){const p=document.createElement('p');p.textContent=label+' — '+row.label+': '+Object.keys(labels).map(k=>(row[k]||0)).join(' → ');breakdown.appendChild(p);}}
+
         renderInstagram(data.instagramCampaigns);
         const totals = data.totals || {};
         setText("bookingRequests", data.bookings?.total);
