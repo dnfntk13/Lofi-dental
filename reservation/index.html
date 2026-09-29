@@ -1689,7 +1689,6 @@
             <li id="usageStepDetails">Enter your details on the next page to finish the request.</li>
             <li id="usageStepClosed">If today is closed, the next available day is selected automatically.</li>
           </ol>
-          <a class="price-guide-button" id="priceGuideButton" href="/price-guide.html" aria-label="Open the standalone Price Guide">Price Guide</a>
           <div class="price-guide is-hidden" id="priceGuidePanel" hidden>
             <div class="price-guide-head">
               <p class="price-guide-title" id="priceGuideTitle">Price Guide</p>
@@ -1783,12 +1782,11 @@
     </div>
 
     <script>
-    (function(){const ko=new URLSearchParams(location.search).get('lang')==='ko';const info=document.createElement('p');info.style.cssText='padding:12px;line-height:1.6;color:#59457d';info.textContent=ko?'영어 상담 가능 · 서울 강남구 압구정로28길 49, 3층 · 상담 비용은 보험 적용 여부에 따라 달라집니다. 예약 신청 후 병원이 이메일로 최종 확인합니다.':'English-speaking care · 3F, 49 Apgujeong-ro 28-gil, Seoul · Consultation fees depend on insurance eligibility. The clinic confirms your request by email.';const a=document.createElement('a');a.href='/price-guide.html';a.textContent=ko?' 비용 안내':' View fees';info.appendChild(a);document.querySelector('section').appendChild(info);})();
+    (function(){const ko=new URLSearchParams(location.search).get('lang')==='ko';const info=document.createElement('p');info.style.cssText='padding:12px;line-height:1.6;color:#59457d';info.textContent=ko?'영어 상담 가능 · 서울 강남구 압구정로28길 49, 3층 · 상담 비용은 보험 적용 여부에 따라 달라집니다. 예약 신청 후 병원이 이메일로 최종 확인합니다.':'English-speaking care · 3F, 49 Apgujeong-ro 28-gil, Seoul · Consultation fees depend on insurance eligibility. The clinic confirms your request by email.';document.querySelector('section').appendChild(info);})();
     </script>
     <script>
       const selectedDayText = document.getElementById("selectedDayText");
       const cursorTooltip = document.getElementById("cursorTooltip");
-      const priceGuideButton = document.getElementById("priceGuideButton");
       const priceGuidePanel = document.getElementById("priceGuidePanel");
       const usdRateInput = document.getElementById("usdRateInput");
       const hkdRateInput = document.getElementById("hkdRateInput");
@@ -1887,7 +1885,6 @@
       document.getElementById("usageStepTime").textContent = text.usageStepTime;
       document.getElementById("usageStepDetails").textContent = text.usageStepDetails;
       document.getElementById("usageStepClosed").textContent = text.usageStepClosed;
-      priceGuideButton.textContent = text.priceGuideButton;
       document.getElementById("priceGuideTitle").textContent = text.priceGuideTitle;
       document.getElementById("exchangeRateLabel").textContent = text.exchangeRateLabel;
       document.getElementById("exchangeRateHelp").textContent = text.exchangeRateHelp;
