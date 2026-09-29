@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { addAdminAiToPage } from '../lib/admin-ai-page.mjs';
 
-function setup() {
+function setup(playlist) {
   let time = 0, id = 0;
   const timers = new Map(), items = [], standby = [];
   const schedule = (fn, delay, interval = 0) => { const key = ++id; timers.set(key, {fn, at:time + delay, interval}); return key; };
@@ -29,7 +29,7 @@ function setup() {
   }));
   const window = {};
   vm.runInNewContext(fs.readFileSync(new URL('../display/player.js',import.meta.url),'utf8'), {window});
-  const player = window.createDisplayPlayer({videos, playlist:[{src:'a.mp4'},{src:'b.mp4'},{src:'c.mp4'}],
+  const player = window.createDisplayPlayer({videos, playlist:playlist || [{src:'a.mp4'},{src:'b.mp4'},{src:'c.mp4'}],
     now:()=>time, setTimeout:(fn,ms)=>schedule(fn,ms), clearTimeout:key=>timers.delete(key),
     setInterval:(fn,ms)=>schedule(fn,ms,ms), clearInterval:key=>timers.delete(key),
     onItem:i=>items.push(i), onStandby:v=>standby.push(v)
@@ -101,4 +101,13 @@ test('authenticated signage stays free of admin chat while ordinary pages still 
   const html=fs.readFileSync(new URL('../display/index.html',import.meta.url),'utf8');
   assert.equal(addAdminAiToPage(html,true),html);
   assert.match(addAdminAiToPage('<body>Clinic</body>',true),/ai-widget/);
+});
+
+test('blob decoding failure retries the same original clip before skipping', () => {
+  const s=setup([{src:'blob:a',fallbackSrc:'a.mp4'},{src:'b.mp4'}]);
+  s.videos[0].onerror(); s.tick(250);
+  assert.equal(s.videos[0].src,'a.mp4');
+  s.videos[0].onplaying();
+  assert.deepEqual(s.items,[0]);
+  s.player.destroy();
 });

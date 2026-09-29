@@ -29,18 +29,28 @@ test('starts playback only after every full clip is downloaded; URLs are reusabl
   assert.equal(s.results.length, 0);
   assert.equal(s.requests[1].src, 'b.mp4');
   s.complete(s.requests[1], 'b');
-  assert.equal(JSON.stringify(s.results), '[[{"src":"blob:a"},{"src":"blob:b"}]]');
+  assert.equal(JSON.stringify(s.results), '[[{"src":"blob:a","fallbackSrc":"a.mp4"},{"src":"blob:b","fallbackSrc":"b.mp4"}]]');
   s.cache.destroy(); assert.deepEqual(s.revoked, ['blob:a','blob:b']);
 });
 
-test('failed or non-video responses retry only the missing clip and never start streaming', () => {
+test('failed clip falls back to its URL instead of blocking all playback', () => {
   const s = setup();
   s.complete(s.requests[0], 'a');
   s.complete(s.requests[1], 'error', 200, 'text/html');
-  assert.equal(s.results.length, 0);
-  const retry = [...s.timers.values()][0]; s.timers.clear(); retry();
-  assert.equal(s.requests[2].src, 'b.mp4');
-  s.complete(s.requests[2], 'b'); assert.equal(s.results.length, 1);
+  assert.equal(s.results.length, 1);
+  assert.equal(s.results[0][1].src, 'b.mp4');
+  assert.equal(s.timers.size, 0);
+  s.cache.destroy();
+});
+
+test('deadline aborts a stalled download and delivers playable original URLs once', () => {
+  const s = setup(), late = s.requests[0].onload;
+  [...s.timers.values()][0]();
+  assert.equal(s.requests[0].aborted, true);
+  assert.equal(s.results.length, 1);
+  assert.equal(s.results[0][0].src, 'a.mp4');
+  late();
+  assert.equal(s.results.length, 1);
   s.cache.destroy();
 });
 

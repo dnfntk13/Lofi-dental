@@ -34,6 +34,13 @@
       attempt += 1;
       if (pending >= 0) videos[pending].pause();
       pending = -1;
+      // Some signage browsers cannot decode blob URLs. Retry this clip once by URL.
+      if (playlist[index] && playlist[index].fallbackSrc) {
+        playlist[index].src = playlist[index].fallbackSrc;
+        playlist[index].fallbackSrc = null;
+        retryTimer = later(function () { request(index); }, 250);
+        return;
+      }
       failures += 1;
       if (failures >= playlist.length) {
         active = -1;
