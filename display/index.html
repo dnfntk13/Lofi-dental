@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex, nofollow" />
   <meta name="theme-color" content="#f0edfb" />
   <title>lofi esthetic dentistry | Clinic Display</title>
-  <link rel="stylesheet" href="/display/display.css" />
+  <link rel="stylesheet" href="/display/display.css?v=tv2" />
 </head>
 <body data-display="video">
   <header class="display-header">
@@ -15,11 +15,10 @@
   </header>
   <main class="display-stage" aria-label="Lofi dentistry videos">
     <div id="displayStandby" class="display-standby"><img src="/assets/lofi-logo-violet.png" alt="lofi esthetic dentistry" /></div>
-    <video id="displayVideo" class="display-video" muted playsinline webkit-playsinline preload="auto" aria-label="Signage video" disablepictureinpicture></video>
-    <video id="displayVideoNext" class="display-video" muted playsinline webkit-playsinline preload="auto" aria-label="Next signage video" disablepictureinpicture></video>
+    <video id="displayVideo" class="display-video is-active" autoplay muted playsinline webkit-playsinline preload="auto" aria-label="Signage video" disablepictureinpicture></video>
+    <button id="displayPlay" class="display-play" type="button" style="display:none">Play video · Press OK</button>
   </main>
-<script src="/display/media-cache.js?v=20260929"></script>
-<script src="/display/player.js?v=20260929"></script>
-  <script src="/display/display.js"></script>
+<script src="/display/tv-player.js?v=tv2"></script>
+<script src="/display/display.js?v=tv2"></script>
 </body>
 </html>

@@ -31,3 +31,5 @@ body {
 @media (max-aspect-ratio: 1/1) {
   .display-logo { width: 30%; }
 }
+
+.display-play { position:absolute; z-index:3; top:45%; left:25%; width:50%; padding:1em; border:2px solid white; border-radius:12px; background:#5b4099; color:white; font:inherit; font-size:3vh; cursor:pointer; }

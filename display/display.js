@@ -1,10 +1,10 @@
 (function () {
   var playlist = [
-    { src: '/assets/display-videos/nojima-before-after-hq.mp4' },
-    { src: '/assets/display-videos/angelica-before-after-hq.mp4' },
-    { src: '/assets/display-videos/lofi-lab-dentistryisart-hq.mp4' },
-    { src: '/assets/display-videos/lofi-lab-primemill-hq.mp4' },
-    { src: '/assets/display-videos/Hongkong%20patient-hq.mp4' }
+    { src: '/assets/display-videos/nojima-before-after-tv.mp4' },
+    { src: '/assets/display-videos/angelica-before-after-tv.mp4' },
+    { src: '/assets/display-videos/lofi-lab-dentistryisart-tv.mp4' },
+    { src: '/assets/display-videos/lofi-lab-primemill-tv.mp4' },
+    { src: '/assets/display-videos/Hongkong%20patient-tv.mp4' }
   ];
   var clock = document.getElementById('displayClock');
   var date = document.getElementById('displayDate');
@@ -26,18 +26,11 @@
     };
     request.send(null);
   }
-  var player;
-  window.cacheDisplayMedia(playlist, function (cachedPlaylist) {
-    player = window.createDisplayPlayer({
-    videos: [document.getElementById('displayVideo'), document.getElementById('displayVideoNext')],
-    playlist: cachedPlaylist,
-    onStandby: function (visible) { standby.className = 'display-standby' + (visible ? '' : ' is-hidden'); }
-  });
-    player.start();
-  });
+  var player = window.createTvDisplayPlayer(document.getElementById('displayVideo'), playlist, document.getElementById('displayPlay'));
+  standby.className = 'display-standby is-hidden';
   updateClock(); syncClock();
   window.setInterval(updateClock, 1000);
   window.setInterval(syncClock, 600000);
   window.addEventListener('online', function () { syncClock(); });
-  document.addEventListener('click', function () { if (player && standby.className.indexOf('is-hidden') < 0) player.retry(); });
+  document.addEventListener('keydown', function (event) { if (event.keyCode === 13 || event.keyCode === 32) player.retry(); });
 }());

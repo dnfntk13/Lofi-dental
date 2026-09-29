@@ -6,3 +6,5 @@ These files are used only by `/display`. Existing source videos are retained.
 - Other `*-hq.mp4` files: repository 406x720 sources scaled to 610x1080 with Lanczos and light luma sharpening (`unsharp=5:5:0.25:5:5:0`). These are upscaled versions, not native HD restorations. No generated details, crop, speed, or color changes.
 - Encoding: H.264, libx264 slow, CRF 17, yuv420p, original frame rate, faststart. Audio omitted because signage plays muted.
 - All five files were decoded end to end without errors. Native higher-resolution originals should replace upscaled exports when available.
+
+TV exports (*-tv.mp4): 1920x1080 letterboxed H.264 Constrained Baseline Level 4.0, yuv420p, 30fps, CRF20, max5Mbps, faststart, no audio. Aspect ratio preserved. Single visible video uses direct URLs for built-in TV browser compatibility.
