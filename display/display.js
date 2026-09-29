@@ -26,6 +26,22 @@
     };
     request.send(null);
   }
+  // TV files have a 16:9 encoded frame with portrait content in the centre.
+  // Size the frame to cover the stage; overflow clips padding, not the portrait.
+  // Explicit dimensions also work on TV engines without object-fit support.
+  var video = document.getElementById('displayVideo');
+  function fitVideo() {
+    var stage = video.parentNode;
+    var width = Math.max(stage.clientWidth, stage.clientHeight * 16 / 9);
+    var height = width * 9 / 16;
+    video.style.width = width + 'px';
+    video.style.height = height + 'px';
+    video.style.left = (stage.clientWidth - width) / 2 + 'px';
+    video.style.top = (stage.clientHeight - height) / 2 + 'px';
+  }
+  fitVideo();
+  window.addEventListener('resize', fitVideo);
+  window.addEventListener('load', fitVideo);
   var player = window.createTvDisplayPlayer(document.getElementById('displayVideo'), playlist, document.getElementById('displayPlay'));
   standby.className = 'display-standby is-hidden';
   updateClock(); syncClock();
