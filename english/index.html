@@ -81,25 +81,851 @@
       href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700&family=Nunito+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-  <link rel="stylesheet" href="/assets/site-refinement.css?v=20261001"><link rel="stylesheet" href="/assets/home-editorial.css?v=20261001">
+    <style>
+      @font-face {
+        font-family: 'Paperlogy';
+        src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-4Regular.woff2') format('woff2');
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: 'Paperlogy';
+        src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-5Medium.woff2') format('woff2');
+        font-weight: 500;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: 'Paperlogy';
+        src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-7Bold.woff2') format('woff2');
+        font-weight: 700;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      .opening-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px 20px;
+        margin: 24px 0 0;
+        padding: 18px 24px;
+        border: 1px solid #d8cef1;
+        border-radius: 18px;
+        background: #eee8fa;
+        color: #513687;
+        line-height: 1.45;
+      }
+      .opening-banner strong {
+        font-size: clamp(1.05rem, 3.8vw, 1.4rem);
+        font-weight: 700;
+        letter-spacing: -0.025em;
+      }
+      .opening-banner span { font-size: 0.88rem; }
+      @media (max-width: 480px) {
+        .opening-banner { padding: 16px 18px; gap: 4px; }
+        .opening-banner span { flex-basis: 100%; }
+      }
+    </style>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg-cream: #fbfaff;
+        --bg-mist: #f0edfb;
+        --ink: #3b2b78;
+        --soft-ink: #7968bb;
+        --brand: #8975d5;
+        --brand-deep: #6650b8;
+        --line: rgba(137, 117, 213, 0.2);
+        --line-strong: rgba(137, 117, 213, 0.34);
+        --card: rgba(255, 255, 255, 0.94);
+        --mint: #f0edfb;
+        --amber: #e4def8;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Paperlogy", "Noto Sans KR", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 12% 0%, rgba(155, 137, 224, 0.12), transparent 36%),
+          #f9f8fc;
+      }
+
+      .page {
+        width: min(1080px, 92vw);
+        margin: 0 auto;
+        padding: 28px 0 96px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 18px;
+        flex-wrap: wrap;
+        min-height: 58px;
+      }
+
+      .logo-link {
+        display: inline-block;
+        margin-left: 4px;
+        text-decoration: none;
+        line-height: 0;
+      }
+
+      .logo-img {
+        display: block;
+        width: min(170px, 62vw);
+        height: auto;
+      }
+
+      .lang-toggle {
+        margin-left: auto;
+        text-decoration: none;
+        color: var(--soft-ink);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 9px 0 9px 14px;
+        border: 0;
+        border-left: 1px solid rgba(137, 117, 213, 0.2);
+        background: transparent;
+        transition: color 180ms ease;
+        white-space: nowrap;
+      }
+
+      .lang-toggle:hover {
+        color: var(--ink);
+      }
+
+      .contact-bar {
+        margin: 12px 0 0;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px 18px;
+        flex-wrap: wrap;
+        color: rgba(59, 43, 120, 0.68);
+        font-family: "Paperlogy", "Noto Sans KR", sans-serif;
+        font-size: 0.76rem;
+        line-height: 1.5;
+        letter-spacing: 0.035em;
+      }
+
+      .contact-address {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .contact-location {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 5px;
+      }
+
+      .map-links {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-right: 1px;
+      }
+
+      .map-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        height: 30px;
+        padding: 0 9px 0 6px;
+        border: 1px solid rgba(137, 117, 213, 0.16);
+        border-radius: 8px;
+        background: #ffffff;
+        color: var(--ink);
+        font-family: "Nunito Sans", "Segoe UI", sans-serif;
+        font-size: 0.7rem;
+        font-weight: 600;
+        line-height: 1;
+        white-space: nowrap;
+        text-decoration: none;
+        transition: transform 180ms ease, border-color 180ms ease;
+      }
+
+      .map-link:hover {
+        transform: translateY(-1px);
+        border-color: rgba(137, 117, 213, 0.38);
+      }
+
+      .map-icon {
+        display: block;
+        width: 20px;
+        height: 20px;
+      }
+
+      .contact-address::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--brand);
+      }
+
+      .contact-phone {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: auto;
+        padding: 0;
+        border: 0;
+        color: var(--ink);
+        background: transparent;
+        font-family: "Nunito Sans", "Segoe UI", sans-serif;
+        font-size: 0.82rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-decoration: none;
+      }
+
+      .contact-channels {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+
+      .contact-channel-icon {
+        width: 16px;
+        height: 16px;
+        flex: 0 0 auto;
+      }
+
+      .contact-whatsapp {
+        color: #6650b8;
+      }
+
+      .contact-whatsapp .contact-channel-icon {
+        color: #25d366;
+      }
+
+      .contact-instagram {
+        color: #6650b8;
+      }
+
+      .hero {
+        margin-top: 24px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 28px;
+      }
+
+      .hero-main {
+        position: relative;
+        isolation: isolate;
+        min-height: 390px;
+        padding: clamp(40px, 6vw, 66px);
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        overflow: hidden;
+        border: 0;
+        border-radius: 24px;
+        background: linear-gradient(135deg, #6650b8 0%, #7963ca 56%, #8d79da 100%);
+        box-shadow: 0 16px 40px rgba(82, 65, 155, 0.16);
+        animation: rise 720ms ease both;
+      }
+
+      .hero-main .hero-eyebrow {
+        margin: 0 0 18px;
+        color: rgba(255, 255, 255, 0.68);
+        font-family: "Nunito Sans", "Segoe UI", sans-serif;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 14px 0 0;
+        font-family: "Paperlogy", "Noto Sans KR", sans-serif;
+        font-size: clamp(1.75rem, 4.2vw, 3.42rem);
+        line-height: 1.16;
+        font-weight: 500;
+        letter-spacing: -0.045em;
+      }
+
+      .hero-quote {
+        max-width: 17ch;
+        color: #ffffff;
+      }
+
+      .quote-line {
+        display: block;
+        white-space: nowrap;
+      }
+
+      .quote-line:first-child {
+        text-indent: -0.28em;
+      }
+
+      .hero-main p {
+        margin: 18px 0 0;
+        max-width: 46ch;
+        font-size: 1.08rem;
+        line-height: 1.82;
+        color: var(--soft-ink);
+      }
+
+      .hero-main .hero-lead {
+        max-width: 48ch;
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 0.96rem;
+        line-height: 1.75;
+      }
+
+      .cta-row {
+        margin-top: 28px;
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        text-decoration: none;
+        border-radius: 12px;
+        padding: 13px 20px;
+        font-weight: 600;
+        font-size: 1rem;
+        border: 1px solid transparent;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease;
+      }
+
+      .btn-primary {
+        color: #ffffff;
+        background: #6650b8;
+        box-shadow: 0 12px 28px rgba(55, 37, 121, 0.3);
+      }
+
+      .btn-secondary {
+        border-color: var(--line);
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      .hero-main .btn-secondary {
+        border-color: rgba(255, 255, 255, 0.24);
+        color: #ffffff;
+        background: transparent;
+      }
+
+      .hero-main .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.18);
+      }
+
+      .hero-main .btn-price {
+        border-color: #a17e9f;
+        color: #ffffff;
+        background: #815f80;
+      }
+
+      .hero-main .btn-price:hover {
+        background: #745373;
+      }
+
+      .hero-actions {
+        width: min(270px, 100%);
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .hero-actions .btn {
+        width: 100%;
+      }
+
+      .hero-main .btn-veneers {
+        border-color: #776e9a;
+        color: #ffffff;
+        background: #51486f;
+      }
+
+      .hero-main .btn-veneers:hover {
+        background: #473e63;
+      }
+
+      .hero-main .btn-book {
+        min-height: 56px;
+        border-color: #f8e8f2;
+        color: #422a5f;
+        background: #f0d8e8;
+        box-shadow: 0 12px 30px rgba(64, 42, 92, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        font-weight: 700;
+      }
+
+      .hero-main .btn-book:hover {
+        background: #f7e4ef;
+        box-shadow: 0 16px 34px rgba(64, 42, 92, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      }
+
+      .btn-meet {
+        border-color: #7561c3;
+        color: #ffffff;
+        background: #7561c3;
+      }
+
+      .btn-meet:hover {
+        background: #6854b4;
+      }
+
+      .profile-cta {
+        margin-top: 20px;
+      }
+
+      .btn-before-after {
+        border-color: #806ac0;
+        color: #ffffff;
+        background: #6048a1;
+        box-shadow: none;
+      }
+
+      .btn-before-after:hover {
+        background: #543d91;
+        box-shadow: none;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .sticky-appointment {
+        position: fixed;
+        right: 28px;
+        bottom: 28px;
+        z-index: 20;
+        white-space: nowrap;
+        border: 1px solid rgba(255, 255, 255, 0.24);
+      }
+
+      .hero-side {
+        display: grid;
+        gap: 14px;
+        margin-top: 20px;
+        animation: rise 760ms ease both;
+      }
+
+      .stat,
+      .hours {
+        border: 1px solid rgba(137, 117, 213, 0.16);
+        border-radius: 20px;
+        background: #ffffff;
+        padding: 24px;
+        box-shadow: none;
+      }
+
+      .stat {
+        min-height: 336px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .hero-side .stat {
+        min-height: 0;
+        padding: 28px 32px;
+      }
+
+      .stat-value {
+        font-size: 2.25rem;
+        font-family: "Paperlogy", "Noto Sans KR", sans-serif;
+        margin: 0;
+      }
+
+      .stat-note {
+        margin: auto 0 0;
+        color: var(--ink);
+        font-size: 0.95rem;
+        font-weight: 700;
+        line-height: 1.45;
+      }
+
+      .hero-side .stat-note {
+        margin: 12px 0 0;
+      }
+
+      .stat-label,
+      .hours p {
+        margin: 8px 0 0;
+        color: var(--soft-ink);
+        font-size: 1rem;
+        line-height: 1.72;
+      }
+
+      .section {
+        margin-top: 20px;
+        border: 1px solid rgba(137, 117, 213, 0.16);
+        border-radius: 20px;
+        background: #ffffff;
+        padding: clamp(30px, 5vw, 48px);
+        box-shadow: none;
+        animation: rise 820ms ease both;
+      }
+
+      .section h2 {
+        margin: 0;
+        font-family: "Paperlogy", "Noto Sans KR", sans-serif;
+        font-size: clamp(1.7rem, 3vw, 2.5rem);
+        letter-spacing: -0.035em;
+      }
+
+      .section-label {
+        margin: 0 0 10px;
+        color: var(--soft-ink);
+        font-family: "Nunito Sans", sans-serif;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      .career-list {
+        margin-top: 24px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 34px;
+        row-gap: 0;
+      }
+
+      .career-item {
+        border: 0;
+        border-top: 1px solid rgba(137, 117, 213, 0.16);
+        border-radius: 0;
+        background: transparent;
+        padding: 18px 0;
+        display: grid;
+        grid-template-columns: 72px 1fr;
+        gap: 10px;
+        align-items: start;
+        box-shadow: none;
+        transition: border-color 180ms ease;
+      }
+
+      .career-item:hover {
+        border-color: rgba(137, 117, 213, 0.3);
+        background: transparent;
+      }
+
+      .career-year {
+        margin: 0;
+        font-family: "Paperlogy", "Noto Sans KR", sans-serif;
+        font-size: 1.24rem;
+        font-weight: 700;
+      }
+
+      .career-text {
+        margin: 0;
+        color: var(--soft-ink);
+        font-size: 1rem;
+        line-height: 1.65;
+      }
+
+      footer {
+        margin-top: 30px;
+        display: flex;
+        justify-content: flex-end;
+        align-items: end;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .contact {
+        margin: 12px 0 0;
+        color: var(--soft-ink);
+        font-size: 0.85rem;
+        line-height: 2;
+        letter-spacing: 0.08em;
+        font-family: 'Paperlogy', 'Noto Sans KR', sans-serif;
+        font-weight: 500;
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      @media (max-width: 960px) {
+        .hero {
+          grid-template-columns: 1fr;
+        }
+
+        .hero-main {
+          padding: 36px;
+        }
+
+        .hero-quote {
+          max-width: 15ch;
+        }
+
+        .career-list {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .page {
+          width: min(560px, 92vw);
+          padding-top: 20px;
+        }
+
+        .hero-main,
+        .section,
+        .stat,
+        .hours {
+          padding: 22px;
+          border-radius: 20px;
+        }
+
+        .hero-main {
+          min-height: 390px;
+          padding: 30px 24px;
+        }
+
+        .contact-bar {
+          justify-content: flex-start;
+          margin-top: 16px;
+        }
+
+        .contact-address {
+          width: 100%;
+        }
+
+        .contact-location {
+          width: 100%;
+          align-items: flex-start;
+        }
+
+        .career-item {
+          grid-template-columns: 64px 1fr;
+        }
+
+        .cta-row {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .btn {
+          text-align: center;
+        }
+
+        .sticky-appointment {
+          right: 18px;
+          bottom: 18px;
+          left: 18px;
+        }
+
+        h1 {
+          font-size: clamp(1.68rem, 8.2vw, 2.35rem);
+        }
+
+        .hero-quote {
+          max-width: 100%;
+        }
+
+        .quote-line:first-child {
+          text-indent: 0;
+        }
+
+        .quote-line {
+          white-space: normal;
+        }
+      }
+    </style>
+  <link rel="stylesheet" href="/assets/site-refinement.css?v=20261001"><link rel="stylesheet" href="/assets/home-preserved.css?v=20261001b">
 </head>
-  <body class="lofi-home">
-<a class="skip-link" href="#main">Skip to content</a>
-<div class="shell">
-<header class="masthead"><a class="brand" href="/" aria-label="lofi home"><img src="/assets/lofi-logo-violet.png" width="126" height="83" alt="lofi esthetic dentistry"></a><nav class="site-nav" aria-label="Main navigation"><a class="desktop-link" href="#care">Our care</a><a href="/before-after-en.html">Our results</a><a class="desktop-link" href="/meetdrkim.html">Meet Dr. Kim</a><a class="language" href="/korean" lang="ko">한국어</a></nav></header>
-<aside class="hours" aria-label="Opening hours"><strong>Open Monday–Sunday</strong><span>Mon–Fri 10am–7pm &nbsp; / &nbsp; Sat–Sun 10am–4pm</span></aside>
-<main id="main">
-<section class="opening"><div><p class="eyebrow">Esthetic dentistry · Apgujeong, Seoul</p><h1>A little more<br><em>you.</em><br>In every smile.</h1><p class="intro-copy">Thoughtful dental care, personal to you. Discover a considered approach to your smile in the heart of Seoul.</p><div class="actions"><a class="action primary" href="/reservation/">Book a consultation <span aria-hidden="true">↗</span></a><a class="action" href="/before-after-en.html">Before & After</a></div></div><figure class="hero-photo"><img src="/assets/story/waiting-room.jpg" width="1500" height="2000" fetchpriority="high" alt="The light-filled waiting room at lofi in Apgujeong"><figcaption>Your smile. Your pace. Your space.</figcaption></figure></section>
-<section class="chapter" id="care"><div class="section-head"><div><p class="eyebrow">01 / Considered care</p><h2>Small details.<br>A personal difference.</h2></div><a class="text-link" href="/before-after-en.html">Explore our results ↗</a></div><div class="care-grid">
-<a class="care-card" href="/lofi-lab-en.html"><img src="/assets/story/shade-lab.jpg" width="900" height="600" loading="lazy" alt="The in-house dental laboratory at lofi"><h3>Custom veneers <span aria-hidden="true">↗</span></h3><p>Shape, shade and character. Explore veneers made with attention to the details that feel like you.</p></a>
-<a class="care-card" href="/teeth-whitening-seoul.html"><img src="/assets/clinic/clinic-treatment-room.jpg" width="900" height="600" loading="lazy" alt="A treatment room at lofi"><h3>Teeth whitening <span aria-hidden="true">↗</span></h3><p>A brighter expression. Discuss your starting shade and whitening options at a consultation.</p></a>
-<a class="care-card" href="/reservation/"><img src="/assets/treatment/clear-aligner-reference.jpg" width="900" height="600" loading="lazy" alt="Clear aligner treatment illustration"><h3>Clear aligners <span aria-hidden="true">↗</span></h3><p>A plan around your smile. Find out whether clear aligners are an option for your teeth.</p></a>
-</div></section>
-<section class="philosophy"><div><p class="eyebrow">02 / The person behind your care</p><h2>Seoul roots.<br>New York perspective.</h2></div><div><p>With clinical experience across Seoul and New York, Dr. Ryan Kim brings a personal, considered approach to esthetic dentistry. Take a moment to get to know the person behind your care.</p><a class="text-link" href="/meetdrkim.html">Meet Dr. Ryan Kim ↗</a><p class="credentials">NYU College of Dentistry · Class of 2018<br>Brookdale Hospital & Interfaith Hospital · GPR</p></div></section>
-<section class="visit" id="visit"><img src="/assets/story/clinic-entrance.jpg" width="900" height="600" loading="lazy" alt="Entrance to lofi esthetic dentistry"><div><p class="eyebrow">03 / Come say hello</p><h2>A place for your<br>next chapter.</h2><address>3F, 49 Apgujeong-ro 28-gil<br>Gangnam-gu, Seoul</address><p class="visit-hours"><strong>Open Monday–Sunday</strong><br>Mon–Fri 10am–7pm<br>Sat–Sun 10am–4pm</p><div class="actions"><a class="action primary" href="/reservation/">Plan your visit ↗</a><a class="action" href="https://naver.me/GlRG56vU" target="_blank" rel="noopener noreferrer">Directions ↗</a></div></div></section>
-</main>
-<footer class="site-footer"><div>lofi esthetic dentistry<br>Apgujeong, Seoul · A smile, considered.<br><small>대표자명 김대웅 · 사업자등록번호 386-10-03273</small></div><nav class="footer-links" aria-label="Contact"><a href="tel:01029848823">+82 10 2984 8823</a><a href="#consult" data-consult-trigger>Chat with us</a><a href="mailto:lofidentalcs@lofiesthetic.com">Email</a><a href="https://www.instagram.com/lofi_esthetic_dentistry/" target="_blank" rel="noopener noreferrer">Instagram ↗</a><a href="https://whatsapp.com/channel/0029VbDaNE5It5roZdu5et3g" target="_blank" rel="noopener noreferrer">WhatsApp ↗</a></nav></footer>
-</div><a class="action primary mobile-book" href="/reservation/">Book a consultation ↗</a>
-<script src="/assets/consult-chat.js" defer></script></body>
+  <body class="home-cta-swapped" data-home-preserved>
+    <div class="page">
+      <header class="topbar">
+        <a class="logo-link" href="/" aria-label="lofi esthetic dentistry English home">
+          <img class="logo-img" src="../assets/lofi-logo-violet.png" alt="lofi esthetic dentistry" />
+        </a>
+        <a class="lang-toggle" href="/korean">Korean</a>
+      </header>
+
+      <aside class="opening-banner" aria-label="Opening days">
+        <strong>Open Monday–Sunday</strong>
+        <span>Mon–Fri 10am–7pm · Sat–Sun 10am–4pm</span>
+      </aside>
+
+      <div class="contact-bar" aria-label="Clinic contact information">
+        <div class="contact-location">
+          <span class="contact-address">3F, 49 Apgujeong-ro 28-gil, Gangnam-gu, Seoul</span>
+          <nav class="map-links" aria-label="Clinic map links">
+            <a class="map-link" href="https://naver.me/GlRG56vU" target="_blank" rel="noopener noreferrer" aria-label="Open in Naver Map" title="Naver Map">
+              <svg class="map-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <rect width="24" height="24" rx="5" fill="#03C75A" />
+                <path d="M6.4 5.7h4.1l3.2 4.7V5.7h3.9v12.6h-4.1l-3.2-4.8v4.8H6.4V5.7Z" fill="#fff" />
+              </svg>
+              <span>Naver Map</span>
+            </a>
+            <a class="map-link" href="https://maps.app.goo.gl/aUHYHjDk8iaGqLKH7" target="_blank" rel="noopener noreferrer" aria-label="Open in Google Maps" title="Google Maps">
+              <svg class="map-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 2.3a7.2 7.2 0 0 0-7.2 7.2c0 5.4 7.2 12.2 7.2 12.2s7.2-6.8 7.2-12.2A7.2 7.2 0 0 0 12 2.3Z" fill="#4285F4" />
+                <path d="M4.8 9.5c0 1.9.9 4 2.1 5.9l5.1-5.1 4.9-4.9A7.2 7.2 0 0 0 4.8 9.5Z" fill="#34A853" />
+                <path d="M12 2.3a7.2 7.2 0 0 0-5.1 2.1L12 9.5l5-5A7.1 7.1 0 0 0 12 2.3Z" fill="#EA4335" />
+                <path d="M6.9 15.4A35.5 35.5 0 0 0 12 21.7v-11.4l-5.1 5.1Z" fill="#FBBC04" />
+                <circle cx="12" cy="9.5" r="2.7" fill="#fff" />
+              </svg>
+              <span>Google Maps</span>
+            </a>
+          </nav>
+        </div>
+        <div class="contact-channels">
+          <a class="contact-phone" href="tel:01029848823" aria-label="Call +82 10 2984 8823">
+            <svg class="contact-channel-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M6.6 3.8 9 3.2c.6-.1 1.2.2 1.4.8l1.1 2.7c.2.5.1 1-.3 1.4L9.7 9.6a14.7 14.7 0 0 0 4.7 4.7l1.5-1.5c.4-.4.9-.5 1.4-.3l2.7 1.1c.6.2.9.8.8 1.4l-.6 2.4c-.1.7-.7 1.1-1.4 1.1A15.3 15.3 0 0 1 5.5 5.2c0-.7.4-1.3 1.1-1.4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span>+82 10 2984 8823</span>
+          </a>
+          <a class="contact-phone contact-whatsapp" href="https://whatsapp.com/channel/0029VbDaNE5It5roZdu5et3g" target="_blank" rel="noopener noreferrer" aria-label="View our WhatsApp channel">
+            <svg class="contact-channel-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M20.2 11.8c0 4.6-3.7 8.3-8.3 8.3-1.5 0-3-.4-4.2-1.1L3.8 20l1.1-3.6a8.2 8.2 0 0 1-1.4-4.6c0-4.6 3.7-8.3 8.3-8.3s8.4 3.7 8.4 8.3Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M9.2 8.9c.2-.4.4-.4.7-.4h.5c.2 0 .4 0 .6.5.2.6.7 2 .8 2.2.1.3 0 .4-.2.6l-.4.5c-.1.1-.2.3 0 .5.2.4 1 1.6 2.4 2.2.3.1.5.1.7-.1l.6-.7c.2-.2.3-.2.6-.1l2 .9c.3.1.5.2.5.4v.4c-.1.4-.6.8-1 1-.3.1-.8.3-1.9.1-1-.2-2.2-.9-3-1.6-.7-.6-1.3-1.4-1.8-2.2-.4-.7-.9-1.8-.8-2.8.1-.9.6-1.3.7-1.5Z" fill="currentColor" />
+            </svg>
+            <span>WhatsApp</span>
+          </a>
+          <a class="contact-phone contact-instagram" href="https://www.instagram.com/lofi_esthetic_dentistry/" target="_blank" rel="noopener noreferrer" aria-label="Follow lofi esthetic dentistry on Instagram">
+            <svg class="contact-channel-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <defs>
+                <linearGradient id="instagram-gradient" x1="4" y1="20" x2="20" y2="4" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#ffdc80" />
+                  <stop offset="0.28" stop-color="#fcaf45" />
+                  <stop offset="0.52" stop-color="#f77737" />
+                  <stop offset="0.72" stop-color="#e1306c" />
+                  <stop offset="1" stop-color="#833ab4" />
+                </linearGradient>
+              </defs>
+              <rect x="3.5" y="3.5" width="17" height="17" rx="5" stroke="url(#instagram-gradient)" stroke-width="1.8" />
+              <circle cx="12" cy="12" r="4" stroke="url(#instagram-gradient)" stroke-width="1.8" />
+              <circle cx="17.6" cy="6.7" r="1" fill="#e1306c" />
+            </svg>
+            <span>Instagram</span>
+          </a>
+          <a class="contact-phone" href="mailto:lofidentalcs@lofiesthetic.com" aria-label="Email lofidentalcs@lofiesthetic.com">
+            <svg class="contact-channel-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="3.5" y="5" width="17" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8" />
+              <path d="m5 7 7 5.5L19 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span>lofidentalcs@lofiesthetic.com</span>
+          </a>
+        </div>
+      </div>
+
+      <main>
+        <section class="hero">
+          <article class="hero-main">
+            <p class="hero-eyebrow">Seoul · Esthetic Dentistry</p>
+            <h1 class="hero-quote">
+              <span class="quote-line">&ldquo;The smile you&rsquo;ve</span>
+              <span class="quote-line">always wanted&mdash;</span>
+              <span class="quote-line">in just 2 days.&rdquo;</span>
+            </h1>
+            <p class="hero-lead">Thoughtful esthetic dentistry designed around your face, your character, and the way you naturally smile.</p>
+            <div class="cta-row hero-actions">
+              <a class="btn btn-veneers" href="/lofi-lab-en.html">Learn about our veneers</a>
+              <a class="btn btn-before-after" href="/before-after-en.html">Before &amp; After</a>
+              <a class="btn btn-book" href="/reservation/index.html">Book your appointment</a>
+            </div>
+          </article>
+        </section>
+
+        <section class="hero-side" aria-label="Seoul New York clinical background">
+          <article class="stat">
+            <p class="stat-value">Seoul - New York</p>
+            <p class="stat-label">With 8 years of clinical experience between Seoul and New York, we pursue aesthetics that are trendy yet lasting.</p>
+            <p class="stat-note">Officially registered by the Korean government to serve international patients</p>
+            <div class="profile-cta">
+              <a class="btn btn-meet" href="/meetdrkim.html">Meet Dr. Ryan Kim</a>
+            </div>
+          </article>
+        </section>
+
+        <section class="section" aria-labelledby="visitor-care-title">
+          <p class="section-label">Planning a visit to Seoul</p>
+          <h2 id="visitor-care-title">Explore your dental care options.</h2>
+          <p>English consultation in Apgujeong, Gangnam. Learn about your options before requesting an appointment.</p>
+          <div class="cta-row"><a class="btn btn-secondary" href="/english-dentist-seoul.html">English dental care</a><a class="btn btn-secondary" href="/teeth-whitening-seoul.html">Teeth whitening</a><a class="btn btn-secondary" href="/lofi-lab-en.html">Veneers</a></div>
+        </section>
+
+        <section class="section" aria-labelledby="career-title">
+          <p class="section-label">Dr. Ryan Kim</p>
+          <h2 id="career-title">Career Highlights</h2>
+          <div class="career-list">
+            <article class="career-item">
+              <p class="career-year">2018</p>
+              <p class="career-text">Graduated from NYU College of Dentistry</p>
+            </article>
+            <article class="career-item">
+              <p class="career-year">2018-2020</p>
+              <p class="career-text">Served as Dental Corpsman in the Republic of Korea Army</p>
+            </article>
+            <article class="career-item">
+              <p class="career-year">2021</p>
+              <p class="career-text">Associate Dentist at Seoul Naeun Dental</p>
+            </article>
+            <article class="career-item">
+              <p class="career-year">2022</p>
+              <p class="career-text">Associate Dentist at Michigan Dental</p>
+            </article>
+            <article class="career-item">
+              <p class="career-year">2023</p>
+              <p class="career-text">General Practice Residency at Brookdale Hospital</p>
+            </article>
+            <article class="career-item">
+              <p class="career-year">2024</p>
+              <p class="career-text">GPR 2nd year at Interfaith Hospital</p>
+            </article>
+            <article class="career-item">
+              <p class="career-year">2025</p>
+              <p class="career-text">Associate Dentist at Castle Bubu Dental and Smile Studios Dental</p>
+            </article>
+            <article class="career-item">
+              <p class="career-year">2026</p>
+              <p class="career-text">Founder and lead doctor at lofi esthetic dentistry</p>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <a class="btn btn-primary sticky-appointment" href="/reservation/index.html">Book your appointment</a>
+    </div>
+    <script src="/assets/consult-chat.js" defer></script>
+  </body>
 </html>
 
