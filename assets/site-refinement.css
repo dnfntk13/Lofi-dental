@@ -1,0 +1,20 @@
+/* Shared public-facing visual language. Scheduling and comparison geometry stay local. */
+@font-face{font-family:Lofi;src:url('/assets/fonts/Pretendard-SemiBold.woff2') format('woff2');font-weight:600;font-display:swap}
+:root{--ink:#302748;--soft-ink:#746b84;--soft:#746b84;--line:rgba(66,47,100,.14);--bg:#f8f6f2;--bg-cream:#f8f6f2;--bg-mist:#f0ebf7;--card:#fff;--lofi-purple:#7354d2}
+html{scroll-behavior:smooth;scroll-padding-top:24px}
+body{background:#f8f6f2;color:#302748;font-family:Arial,'Noto Sans KR',sans-serif;-webkit-font-smoothing:antialiased}
+body h1,body h2,body h3{text-wrap:balance;letter-spacing:-.035em}
+body p{line-height:1.75}
+body .page{width:min(1200px,92vw)}
+body .topbar{padding-bottom:24px;border-bottom:1px solid var(--line)}
+body .logo-img{width:140px;height:auto;object-fit:contain}
+body .btn,body .button{border-radius:8px;box-shadow:none;font-family:inherit;min-height:44px;transition:background .2s,transform .2s}
+body .btn-primary,body .button:not(.secondary){background:#7354d2;color:white;border-color:#7354d2}
+body .btn-secondary{background:transparent;color:#493767;border:1px solid #cfc5df}
+body .section,body .case-card,body .card{box-shadow:none}
+body .page-intro{padding:40px 0 28px}
+body .case-card{border:1px solid var(--line);border-radius:16px;overflow:hidden}
+body .case-caption{color:#5f566d}
+body .sticky-appointment{box-shadow:0 5px 20px #3027481a}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #9177da;outline-offset:4px}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}}

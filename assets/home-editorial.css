@@ -1,0 +1,55 @@
+.lofi-home{margin:0;background:#f8f6f2;color:#302748;font-family:Arial,'Noto Sans KR',sans-serif}
+.lofi-home *{box-sizing:border-box}
+.lofi-home .skip-link{position:absolute;top:-80px;left:16px;padding:12px;background:white;z-index:100}
+.lofi-home .skip-link:focus{top:12px}
+.lofi-home a{color:inherit}
+.lofi-home .shell{width:min(1240px,90vw);margin:auto}
+.lofi-home .masthead{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:25px 0;border-bottom:1px solid #30274824}
+.lofi-home .brand img{display:block;width:126px;height:auto}
+.lofi-home .site-nav{display:flex;align-items:center;gap:28px;font-size:13px}
+.lofi-home .site-nav a{text-decoration:none;padding:10px 0}
+.lofi-home .site-nav a:hover{text-decoration:underline;text-underline-offset:6px}
+.lofi-home .language{border-left:1px solid #30274825;padding-left:24px!important}
+.lofi-home .hours{display:flex;justify-content:space-between;gap:12px;padding:16px 0;font-size:12px;letter-spacing:.015em}
+.lofi-home .hours strong{font-weight:600;display:flex;align-items:center;gap:9px}
+.lofi-home .hours strong::before{content:'';width:6px;height:6px;border-radius:50%;background:#7354d2}
+.lofi-home .opening{display:grid;grid-template-columns:1.05fr 1fr;min-height:590px;margin:18px 0 72px;gap:6%;align-items:center}
+.lofi-home .eyebrow{font-size:11px;font-weight:600;letter-spacing:.17em;text-transform:uppercase;color:#786494;margin:0 0 26px}
+.lofi-home h1{font-family:Georgia,'Noto Sans KR',serif;font-weight:400;font-size:clamp(48px,5.8vw,82px);line-height:1.04;letter-spacing:-.055em;margin:0 0 26px;text-wrap:balance}
+.lofi-home h1 em{color:#7354d2;font-weight:400}
+.lofi-home .intro-copy{max-width:410px;font-size:16px;color:#746b84;margin:0 0 28px;line-height:1.8}
+.lofi-home .actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.lofi-home .action{display:inline-flex;justify-content:center;align-items:center;gap:24px;padding:15px 21px;border:1px solid #cabfda;border-radius:7px;text-decoration:none;font-size:13px;min-height:48px;transition:background .2s}
+.lofi-home .action.primary{background:#7354d2;color:#fff;border-color:#7354d2}
+.lofi-home .action:hover{background:#e9e2f3}
+.lofi-home .action.primary:hover{background:#5c40b1}
+.lofi-home .hero-photo{margin:0;position:relative;height:580px;border-radius:160px 12px 12px 12px;overflow:hidden;background:#ded5cb}
+.lofi-home .hero-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.lofi-home .hero-photo figcaption{position:absolute;bottom:0;left:0;right:0;padding:36px 25px 24px;color:#fff;font-size:12px;letter-spacing:.04em;background:linear-gradient(transparent,#211b1b9e)}
+.lofi-home .section-head{display:flex;justify-content:space-between;gap:32px;align-items:end;margin-bottom:30px}
+.lofi-home h2{font-family:Georgia,'Noto Sans KR',serif;font-size:clamp(30px,3.5vw,48px);font-weight:400;line-height:1.2;margin:0;letter-spacing:-.035em}
+.lofi-home .section-head .eyebrow{margin-bottom:14px}
+.lofi-home .text-link{font-size:13px;text-decoration:none;border-bottom:1px solid #a396b7;padding-bottom:7px;white-space:nowrap}
+.lofi-home .care-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
+.lofi-home .care-card{text-decoration:none;display:block}
+.lofi-home .care-card img{width:100%;height:260px;object-fit:cover;border-radius:10px;background:#eee9f1;display:block}
+.lofi-home .care-card h3{display:flex;justify-content:space-between;gap:12px;font-size:20px;font-weight:500;margin:21px 0 9px}
+.lofi-home .care-card p{font-size:14px;color:#746b84;margin:0;max-width:340px}
+.lofi-home .care-card:hover h3{color:#7354d2}
+.lofi-home .chapter{padding:0 0 84px}
+.lofi-home .philosophy{display:grid;grid-template-columns:1fr 1.2fr;gap:8%;background:#ebe5f3;border-radius:12px;padding:52px;margin:4px 0 84px}
+.lofi-home .philosophy p{color:#655b75;font-size:16px;margin:0 0 25px}
+.lofi-home .philosophy .eyebrow{font-size:11px;margin-bottom:20px}
+.lofi-home .credentials{border-top:1px solid #30274825;margin-top:28px;padding-top:18px;font-size:12px!important}
+.lofi-home .visit{display:grid;grid-template-columns:1fr 1fr;gap:7%;align-items:center;padding:0 0 70px}
+.lofi-home .visit img{width:100%;height:360px;object-fit:cover;border-radius:12px}
+.lofi-home .visit h2{margin-bottom:25px}
+.lofi-home .visit address{font-style:normal;line-height:1.8;font-size:15px;color:#746b84;margin-bottom:20px}
+.lofi-home .visit .visit-hours{font-size:14px;line-height:1.9;margin:0 0 26px}
+.lofi-home .site-footer{width:100%;margin:0;border-top:1px solid #30274824;padding:28px 0 100px;display:flex;justify-content:space-between;gap:24px;align-items:start;font-size:12px;color:#746b84}
+.lofi-home .footer-links{display:flex;gap:20px;flex-wrap:wrap;justify-content:flex-end}
+.lofi-home .footer-links a{text-decoration:none}
+.lofi-home .mobile-book{display:none}
+html:lang(ko) .lofi-home h1{font-family:Lofi,'Noto Sans KR',sans-serif;font-size:clamp(42px,4.8vw,65px);line-height:1.25;letter-spacing:-.06em}
+html:lang(ko) .lofi-home h2{font-family:Lofi,'Noto Sans KR',sans-serif;font-size:clamp(28px,3vw,40px)}
+@media(max-width:760px){.lofi-home .shell{width:90vw}.lofi-home .masthead{padding:20px 0;gap:12px}.lofi-home .brand img{width:95px}.lofi-home .site-nav{gap:15px;font-size:12px}.lofi-home .site-nav .desktop-link{display:none}.lofi-home .language{padding-left:14px!important}.lofi-home .hours{flex-direction:column;font-size:11px;gap:7px}.lofi-home .opening{grid-template-columns:1fr;gap:28px;margin:30px 0 55px;min-height:0}.lofi-home h1{font-size:54px;max-width:500px}.lofi-home .hero-photo{height:410px;border-radius:100px 10px 10px 10px}.lofi-home .eyebrow{margin-bottom:20px}.lofi-home .intro-copy{font-size:15px}.lofi-home .section-head{align-items:start;flex-direction:column;gap:20px}.lofi-home .care-grid{grid-template-columns:1fr;gap:32px}.lofi-home .care-card img{height:290px}.lofi-home .care-card h3{margin-top:17px}.lofi-home .chapter{padding-bottom:55px}.lofi-home .philosophy{grid-template-columns:1fr;padding:28px;gap:25px;margin-bottom:55px}.lofi-home .visit{grid-template-columns:1fr;gap:30px}.lofi-home .visit img{height:280px}.lofi-home .site-footer{flex-direction:column;padding-bottom:115px}.lofi-home .footer-links{justify-content:flex-start;gap:18px}.lofi-home .mobile-book{display:flex;position:fixed;bottom:16px;left:5vw;z-index:20;min-width:210px;box-shadow:0 5px 24px #30274820}}
