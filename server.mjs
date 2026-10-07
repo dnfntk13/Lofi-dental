@@ -3770,7 +3770,7 @@ function getSmtpErrorDetails(error) {
   };
 }
 
-async function sendMailWithFallback(mailOptions) {
+async function sendMailWithFallback(mailOptions, { sender } = {}) {
   let resendError;
   if (hasResendConfig()) {
     try {
@@ -3781,7 +3781,7 @@ async function sendMailWithFallback(mailOptions) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: resendFrom,
+          from: sender || resendFrom,
           to: Array.isArray(mailOptions.to) ? mailOptions.to : [mailOptions.to],
           reply_to: mailOptions.replyTo,
           subject: mailOptions.subject,
@@ -3812,7 +3812,7 @@ async function sendMailWithFallback(mailOptions) {
   let lastError;
   for (const config of configs) {
     try {
-      const info = await createMailTransporter(config).sendMail(mailOptions);
+      const info = await createMailTransporter(config).sendMail(sender ? { ...mailOptions, from: sender } : mailOptions);
       return { provider: "smtp", host: config.host, port: config.port, messageId: info?.messageId || null };
     } catch (error) {
       lastError = error;
@@ -3919,12 +3919,13 @@ async function sendReservationAutoReply(record) {
 
   const message = buildReservationAutoReply(record);
   await sendMailWithFallback({
-    from: smtpFrom,
+    from: "lofidentalcs@lofiesthetic.com",
+    replyTo: "lofidentalcs@lofiesthetic.com",
     to: record.email,
     subject: message.subject,
     text: message.text,
     html: message.html,
-  });
+  }, { sender: "lofidentalcs@lofiesthetic.com" });
   return true;
 }
 
