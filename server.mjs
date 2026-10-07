@@ -1,3 +1,4 @@
+import { appendSentCopy } from './lib/sent-mail-copy.mjs';
 import { deliverReminders } from './lib/reservation-reminders.mjs';
 import { funnelSteps, funnelSession, summarizeFunnel } from './lib/booking-funnel.mjs';
 import { campaignLabel } from './lib/instagram-campaign-insights.mjs';
@@ -3771,7 +3772,51 @@ function getSmtpErrorDetails(error) {
   };
 }
 
+let sentCopyCollectionPromise;
+async function sentCopyCollection() {
+  if (!mongoUri) throw new Error('Sent copy storage unavailable');
+  if (!sentCopyCollectionPromise) sentCopyCollectionPromise = (async () => {
+    const client = new MongoClient(mongoUri, { connectTimeoutMS: 8000, serverSelectionTimeoutMS: 8000 });
+    await client.connect();
+    return client.db(mongoDatabaseName).collection('sent_mail_copies');
+  })().catch(error => { sentCopyCollectionPromise = null; throw error; });
+  return sentCopyCollectionPromise;
+}
+async function processSentCopy(id) {
+  const collection = await sentCopyCollection();
+  const row = await collection.findOneAndUpdate({ _id:id, status: { $ne:'saved' }, $or:[{lockedUntil:{$exists:false}},{lockedUntil:{$lt:new Date()}}] }, { $set:{lockedUntil:new Date(Date.now()+120000)} }, {returnDocument:'after'});
+  if (!row) return;
+  try {
+    if (!imapHost || !imapUser || !imapPass) throw new Error('IMAP unavailable');
+    const result = await appendSentCopy(createImapClient(), Buffer.from(row.raw,'base64'), row._id, imapSentMailboxes);
+    await collection.updateOne({_id:id},{$set:{status:'saved',...result,savedAt:new Date().toISOString()},$unset:{raw:'',lockedUntil:''}});
+  } catch {
+    await collection.updateOne({_id:id},{$set:{status:'pending',retryAt:new Date(Date.now()+300000)},$unset:{lockedUntil:''}});
+  }
+}
+async function archiveSentMail(mail, result) {
+  // Archive failures must not escape into the provider fallback / resend path.
+  try {
+    const MailComposer = require('nodemailer/lib/mail-composer');
+    const messageId = mail.messageId || `<lofi-${randomBytes(16).toString('hex')}@lofiesthetic.com>`;
+    const raw = await new MailComposer({...mail,messageId,date:mail.date || new Date()}).compile().build();
+    const collection = await sentCopyCollection();
+    await collection.updateOne({_id:messageId},{$setOnInsert:{status:'pending',raw:raw.toString('base64'),createdAt:new Date().toISOString(),providerId:result?.id || result?.messageId || null}},{upsert:true});
+    await processSentCopy(messageId);
+    const saved = await collection.findOne({_id:messageId},{projection:{status:1}});
+    return {...result,sentCopyStatus:saved?.status || 'pending'};
+  } catch { console.error('Sent mailbox copy could not be queued; email delivery is not retried.'); return {...result,sentCopyStatus:'failed'}; }
+}
+async function retrySentCopies() {
+  try {
+    const collection = await sentCopyCollection();
+    const rows = await collection.find({status:{$ne:'saved'},$or:[{retryAt:{$exists:false}},{retryAt:{$lte:new Date()}}]}).limit(20).toArray();
+    for (const row of rows) await processSentCopy(row._id);
+  } catch { console.error('Sent mailbox copy retry unavailable.'); }
+}
+
 async function sendMailWithFallback(mailOptions, { sender } = {}) {
+  mailOptions = { ...mailOptions, messageId: mailOptions.messageId || `<lofi-${randomBytes(16).toString("hex")}@lofiesthetic.com>` };
   let resendError;
   if (hasResendConfig()) {
     try {
@@ -3788,6 +3833,7 @@ async function sendMailWithFallback(mailOptions, { sender } = {}) {
           subject: mailOptions.subject,
           text: mailOptions.text,
           html: mailOptions.html,
+          headers: { "Message-ID": mailOptions.messageId },
         }),
       });
 
@@ -3797,7 +3843,7 @@ async function sendMailWithFallback(mailOptions, { sender } = {}) {
       }
 
       const data = await response.json().catch(() => ({}));
-      return { provider: "resend", id: data.id || null };
+      return archiveSentMail({ ...mailOptions, from: sender || resendFrom }, { provider: "resend", id: data.id || null });
     } catch (error) {
       resendError = error;
       console.error("Resend send failed", getSmtpErrorDetails(error));
@@ -3814,7 +3860,7 @@ async function sendMailWithFallback(mailOptions, { sender } = {}) {
   for (const config of configs) {
     try {
       const info = await createMailTransporter(config).sendMail(sender ? { ...mailOptions, from: sender } : mailOptions);
-      return { provider: "smtp", host: config.host, port: config.port, messageId: info?.messageId || null };
+      return archiveSentMail({ ...mailOptions, from: sender || mailOptions.from }, { provider: "smtp", host: config.host, port: config.port, messageId: info?.messageId || null });
     } catch (error) {
       lastError = error;
       console.error("SMTP send failed", {
@@ -3857,19 +3903,20 @@ async function runReservationReminders() {
       },
       finish: (plan, status, result) => ledger.updateOne({ _id: plan.key }, { $set: { status, updatedAt: new Date().toISOString(), providerId: result?.id || result?.messageId || null } }),
       send: async (mail, key) => {
+        mail = {...mail, messageId: `<lofi-reminder-${key}@lofiesthetic.com>`};
         // One provider per attempt: ambiguous delivery must never trigger a duplicate.
         if (hasResendConfig()) {
           const response = await fetch('https://api.resend.com/emails', {
             method: 'POST', signal: AbortSignal.timeout(30000),
             headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': key },
-            body: JSON.stringify({ from: mail.from, to: [mail.to], reply_to: mail.replyTo, subject: mail.subject, text: mail.text })
+            body: JSON.stringify({ from: mail.from, to: [mail.to], reply_to: mail.replyTo, subject: mail.subject, text: mail.text, headers: { "Message-ID": mail.messageId } })
           });
           if (!response.ok) throw new Error('Reminder delivery requires review');
-          return response.json();
+          return archiveSentMail(mail, await response.json());
         }
         const config = getMailTransportConfigs()[0];
         if (!config) throw new Error('No reminder transport');
-        return createMailTransporter(config).sendMail(mail);
+        return archiveSentMail(mail, await createMailTransporter(config).sendMail(mail));
       }
     });
   } catch { console.error('Reservation reminder check failed; inspect reminder delivery status.'); }
@@ -5038,6 +5085,22 @@ createServer(async (request, response) => {
       response.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
       response.end(JSON.stringify({ enabled: Boolean(mongoUri && hasAnyMailConfig() && process.env.RESERVATION_REMINDERS_ENABLED !== 'false'), hourKst: 9, daysBefore: [2,1,0], from: 'lofidentalcs@lofiesthetic.com', counts }));
     } catch { response.writeHead(503); response.end('Reminder status unavailable'); }
+    return;
+  }
+
+  if (pathname === '/api/admin/sent-copy' && request.method === 'POST') {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    try {
+      const payload = await getJsonBody(request);
+      const email = String(payload.email || '').trim().toLowerCase();
+      const threads = await readEmailThreads();
+      const thread = threads.find(t => t.email === email);
+      const message = thread?.messages?.find(m => m.sentAt === payload.sentAt && m.deliveryStatus === 'sent' && m.channel === 'email');
+      if (!message) { response.writeHead(404); response.end('Verified sent message not found'); return; }
+      const key = createHmac('sha256','lofi-sent-copy-v1').update(email + '|' + message.sentAt).digest('hex');
+      const result = await archiveSentMail({from:resendFrom || smtpFrom,to:email,subject:message.subject,text:message.content,date:new Date(message.sentAt),messageId:`<lofi-archive-${key}@lofiesthetic.com>`},{provider:message.deliveryProvider});
+      response.writeHead(200, {'Content-Type':'application/json'}); response.end(JSON.stringify(result));
+    } catch { response.writeHead(500); response.end('Sent copy unavailable'); }
     return;
   }
 
@@ -6804,4 +6867,6 @@ createServer(async (request, response) => {
   migrateImapToEmailThreads().catch(err => console.error("IMAP migration error:", err));
   startEmailReplyChecker();
   startReservationReminders();
+  setTimeout(() => void retrySentCopies(), 20000).unref();
+  setInterval(() => void retrySentCopies(), 60000).unref();
 });
