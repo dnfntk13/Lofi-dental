@@ -1,3 +1,4 @@
+import { deliverReminders } from './lib/reservation-reminders.mjs';
 import { funnelSteps, funnelSession, summarizeFunnel } from './lib/booking-funnel.mjs';
 import { campaignLabel } from './lib/instagram-campaign-insights.mjs';
 import { validateCampaignAudit, summarizeCampaignAudit } from './lib/instagram-campaign-audit.mjs';
@@ -3828,6 +3829,57 @@ async function sendMailWithFallback(mailOptions, { sender } = {}) {
   throw lastError || resendError || new Error("Failed to send mail");
 }
 
+let reminderLedgerPromise;
+let reminderRunning = false;
+async function getReminderLedger() {
+  if (!mongoUri) return null;
+  if (!reminderLedgerPromise) reminderLedgerPromise = (async () => {
+    const client = new MongoClient(mongoUri, { connectTimeoutMS: 8000, serverSelectionTimeoutMS: 8000 });
+    await client.connect();
+    return client.db(mongoDatabaseName).collection('reservation_email_reminders');
+  })().catch(error => { reminderLedgerPromise = null; throw error; });
+  return reminderLedgerPromise;
+}
+async function runReservationReminders() {
+  if (reminderRunning || !hasAnyMailConfig() || !mongoUri || process.env.RESERVATION_REMINDERS_ENABLED === 'false') return;
+  reminderRunning = true;
+  try {
+    const ledger = await getReminderLedger();
+    const inbox = await getInboxCollection();
+    await deliverReminders({
+      records: await readInbox(),
+      readCurrent: id => inbox.findOne({ id }),
+      claim: async plan => {
+        try {
+          await ledger.insertOne({ _id: plan.key, reservationId: plan.id, date: plan.date, time: plan.time, days: plan.days, status: 'claimed', claimedAt: new Date().toISOString() });
+          return true;
+        } catch (error) { if (error.code === 11000) return false; throw error; }
+      },
+      finish: (plan, status, result) => ledger.updateOne({ _id: plan.key }, { $set: { status, updatedAt: new Date().toISOString(), providerId: result?.id || result?.messageId || null } }),
+      send: async (mail, key) => {
+        // One provider per attempt: ambiguous delivery must never trigger a duplicate.
+        if (hasResendConfig()) {
+          const response = await fetch('https://api.resend.com/emails', {
+            method: 'POST', signal: AbortSignal.timeout(30000),
+            headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': key },
+            body: JSON.stringify({ from: mail.from, to: [mail.to], reply_to: mail.replyTo, subject: mail.subject, text: mail.text })
+          });
+          if (!response.ok) throw new Error('Reminder delivery requires review');
+          return response.json();
+        }
+        const config = getMailTransportConfigs()[0];
+        if (!config) throw new Error('No reminder transport');
+        return createMailTransporter(config).sendMail(mail);
+      }
+    });
+  } catch { console.error('Reservation reminder check failed; inspect reminder delivery status.'); }
+  finally { reminderRunning = false; }
+}
+function startReservationReminders() {
+  setTimeout(() => void runReservationReminders(), 15000).unref();
+  setInterval(() => void runReservationReminders(), 60000).unref();
+}
+
 function buildReservationAutoReply(record) {
   const appointmentKst = `${record.date} ${record.time} (KST)`;
   const replyFormUrl = `https://lofiesthetic.com/patient-reply?id=${encodeURIComponent(record.id)}`;
@@ -4975,6 +5027,17 @@ createServer(async (request, response) => {
       response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ message: "Failed to load messages" }));
     }
+    return;
+  }
+
+  if (pathname === "/api/admin/reservation-reminders/status" && request.method === "GET") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    try {
+      const ledger = await getReminderLedger();
+      const counts = ledger ? await ledger.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]).toArray() : [];
+      response.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      response.end(JSON.stringify({ enabled: Boolean(mongoUri && hasAnyMailConfig() && process.env.RESERVATION_REMINDERS_ENABLED !== 'false'), hourKst: 9, daysBefore: [2,1,0], from: 'lofidentalcs@lofiesthetic.com', counts }));
+    } catch { response.writeHead(503); response.end('Reminder status unavailable'); }
     return;
   }
 
@@ -6740,4 +6803,5 @@ createServer(async (request, response) => {
   migrateInboxToEmailThreads().catch(err => console.error("Migration error:", err));
   migrateImapToEmailThreads().catch(err => console.error("IMAP migration error:", err));
   startEmailReplyChecker();
+  startReservationReminders();
 });
