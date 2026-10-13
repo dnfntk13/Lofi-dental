@@ -31,7 +31,11 @@
 .nearby-hotels { min-width: 0; }
 .nearby-hotels .hotel-list-label { margin: 0 0 2px; }
 .hotel-location .hotel-list-note { margin: 8px 0 16px; color: #746b83; font-size: .8rem; line-height: 1.6; }
-.hotel-list { list-style: none; margin: 0; padding: 0; }
+.hotel-list { list-style: none; margin: 0; padding: 4px 8px 4px 4px; max-height: 300px; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #b8a8d8 #f3f0f8; }
+.hotel-list:focus-visible { outline: 3px solid #8975d5; outline-offset: 3px; border-radius: 4px; }
+.hotel-list::-webkit-scrollbar { width: 8px; }
+.hotel-list::-webkit-scrollbar-track { background: #f3f0f8; border-radius: 8px; }
+.hotel-list::-webkit-scrollbar-thumb { background: #b8a8d8; border-radius: 8px; }
 .hotel-list li { border-bottom: 1px solid #e9e4f2; }
 .hotel-list li:first-child { border-top: 1px solid #e9e4f2; }
 .nearby-hotel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 12px 4px; text-decoration: none; color: #342c48; transition: background .18s; }
@@ -44,5 +48,6 @@
 @media (max-width: 760px) {
   .hotel-location-layout { grid-template-columns: 1fr; }
   .hotel-map { height: 320px; }
+  .hotel-list { max-height: 260px; }
   .hotel-location-heading { align-items: flex-start; }
 }
