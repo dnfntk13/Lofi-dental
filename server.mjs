@@ -1,3 +1,4 @@
+import { sendStaticFile } from './lib/static-file-stream.mjs';
 import { appendSentCopy } from './lib/sent-mail-copy.mjs';
 import { isPublicPricingQuestion, publicConsultContactReply, removePublicPricingInformation, publicConsultThreadWithoutPrices } from './lib/public-consult-price-policy.mjs';
 import { deliverReminders } from './lib/reservation-reminders.mjs';
@@ -6811,8 +6812,17 @@ createServer(async (request, response) => {
   }
 
   try {
-    let file = await readFile(safeAbsolutePath);
     const extension = path.extname(safeAbsolutePath).toLowerCase();
+    if (extension !== '.html') {
+      try {
+        await sendStaticFile(request, response, safeAbsolutePath, mimeTypes[extension] || 'application/octet-stream', setCookieHeader ? { 'Set-Cookie': setCookieHeader } : {});
+      } catch {
+        if (response.headersSent) response.destroy();
+        else { response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); response.end('Not found'); }
+      }
+      return;
+    }
+    let file = await readFile(safeAbsolutePath);
     if (extension === '.html') file = Buffer.from(addAdminAiToPage(file.toString('utf8'), adminAuthorized));
     const contentType = mimeTypes[extension] || "application/octet-stream";
     if (shouldTrackTraffic(request, pathname, safeRelativePath, extension)) {
@@ -6820,36 +6830,6 @@ createServer(async (request, response) => {
         await saveTrafficEvent(createTrafficEvent(request, requestUrl));
       } catch (error) {
         console.error("Failed to record traffic event", error);
-      }
-    }
-
-    if (extension === ".mp4") {
-      const range = String(request.headers.range || "");
-      const match = range.match(/^bytes=(\d*)-(\d*)$/);
-      if (match) {
-        const size = file.length;
-        const start = match[1] ? Number(match[1]) : 0;
-        const end = match[2] ? Math.min(Number(match[2]), size - 1) : size - 1;
-
-        if (Number.isInteger(start) && Number.isInteger(end) && start <= end && start < size) {
-          response.writeHead(206, {
-            "Content-Type": contentType,
-            "Accept-Ranges": "bytes",
-            "Content-Range": `bytes ${start}-${end}/${size}`,
-            "Content-Length": String(end - start + 1),
-            ...(setCookieHeader ? { "Set-Cookie": setCookieHeader } : {}),
-          });
-          response.end(request.method === "HEAD" ? undefined : file.subarray(start, end + 1));
-          return;
-        }
-
-        response.writeHead(416, {
-          "Content-Range": `bytes */${size}`,
-          "Accept-Ranges": "bytes",
-          ...(setCookieHeader ? { "Set-Cookie": setCookieHeader } : {}),
-        });
-        response.end();
-        return;
       }
     }
 
