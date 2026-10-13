@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { MongoClient } from "mongodb";
 import nodemailer from "nodemailer";
 import Imap from "imap";
-import { simpleParser } from "mailparser";
+import { parseConversationEmail, pendingMailboxUids } from "./lib/imap-conversation-parser.mjs";
 import { analyzeInstagramScreenshots } from "./lib/instagram-screenshot.mjs";
 import { getAdminAiModel, adminAiRequestOptions, parseAdminAiJson } from "./lib/admin-ai-model.mjs";
 import { createAdminAuthority } from "./lib/admin-ai-authority.mjs";
@@ -4158,63 +4158,55 @@ function createImapClient() {
 }
 
 async function fetchAndProcessImapMailbox(imap, mailboxName, criteria, processed, options = {}) {
-  return new Promise((resolve) => {
-    imap.openBox(mailboxName, false, (err) => {
+  return new Promise(resolve => {
+    imap.openBox(mailboxName, false, err => {
       if (err) {
-        if (!options.optional) console.error(`Failed to open IMAP mailbox ${mailboxName}`, err);
+        if (!options.optional) console.error('Failed to open IMAP mailbox', err);
         resolve(0);
         return;
       }
-
-      imap.search(criteria, (searchErr, results) => {
-        if (searchErr || !results || results.length === 0) {
-          resolve(0);
-          return;
-        }
-
+      imap.search(criteria, async (searchErr, results) => {
+        if (searchErr || !results?.length) { resolve(0); return; }
         let savedCount = 0;
-        const messageTasks = [];
-        const fetcher = imap.fetch(results, { bodies: "" });
-
-        fetcher.on("message", (msg, seqno) => {
-          const chunks = [];
-          let uid = seqno;
-          msg.on("body", (stream) => {
-            stream.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
-          });
-          msg.once("attributes", (attrs) => {
-            if (attrs?.uid) uid = attrs.uid;
-          });
-          msg.once("end", () => {
-            messageTasks.push((async () => {
-              const processedKey = `${mailboxName}:${uid}`;
-              if (processed[processedKey]) return;
-              try {
-                const parsed = await simpleParser(Buffer.concat(chunks));
-                const saved = await saveParsedEmailToThread(parsed, mailboxName);
-                processed[processedKey] = true;
-                if (saved) savedCount += 1;
-              } catch (error) {
-                console.error(`Failed to process IMAP message from ${mailboxName}`, error);
-              }
-            })());
-          });
-        });
-
-        fetcher.on("error", (fetchErr) => {
-          console.error(`IMAP fetch error in ${mailboxName}`, fetchErr);
-        });
-
-        fetcher.on("end", async () => {
-          await Promise.all(messageTasks);
-          resolve(savedCount);
-        });
+        // Fetch one unseen-by-sync UID at a time; processed Sent mail is not downloaded again.
+        for (const uid of pendingMailboxUids(mailboxName, results, processed)) {
+          try {
+            const parsed = await new Promise((done, fail) => {
+              const fetcher = imap.fetch([uid], { bodies: '', markSeen: false });
+              let parsedTask;
+              fetcher.on('message', msg => {
+                msg.on('body', stream => {
+                  parsedTask = parseConversationEmail(stream);
+                  parsedTask.catch(fail);
+                });
+              });
+              fetcher.once('error', fail);
+              fetcher.once('end', () => {
+                if (!parsedTask) { fail(new Error('IMAP message body unavailable')); return; }
+                parsedTask.then(done, fail);
+              });
+            });
+            if (await saveParsedEmailToThread(parsed, mailboxName)) savedCount += 1;
+            processed[mailboxName + ':' + uid] = true;
+          } catch (error) {
+            console.error('Failed to process IMAP message', error);
+            break;
+          }
+        }
+        resolve(savedCount);
       });
     });
   });
 }
 
-async function processImapMailboxes({ historical = false } = {}) {
+let imapSyncInFlight;
+function processImapMailboxes(options = {}) {
+  if (imapSyncInFlight) return imapSyncInFlight;
+  imapSyncInFlight = runImapMailboxSync(options).finally(() => { imapSyncInFlight = undefined; });
+  return imapSyncInFlight;
+}
+
+async function runImapMailboxSync({ historical = false } = {}) {
   if (!imapHost || !imapUser || !imapPass) return 0;
   const processed = await readProcessedImapUids();
   let savedCount = 0;
