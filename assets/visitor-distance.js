@@ -24,7 +24,8 @@
       map.title = korean ? '로우파이 치과 주변 Google 지도' : 'Google map around lofi esthetic dentistry';
       clinicButton.hidden = true;
     });
-    button.addEventListener('click', () => {
+    function showVisitorLocation() {
+      if (button.disabled) return;
       section.removeAttribute('data-distance-ready');
       if (!navigator.geolocation || !window.isSecureContext) {
         result.textContent = korean ? '이 브라우저에서는 위치를 확인할 수 없어요. Google Maps에서 길찾기를 이용해주세요.' : 'Location is unavailable in this browser. Please use directions on Google Maps.';
@@ -34,7 +35,7 @@
       button.textContent = korean ? '위치 확인 중…' : 'Finding your location…';
       result.textContent = korean ? '위치 권한을 허용해주세요.' : 'Please allow location access.';
       const reset = () => { button.disabled = false; button.textContent = initialLabel; };
-      // Location is sent to Google only after this user-triggered request succeeds.
+      // Location is sent to Google only after browser permission and a successful fix.
       // It is not stored or sent to our server.
       navigator.geolocation.getCurrentPosition(position => {
         reset();
@@ -62,6 +63,8 @@
         else if (error.code === 3) result.textContent = korean ? '위치 확인 시간이 초과됐어요. 다시 시도해주세요.' : 'Location request timed out. Please try again.';
         else result.textContent = korean ? '현재 위치를 확인할 수 없어요. 다시 시도하거나 Google Maps에서 길찾기를 이용해주세요.' : 'Your location is unavailable. Try again or use directions on Google Maps.';
       }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 });
-    });
+    }
+    button.addEventListener('click', showVisitorLocation);
+    showVisitorLocation();
   }
 })();
