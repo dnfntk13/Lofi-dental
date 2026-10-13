@@ -1,4 +1,5 @@
 import { appendSentCopy } from './lib/sent-mail-copy.mjs';
+import { isPublicPricingQuestion, publicConsultContactReply, removePublicPricingInformation, publicConsultThreadWithoutPrices } from './lib/public-consult-price-policy.mjs';
 import { deliverReminders } from './lib/reservation-reminders.mjs';
 import { funnelSteps, funnelSession, summarizeFunnel } from './lib/booking-funnel.mjs';
 import { campaignLabel } from './lib/instagram-campaign-insights.mjs';
@@ -2558,29 +2559,30 @@ function getPublicConsultSuggestedQuestions(conversation) {
 
   if (/suresmile|clear aligner|aligner|braces|교정|투명/.test(normalized)) {
     return isKorean
-      ? ["비용은 얼마인가요?", "분납이 가능한가요?", "기간은 얼마나 걸리나요?"]
-      : ["How much is it?", "Can I pay in installments?", "How long will it take?"];
+      ? ["어떤 교정 옵션이 있나요?", "상담 시 무엇을 확인하나요?", "기간은 얼마나 걸리나요?"]
+      : ["What treatment options are available?", "What happens at a consultation?", "How long will it take?"];
   }
 
   if (/veneer|lofi veneer|라미네이트|베니어/.test(normalized)) {
     return isKorean
-      ? ["비용은 얼마인가요?", "어떤 베니어가 저에게 맞을까요?", "방문은 몇 번 필요한가요?"]
-      : ["How much are veneers?", "Which veneer option is right for me?", "How many visits will it take?"];
+      ? ["상담 시 무엇을 확인하나요?", "어떤 베니어가 저에게 맞을까요?", "방문은 몇 번 필요한가요?"]
+      : ["What happens at a veneer consultation?", "Which veneer option is right for me?", "How many visits will it take?"];
   }
 
   if (/checkup|cleaning|검진|스케일링|clean/.test(normalized)) {
     return isKorean
-      ? ["검진 비용은 얼마인가요?", "소요 시간은 얼마나 걸리나요?", "진료시간은 어떻게 되나요?"]
-      : ["How much is a checkup?", "How long does it take?", "What are your clinic hours?"];
+      ? ["검진 시 무엇을 확인하나요?", "소요 시간은 얼마나 걸리나요?", "진료시간은 어떻게 되나요?"]
+      : ["What does a checkup include?", "How long does it take?", "What are your clinic hours?"];
   }
 
   return isKorean
-    ? ["비용은 얼마인가요?", "기간은 얼마나 걸리나요?", "진료시간은 어떻게 되나요?"]
-    : ["How much is it?", "How long will it take?", "What are your clinic hours?"];
+    ? ["상담 시 무엇을 확인하나요?", "기간은 얼마나 걸리나요?", "진료시간은 어떻게 되나요?"]
+    : ["What happens at a consultation?", "How long will it take?", "What are your clinic hours?"];
 }
 
 function completePublicConsultAiPayload(assist, conversation) {
-  const normalized = normalizePublicConsultAiPayload(assist || {});
+  const latestMessage = [...(conversation || [])].reverse().find(message => message?.role !== 'assistant')?.content || '';
+  const normalized = removePublicPricingInformation(normalizePublicConsultAiPayload(assist || {}), latestMessage);
   if (normalized.quickActions.includes("book-appointment")) {
     const dedupedAnswer = removeBookingActionDuplicates(normalized.answer);
     if (dedupedAnswer) normalized.answer = dedupedAnswer;
@@ -2595,6 +2597,16 @@ function completePublicConsultAiPayload(assist, conversation) {
 function getDeterministicPublicConsultReply(content) {
   const normalized = String(content || "").trim().toLowerCase();
   const isKorean = /[가-힣]/.test(String(content || ""));
+  if (isPublicPricingQuestion(content)) {
+    return {
+      answer: publicConsultContactReply(content),
+      quickActions: ['book-appointment'],
+      suggestedQuestions: isKorean ? ['어떤 진료를 받을 수 있나요?', '진료시간은 어떻게 되나요?', '위치는 어디인가요?'] : ['What treatments do you offer?', 'What are your clinic hours?', 'Where are you located?'],
+      shouldCollectContact: false,
+      needsHumanReview: true,
+      safetyNote: '',
+    };
+  }
   if (/(which days|what days|what time|what hours|opening hours|clinic hours|are you open|when are you open|hours|open\?)/.test(normalized) || /(진료\s*시간|운영\s*시간|영업\s*시간|언제\s*열|몇\s*시|토요일|일요일|휴진)/.test(String(content || ""))) {
     return {
       answer: isKorean
@@ -2602,8 +2614,8 @@ function getDeterministicPublicConsultReply(content) {
         : "We are open Monday-Friday from 10:00 AM-1:00 PM and 2:00 PM-7:00 PM, and Saturday from 10:00 AM-4:00 PM. Sunday hours are 10:00 AM-4:00 PM. We are closed on Korean public holidays.",
       quickActions: ["book-appointment"],
       suggestedQuestions: isKorean
-        ? ["이번 주 가능한 시간은 있나요?", "검진 비용은 얼마인가요?", "위치는 어디인가요?"]
-        : ["Do you have availability this week?", "How much is a checkup?", "Where are you located?"],
+        ? ["이번 주 가능한 시간은 있나요?", "검진 시 무엇을 확인하나요?", "위치는 어디인가요?"]
+        : ["Do you have availability this week?", "What does a checkup include?", "Where are you located?"],
       shouldCollectContact: false,
       needsHumanReview: false,
       safetyNote: "",
@@ -2613,7 +2625,7 @@ function getDeterministicPublicConsultReply(content) {
     return {
       answer: "For a regular checkup and cleaning, we can help with timing and basic visit details. What would you like to know first?",
       quickActions: ["book-appointment"],
-      suggestedQuestions: ["How much is a checkup?", "How long does it take?", "What are your clinic hours?"],
+      suggestedQuestions: ["What does a checkup include?", "How long does it take?", "What are your clinic hours?"],
       shouldCollectContact: false,
       needsHumanReview: false,
       safetyNote: "",
@@ -2623,7 +2635,7 @@ function getDeterministicPublicConsultReply(content) {
     return {
       answer: "SureSmile consultations are best planned after Dr. Kim checks your bite, teeth position, and timeline. What would you like to know first?",
       quickActions: ["book-appointment"],
-      suggestedQuestions: ["How much is it?", "Can I pay in installments?", "How long will it take?"],
+      suggestedQuestions: ["What treatment options are available?", "What happens at a consultation?", "How long will it take?"],
       shouldCollectContact: false,
       needsHumanReview: false,
       safetyNote: "",
@@ -2631,9 +2643,9 @@ function getDeterministicPublicConsultReply(content) {
   }
   if (normalized === "i want a consultation for veneers") {
     return {
-      answer: "A veneer consultation can compare Economic, Standard, and Premium options based on your smile goals and tooth condition. What would you like to ask first?",
+      answer: "A veneer consultation can compare resin and porcelain options based on your smile goals and tooth condition. What would you like to ask first?",
       quickActions: ["book-appointment"],
-      suggestedQuestions: ["How much are veneers?", "Which veneer option is right for me?", "How many visits will it take?"],
+      suggestedQuestions: ["What happens at a veneer consultation?", "Which veneer option is right for me?", "How many visits will it take?"],
       shouldCollectContact: false,
       needsHumanReview: false,
       safetyNote: "",
@@ -2688,7 +2700,7 @@ async function generatePublicConsultAiReply({ conversation, patientInfo, attachm
       messages: [
         {
           role: "system",
-          content: "You are lofi AI, lofi esthetic dentistry's public website assistant. Be friendly, concise, and goal-directed. For every visitor message, respond in this flow: answer briefly, ask one context-appropriate follow-up question, and move the conversation toward booking an appointment. Usually keep the answer to 1-3 short sentences total. Use only the supplied site context and safe general dental-clinic guidance. Never diagnose, prescribe, evaluate photos clinically, guarantee treatment suitability/results, or quote exact prices unless the site context explicitly says so. For symptoms, side effects, photos, suitability, or treatment decisions, say a clinical review or in-person consultation is needed, then ask a useful follow-up question such as their main concern, preferred treatment, timing, or whether they would like to book a consultation. If the visitor asks which days the clinic is open, clinic hours, or whether a specific day is open, answer with both days and hours: Monday-Friday 10:00 AM-1:00 PM and 2:00 PM-7:00 PM; Saturday 10:00 AM-4:00 PM; Sunday 10:00 AM-4:00 PM; closed Korean public holidays. Do not end with a generic \"let me know\". Always include quickActions: [\"book-appointment\"] and 2-4 suggestedQuestions that the visitor can click as their next reply. Make suggestedQuestions specific to the visitor's topic, such as price, payment installments, treatment duration, options, hours, or availability. Do not duplicate what buttons already do: if quickActions includes book-appointment, do not explain the reservation page, say \"click the booking button\", or include suggestedQuestions like \"How do I book an appointment?\" or \"Can I book?\". Return only JSON with keys: answer, quickActions, suggestedQuestions, shouldCollectContact, needsHumanReview, safetyNote. Match the visitor's language.",
+          content: "You are lofi AI, lofi esthetic dentistry's public website assistant. Be friendly, concise, and goal-directed. For every visitor message, respond in this flow: answer briefly, ask one context-appropriate follow-up question, and move the conversation toward booking an appointment. Usually keep the answer to 1-3 short sentences total. Use only the supplied site context and safe general dental-clinic guidance. Never diagnose, prescribe, evaluate photos clinically, guarantee treatment suitability/results, or provide any pricing, fees, discounts, financing, installment or payment information. For such questions, direct the visitor to the clinic team without quoting amounts or financial terms. For symptoms, side effects, photos, suitability, or treatment decisions, say a clinical review or in-person consultation is needed, then ask a useful follow-up question such as their main concern, preferred treatment, timing, or whether they would like to book a consultation. If the visitor asks which days the clinic is open, clinic hours, or whether a specific day is open, answer with both days and hours: Monday-Friday 10:00 AM-1:00 PM and 2:00 PM-7:00 PM; Saturday 10:00 AM-4:00 PM; Sunday 10:00 AM-4:00 PM; closed Korean public holidays. Do not end with a generic \"let me know\". Always include quickActions: [\"book-appointment\"] and 2-4 suggestedQuestions that the visitor can click as their next reply. Make suggestedQuestions specific to the visitor's topic, such as treatment duration, options, hours, or availability. Never suggest pricing, discount or payment questions. Do not duplicate what buttons already do: if quickActions includes book-appointment, do not explain the reservation page, say \"click the booking button\", or include suggestedQuestions like \"How do I book an appointment?\" or \"Can I book?\". Return only JSON with keys: answer, quickActions, suggestedQuestions, shouldCollectContact, needsHumanReview, safetyNote. Match the visitor's language.",
         },
         { role: "user", content: JSON.stringify(prompt) },
       ],
@@ -4965,7 +4977,7 @@ createServer(async (request, response) => {
         return;
       }
 
-      const thread = await getConsultThread(record);
+      const thread = publicConsultThreadWithoutPrices(await getConsultThread(record));
       response.writeHead(200, {
         "Content-Type": "application/json; charset=utf-8",
         ...reservationCorsHeaders,
