@@ -15,6 +15,13 @@
   letter-spacing: .1em;
 }
 .hotel-location-heading h2 { margin: 0; word-break: keep-all; }
+.visitor-distance { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 18px; margin-bottom: 24px; }
+.distance-button { border: 0; border-radius: 10px; padding: 12px 18px; background: #6650b8; color: #fff; font: inherit; font-size: .9rem; font-weight: 600; cursor: pointer; }
+.distance-button:hover { background: #57419f; }
+.distance-button:disabled { opacity: .65; cursor: wait; }
+.distance-button:focus-visible { outline: 3px solid #8975d5; outline-offset: 3px; }
+.visitor-distance .distance-result { margin: 0; color: #746b83; font-size: .9rem; line-height: 1.6; }
+.visitor-distance[data-distance-ready] .distance-result { color: #6650b8; font-size: 1.1rem; font-weight: 700; }
 .hotel-map-link { color: #6650b8; font-size: .9rem; text-underline-offset: 4px; }
 .hotel-location-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(240px, 1fr); gap: 24px; }
 .hotel-map { display: block; width: 100%; height: 410px; border: 0; border-radius: 16px; background: #f3f1f7; }

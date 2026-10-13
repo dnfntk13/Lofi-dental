@@ -506,7 +506,7 @@
       }
     </style>
   <link rel="stylesheet" href="/assets/site-refinement.css?v=20261001"><link rel="stylesheet" href="/assets/home-preserved.css?v=20261006">
-  <link rel="stylesheet" href="/assets/hotel-location.css?v=20261013">
+  <link rel="stylesheet" href="/assets/hotel-location.css?v=20261013-2">
 </head>
   <body data-home-preserved>
     <div class="page">
@@ -572,6 +572,10 @@
           <div class="hotel-location-heading">
             <div><p class="section-label">APGUJEONG · SEOUL</p><h2 id="hotel-location-title">주변 호텔에서 편하게 방문하세요.</h2></div>
             <a class="hotel-map-link" href="https://maps.app.goo.gl/aUHYHjDk8iaGqLKH7" target="_blank" rel="noopener noreferrer">Google Maps에서 길찾기 ↗</a>
+          </div>
+          <div class="visitor-distance" data-visitor-distance data-distance-lang="ko">
+            <button type="button" class="distance-button">내 위치에서 거리 확인</button>
+            <p class="distance-result" role="status" aria-live="polite">위치를 허용하면 치과까지의 직선거리를 확인할 수 있어요.</p>
           </div>
           <div class="hotel-location-layout">
             <iframe class="hotel-map" title="로우파이 치과 주변 Google 지도" src="https://www.google.com/maps?q=lofi%20esthetic%20dentistry%2049%20Apgujeong-ro%2028-gil%20Seoul&amp;z=15&amp;output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
@@ -643,5 +647,6 @@
       </footer>
     </div>
     <script src="/assets/consult-chat.js" defer></script>
+    <script src="/assets/visitor-distance.js?v=20261013" defer></script>
   </body>
 </html>
