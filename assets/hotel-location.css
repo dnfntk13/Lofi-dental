@@ -1,0 +1,34 @@
+.hotel-location-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-bottom: 26px;
+}
+.hotel-location-heading .section-label,
+.hotel-list-label {
+  margin: 0 0 10px;
+  color: #7963ba;
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+}
+.hotel-location-heading h2 { margin: 0; word-break: keep-all; }
+.hotel-map-link { color: #6650b8; font-size: .9rem; text-underline-offset: 4px; }
+.hotel-location-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(240px, 1fr); gap: 24px; }
+.hotel-map { display: block; width: 100%; height: 410px; border: 0; border-radius: 16px; background: #f3f1f7; }
+.nearby-hotels { display: flex; flex-direction: column; gap: 12px; }
+.nearby-hotels .hotel-list-label { margin: 0 0 2px; }
+.nearby-hotel { display: flex; flex-direction: column; gap: 7px; flex: 1; padding: 18px 20px; border: 1px solid #e9e4f2; border-radius: 14px; text-decoration: none; color: #342c48; background: #faf8ff; transition: border-color .18s, background .18s; }
+.nearby-hotel:hover { border-color: #8975d5; background: #f1ecfa; }
+.nearby-hotel:focus-visible { outline: 3px solid #8975d5; outline-offset: 3px; }
+.nearby-hotel strong { font-size: 1rem; line-height: 1.4; }
+.nearby-hotel span { color: #746b83; font-size: .85rem; }
+.nearby-hotel small { color: #7963ba; font-size: .75rem; }
+.hotel-location .hotel-clinic-address { margin: 18px 0 0; color: #746b83; font-size: .85rem; line-height: 1.6; }
+@media (max-width: 760px) {
+  .hotel-location-layout { grid-template-columns: 1fr; }
+  .hotel-map { height: 320px; }
+  .hotel-location-heading { align-items: flex-start; }
+}
