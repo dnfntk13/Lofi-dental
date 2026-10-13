@@ -28,14 +28,18 @@
 .hotel-map-link { color: #6650b8; font-size: .9rem; text-underline-offset: 4px; }
 .hotel-location-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(240px, 1fr); gap: 24px; }
 .hotel-map { display: block; width: 100%; height: 410px; border: 0; border-radius: 16px; background: #f3f1f7; }
-.nearby-hotels { display: flex; flex-direction: column; gap: 12px; }
+.nearby-hotels { min-width: 0; }
 .nearby-hotels .hotel-list-label { margin: 0 0 2px; }
-.nearby-hotel { display: flex; flex-direction: column; gap: 7px; flex: 1; padding: 18px 20px; border: 1px solid #e9e4f2; border-radius: 14px; text-decoration: none; color: #342c48; background: #faf8ff; transition: border-color .18s, background .18s; }
-.nearby-hotel:hover { border-color: #8975d5; background: #f1ecfa; }
+.hotel-location .hotel-list-note { margin: 8px 0 16px; color: #746b83; font-size: .8rem; line-height: 1.6; }
+.hotel-list { list-style: none; margin: 0; padding: 0; }
+.hotel-list li { border-bottom: 1px solid #e9e4f2; }
+.hotel-list li:first-child { border-top: 1px solid #e9e4f2; }
+.nearby-hotel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 12px 4px; text-decoration: none; color: #342c48; transition: background .18s; }
+.nearby-hotel:hover { background: #f1ecfa; }
 .nearby-hotel:focus-visible { outline: 3px solid #8975d5; outline-offset: 3px; }
-.nearby-hotel strong { font-size: 1rem; line-height: 1.4; }
-.nearby-hotel span { color: #746b83; font-size: .85rem; }
-.nearby-hotel small { color: #7963ba; font-size: .75rem; }
+.nearby-hotel .hotel-list-name { font-size: .9rem; font-weight: 600; line-height: 1.4; }
+.nearby-hotel .hotel-list-address { grid-column: 1; color: #746b83; font-size: .75rem; }
+.nearby-hotel .hotel-list-arrow { grid-column: 2; grid-row: 1 / 3; align-self: center; color: #7963ba; }
 .hotel-location .hotel-clinic-address { margin: 18px 0 0; color: #746b83; font-size: .85rem; line-height: 1.6; }
 @media (max-width: 760px) {
   .hotel-location-layout { grid-template-columns: 1fr; }
