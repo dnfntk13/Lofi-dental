@@ -50,6 +50,19 @@
   text-decoration-color: #b3a4c7;
 }
 [data-home-preserved] .treatment-article-link:hover { color: #7354d2; }
+[data-home-preserved] .treatment-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 44px;
+  padding: 10px 20px;
+  margin-top: 6px;
+  border: 1px solid #cfc5df;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+}
+[data-home-preserved] .treatment-more:hover { background: #eee8f7; border-color: #7354d2; }
 [data-home-preserved] .treatment-article-link:focus-visible {
   outline: 2px solid #7354d2;
   outline-offset: 5px;

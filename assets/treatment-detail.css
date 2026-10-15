@@ -1,0 +1,17 @@
+/* Reading layout shared by treatment guides and the existing veneers page. */
+.treatment-detail { max-width: 780px; margin: 0 auto; }
+.treatment-detail .hero { padding-bottom: 26px; }
+.treatment-detail h1, .treatment-detail h2, .related-guides h2 { font-family: Georgia, serif; font-weight: 400; }
+.treatment-detail section { padding: 24px 0; border-bottom: 1px solid #30274824; scroll-margin-top: 30px; }
+.treatment-detail section h2 { font-size: clamp(25px, 3vw, 32px); margin: 0 0 18px; }
+.treatment-detail p { font-size: 16px; line-height: 1.85; color: #655b75; }
+.treatment-detail a, .related-guides a { text-underline-offset: 4px; }
+.article-contents { display: block; padding: 22px 26px; border: 1px solid #cfc5df; border-radius: 8px; }
+.article-contents ul { margin-bottom: 0; padding-left: 20px; }
+.article-contents li { margin: 9px 0; }
+.article-consult { padding: 28px 0 12px; }
+.article-source { font-size: 13px !important; }
+.related-guides { display: block; max-width: 780px; margin: 36px auto; border-top: 1px solid #30274824; padding-top: 20px; }
+.related-guides ul { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-left: 20px; }
+.treatment-detail a:focus-visible, .related-guides a:focus-visible { outline: 3px solid #7354d2; outline-offset: 4px; }
+@media (max-width: 700px) { .related-guides ul { grid-template-columns: 1fr; } .article-contents { padding: 18px; } .treatment-detail section { padding: 22px 0; } }
