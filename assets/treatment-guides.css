@@ -1,0 +1,66 @@
+/* Crawlable treatment articles, styled to match the homepage typography. */
+[data-home-preserved] .treatment-guides-heading { max-width: 780px; }
+[data-home-preserved] .treatment-guides-intro {
+  margin: 22px 0 34px;
+  color: #746b84;
+  font-size: 16px;
+  line-height: 1.8;
+}
+[data-home-preserved] .treatment-article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 8%;
+  padding: 32px 0;
+  border-top: 1px solid #30274824;
+  scroll-margin-top: 24px;
+}
+[data-home-preserved] .treatment-article h3 {
+  margin: 0;
+  color: #493767;
+  font-family: Georgia, serif;
+  font-size: clamp(24px, 2.5vw, 32px);
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -.025em;
+}
+[data-home-preserved] .treatment-article-number {
+  display: block;
+  margin-bottom: 14px;
+  color: #786494;
+  font: 11px Arial, sans-serif;
+  letter-spacing: .12em;
+}
+[data-home-preserved] .treatment-article-copy { max-width: 70ch; }
+[data-home-preserved] .treatment-article-copy p,
+[data-home-preserved] .treatment-guides-footer p {
+  margin: 0 0 14px;
+  color: #655b75;
+  font-size: 15px;
+  line-height: 1.8;
+}
+[data-home-preserved] .treatment-article-copy p:last-child { margin-bottom: 0; }
+[data-home-preserved] .treatment-article-link {
+  display: inline-block;
+  padding: 8px 0;
+  color: #493767;
+  font-size: 14px;
+  line-height: 1.6;
+  text-decoration: underline;
+  text-underline-offset: 5px;
+  text-decoration-color: #b3a4c7;
+}
+[data-home-preserved] .treatment-article-link:hover { color: #7354d2; }
+[data-home-preserved] .treatment-article-link:focus-visible {
+  outline: 2px solid #7354d2;
+  outline-offset: 5px;
+}
+[data-home-preserved] .treatment-guides-footer {
+  border-top: 1px solid #30274824;
+  padding-top: 26px;
+  max-width: 780px;
+}
+@media (max-width: 760px) {
+  [data-home-preserved] .treatment-article { grid-template-columns: 1fr; gap: 18px; padding: 28px 0; }
+  [data-home-preserved] .treatment-guides-intro { font-size: 15px; }
+  [data-home-preserved] .treatment-article-number { margin-bottom: 10px; }
+}
