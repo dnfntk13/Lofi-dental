@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>Dr. Ryan Kim | Career Highlights</title>
+    <title>Our Dentists | Career Highlights</title>
     <style>
       html,
       body {
@@ -17,7 +17,7 @@
       }
 
       body {
-        font-family: "Trebuchet MS", Arial, sans-serif;
+        font-family: "Trebuchet MS", Arial, "Malgun Gothic", sans-serif;
         color: #3b2b78;
       }
 
@@ -72,8 +72,11 @@
         position: relative;
         z-index: 2;
         display: block;
-        width: 38%;
-        height: auto;
+        width: auto;
+        max-width: 38%;
+        height: 7vh;
+        object-fit: contain;
+        object-position: left center;
         margin: 0 0 3vh;
         border: 0;
         filter: brightness(0) invert(1);
@@ -96,7 +99,7 @@
         margin: 0;
         color: #ffffff;
         font-family: "Arial Rounded MT Bold", "Trebuchet MS", Arial, sans-serif;
-        font-size: 5.1vh;
+        font-size: 4.7vh;
         font-weight: bold;
         line-height: 1;
         letter-spacing: -0.045em;
@@ -206,7 +209,7 @@
       }
     </style>
   </head>
-  <body>
+  <body data-display="career">
     <main id="playCanvas" aria-label="Dr. Ryan Kim career highlights">
       <header id="header">
         <img id="logo" src="/assets/lofi-logo-violet.png" alt="lofi esthetic dentistry" />
@@ -253,5 +256,76 @@
         <div id="footer">New York · Seoul</div>
       </section>
     </main>
+    <script>
+      // ES5 for the clinic's signage browser. A doctor query keeps one slide on screen.
+      (function () {
+        var canvas = document.getElementById("playCanvas");
+        var heading = document.getElementsByTagName("h1")[0];
+        var eyebrow = document.getElementById("eyebrow");
+        var timeline = document.getElementById("timeline");
+        var footer = document.getElementById("footer");
+        var kim = {
+          name: heading.textContent,
+          role: eyebrow.textContent,
+          timeline: timeline.innerHTML,
+          footer: footer.textContent
+        };
+        var chung = {
+          name: "Dr. Juhyun Chung",
+          role: "Dentist · 정주현 원장",
+          footer: "Yonsei · University of Southern California",
+          entries: [
+            ["2012—2016", "B.S. in Systems Biology · Yonsei University"],
+            ["2016—2020", "Doctor of Dental Surgery · Yonsei University College of Dentistry"],
+            ["2020.11—2020.12", "Oral Screening Dentist · Gangnam Areum Dental Clinic"],
+            ["2021.02—2022.06", "Teaching Assistant · Department of Preventive Dentistry, Yonsei University"],
+            ["2022.08—2024.05", "Master of Public Health · Keck School of Medicine, University of Southern California", "Biostatistics & Epidemiology"],
+            ["2024.08—2025.06", "Associate Dentist · Clarity Dental Clinic, Daejeon"],
+            ["2025.08—2026.05", "Associate Dentist · Seoul Inwoo Dental Clinic, Gimje"]
+          ]
+        };
+        var current = "kim";
+        function showDoctor(id) {
+          var doctor = id === "chung" ? chung : kim;
+          current = id;
+          heading.textContent = doctor.name;
+          eyebrow.textContent = doctor.role;
+          footer.textContent = doctor.footer;
+          canvas.setAttribute("aria-label", doctor.name + " career highlights");
+          canvas.setAttribute("data-doctor", id);
+          document.title = doctor.name + " | Career Highlights";
+          if (id === "kim") {
+            timeline.innerHTML = kim.timeline;
+            return;
+          }
+          timeline.innerHTML = "";
+          for (var i = 0; i < chung.entries.length; i++) {
+            var entry = chung.entries[i];
+            var item = document.createElement("li");
+            item.className = "careerItem";
+            var year = document.createElement("p");
+            year.className = "year";
+            year.textContent = entry[0];
+            var description = document.createElement("p");
+            description.className = "description";
+            description.textContent = entry[1];
+            if (entry[2]) {
+              description.appendChild(document.createElement("br"));
+              description.appendChild(document.createTextNode(entry[2]));
+            }
+            item.appendChild(year);
+            item.appendChild(description);
+            timeline.appendChild(item);
+          }
+        }
+        var selected = /(?:^|[?&])doctor=(kim|chung)(?:&|$)/.exec(window.location.search);
+        showDoctor(selected ? selected[1] : "kim");
+        if (!selected) {
+          window.setInterval(function () {
+            showDoctor(current === "kim" ? "chung" : "kim");
+          }, 20000);
+        }
+      }());
+    </script>
   </body>
 </html>

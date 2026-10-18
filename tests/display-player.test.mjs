@@ -100,6 +100,8 @@ test('stalled playback advances, and destroy cancels recovery work', () => {
 test('authenticated signage stays free of admin chat while ordinary pages still get it', () => {
   const html=fs.readFileSync(new URL('../display/index.html',import.meta.url),'utf8');
   assert.equal(addAdminAiToPage(html,true),html);
+  const career=fs.readFileSync(new URL('../play/index.html',import.meta.url),'utf8');
+  assert.equal(addAdminAiToPage(career,true),career);
   assert.match(addAdminAiToPage('<body>Clinic</body>',true),/ai-widget/);
 });
 
