@@ -508,6 +508,7 @@
   <link rel="stylesheet" href="/assets/site-refinement.css?v=20261001"><link rel="stylesheet" href="/assets/home-preserved.css?v=20261006">
   <link rel="stylesheet" href="/assets/hotel-location.css?v=20261013-5">
   <link rel="stylesheet" href="/assets/main-treatments.css?v=20261014">
+  <link rel="stylesheet" href="/assets/doctors.css?v=20261018">
 </head>
   <body data-home-preserved>
     <div class="page">
@@ -515,7 +516,7 @@
         <a class="logo-link" href="/korean" aria-label="로우파이 치과의원 홈">
           <img src="assets/lofi-logo-korean-violet.png" alt="로우파이 치과의원" class="logo-img" />
         </a>
-        <a class="lang-toggle" href="/">English</a>
+        <nav class="doctors-nav" aria-label="홈페이지 메뉴"><a href="#meet-our-doctors">의료진 소개</a><a class="lang-toggle" href="/">English</a></nav>
       </header>
 
       <aside class="opening-banner" aria-label="진료 요일">
@@ -605,40 +606,43 @@
           <p class="hotel-clinic-address">로우파이 치과 · 서울 강남구 압구정로28길 49, 3층</p>
         </section>
 
-        <section class="section" aria-labelledby="career-title">
-          <h2 id="career-title">커리어 하이라이트</h2>
-          <div class="career-list">
-            <article class="career-item">
-              <p class="career-year">2018</p>
-              <p class="career-text">뉴욕대학교 치과대학 졸업</p>
+        <section class="section doctors-section" id="meet-our-doctors" aria-labelledby="doctors-title">
+          <p class="section-label">의료진 소개</p>
+          <h2 id="doctors-title">Meet Our Doctors</h2>
+          <p class="doctors-intro">로우파이에서 만나는 두 명의 치과의사. 의료진의 학력과 진료 경력을 소개합니다.</p>
+          <div class="doctors-grid">
+            <article class="doctor-card" aria-labelledby="ryan-name">
+              <figure class="doctor-photo doctor-photo--ryan"><img src="/assets/story/collaboration.jpg" alt="진료실에서 치아 모형을 살펴보는 Ryan Kim 원장" width="3024" height="4032" loading="lazy" decoding="async"></figure>
+              <div class="doctor-copy">
+                <p class="doctor-role">대표원장</p>
+                <h3 id="ryan-name">Dr. Ryan Kim</h3>
+                <p class="doctor-summary">뉴욕대학교 치과대학을 졸업하고 뉴욕의 Brookdale Hospital과 Interfaith Hospital에서 GPR 수련을 거쳤습니다. 2026년 로우파이 치과를 개원했습니다.</p>
+                <ul class="doctor-credentials"><li>뉴욕대학교 치과대학 · 졸업</li><li>Brookdale Hospital · GPR 수련</li><li>Interfaith Hospital · GPR 2년차</li></ul>
+                <details class="doctor-details"><summary>전체 약력 보기</summary><ol class="doctor-history"><li><time>2018</time><span>뉴욕대학교 치과대학 · 졸업</span></li>
+<li><time>2018–2020</time><span>대한민국 육군 · 치무병 복무</span></li>
+<li><time>2021</time><span>서울나은치과 · 진료의</span></li>
+<li><time>2022</time><span>미시간치과 · 진료의</span></li>
+<li><time>2023</time><span>Brookdale Hospital · GPR 수련</span></li>
+<li><time>2024</time><span>Interfaith Hospital · GPR 2년차</span></li>
+<li><time>2025</time><span>캐슬부부치과·스마일스튜디오치과 · 진료의</span></li>
+<li><time>2026</time><span>로우파이 치과 · 개원 및 대표원장</span></li></ol><a class="doctor-story" href="/meetdrkim.html">Ryan 원장님 이야기 보기 &rarr;</a></details>
+              </div>
             </article>
-            <article class="career-item">
-              <p class="career-year">2018-2020</p>
-              <p class="career-text">대한민국 육군 치무병 복무</p>
-            </article>
-            <article class="career-item">
-              <p class="career-year">2021</p>
-              <p class="career-text">서울나은치과 진료의</p>
-            </article>
-            <article class="career-item">
-              <p class="career-year">2022</p>
-              <p class="career-text">미시간치과 진료의</p>
-            </article>
-            <article class="career-item">
-              <p class="career-year">2023</p>
-              <p class="career-text">Brookdale Hospital GPR 수련</p>
-            </article>
-            <article class="career-item">
-              <p class="career-year">2024</p>
-              <p class="career-text">Interfaith Hospital GPR 2년차</p>
-            </article>
-            <article class="career-item">
-              <p class="career-year">2025</p>
-              <p class="career-text">캐슬부부치과·스마일스튜디오치과 진료의</p>
-            </article>
-            <article class="career-item">
-              <p class="career-year">2026</p>
-              <p class="career-text">로우파이 치과 대표원장</p>
+            <article class="doctor-card" aria-labelledby="joey-name">
+              <figure class="doctor-photo doctor-photo--joey"><img src="/assets/doctors/joey-jung.png" alt="정주현 원장 · Dr. Joey Jung" width="1122" height="1402" loading="lazy" decoding="async"></figure>
+              <div class="doctor-copy">
+                <p class="doctor-role">진료 원장 · 정주현</p>
+                <h3 id="joey-name">Dr. Joey Jung</h3>
+                <p class="doctor-summary">연세대학교 치과대학을 졸업하고 USC에서 보건학 석사를 취득했습니다. 일반 치과 진료와 외국인 환자의 영어 상담·진료 경험이 있습니다.</p>
+                <ul class="doctor-credentials"><li>연세대학교 치과대학 졸업</li><li>USC Keck School of Medicine · 보건학 석사</li><li>연세대학교 예방치과학교실 조교 경력</li></ul>
+                <details class="doctor-details"><summary>전체 약력 보기</summary><ol class="doctor-history"><li><time>2012–2016</time><span>연세대학교 시스템생물학 이학사</span></li>
+<li><time>2016–2020</time><span>연세대학교 치과대학 치의학사</span></li>
+<li><time>2020.11–2020.12</time><span>강남 아름치과의원 구강 검진의</span></li>
+<li><time>2021.02–2022.06</time><span>연세대학교 치과대학 예방치과학교실 조교</span></li>
+<li><time>2022.08–2024.05</time><span>서던 캘리포니아 대학교(USC) 보건학 석사 · 보건통계학·역학</span></li>
+<li><time>2024.08–2025.06</time><span>대전 클라리티치과의원 진료 원장</span></li>
+<li><time>2025.08–2026.05</time><span>김제 서울인우치과의원 부원장</span></li></ol></details>
+              </div>
             </article>
           </div>
         </section>

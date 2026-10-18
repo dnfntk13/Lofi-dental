@@ -222,35 +222,35 @@
         <ol id="timeline">
           <li class="careerItem">
             <p class="year">2018</p>
-            <p class="description">Graduated from NYU College of Dentistry</p>
+            <p class="description">Dental School Graduate · NYU College of Dentistry</p>
           </li>
           <li class="careerItem">
             <p class="year">2018—2020</p>
-            <p class="description">Served as Dental Corpsman in the Republic of Korea Army</p>
+            <p class="description">Dental Corpsman · Republic of Korea Army</p>
           </li>
           <li class="careerItem">
             <p class="year">2021</p>
-            <p class="description">Associate Dentist at Seoul Naeun Dental</p>
+            <p class="description">Associate Dentist · Seoul Naeun Dental</p>
           </li>
           <li class="careerItem">
             <p class="year">2022</p>
-            <p class="description">Associate Dentist at Michigan Dental</p>
+            <p class="description">Associate Dentist · Michigan Dental</p>
           </li>
           <li class="careerItem">
             <p class="year">2023</p>
-            <p class="description">General Practice Residency at Brookdale Hospital</p>
+            <p class="description">General Practice Residency (GPR) · Brookdale Hospital</p>
           </li>
           <li class="careerItem">
             <p class="year">2024</p>
-            <p class="description">GPR 2nd year at Interfaith Hospital</p>
+            <p class="description">General Practice Residency (GPR), Second Year · Interfaith Hospital</p>
           </li>
           <li class="careerItem">
             <p class="year">2025</p>
-            <p class="description">Associate Dentist at Castle Bubu Dental and Smile Studios Dental</p>
+            <p class="description">Associate Dentist · Castle Bubu Dental &amp; Smile Studios Dental</p>
           </li>
           <li class="careerItem">
             <p class="year">2026</p>
-            <p class="description">Founder and lead doctor at lofi esthetic dentistry</p>
+            <p class="description">Founder &amp; Lead Doctor · lofi esthetic dentistry</p>
           </li>
         </ol>
         <div id="footer">New York · Seoul</div>
@@ -271,7 +271,7 @@
           footer: footer.textContent
         };
         var chung = {
-          name: "Dr. Juhyun Chung",
+          name: "Dr. Joey Jung",
           role: "Dentist · 정주현 원장",
           footer: "Yonsei · University of Southern California",
           entries: [
@@ -318,8 +318,8 @@
             timeline.appendChild(item);
           }
         }
-        var selected = /(?:^|[?&])doctor=(kim|chung)(?:&|$)/.exec(window.location.search);
-        showDoctor(selected ? selected[1] : "kim");
+        var selected = /(?:^|[?&])doctor=(kim|chung|joey)(?:&|$)/.exec(window.location.search);
+        showDoctor(selected ? (selected[1] === "joey" ? "chung" : selected[1]) : "kim");
         if (!selected) {
           window.setInterval(function () {
             showDoctor(current === "kim" ? "chung" : "kim");

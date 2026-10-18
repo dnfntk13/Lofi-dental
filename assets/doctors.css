@@ -1,0 +1,26 @@
+.doctors-nav{display:flex;align-items:center;gap:20px}
+.doctors-nav>a:first-child{font-size:13px;color:#493767;text-decoration:none;border-bottom:1px solid #cabfda;padding:7px 0}
+.doctors-nav>a:first-child:hover{border-color:#7354d2}
+#meet-our-doctors{scroll-margin-top:24px}
+.doctors-intro{max-width:650px;color:#746b84;font-size:16px;line-height:1.8;margin:0 0 32px}
+.doctors-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px}
+.doctor-card{overflow:hidden;min-width:0;border:1px solid #ded6e5;border-radius:12px;background:#fffdf9}
+.doctor-photo{margin:0;height:330px;overflow:hidden;background:#e9e8ee}
+.doctor-photo img{display:block;width:100%;height:100%;object-fit:cover}
+.doctor-photo--ryan img{object-position:50% 59%}
+.doctor-photo--joey img{object-fit:contain;object-position:center top}
+.doctor-copy{padding:28px 30px 30px}
+.doctor-role{margin:0 0 8px;color:#79658e;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.doctor-card h3{margin:0 0 16px;font:400 clamp(27px,2.7vw,36px)/1.2 Georgia,serif;letter-spacing:-.035em;color:#302748}
+.doctor-summary{margin:0 0 20px;color:#746b84;font-size:14px;line-height:1.8}
+.doctor-credentials{margin:0 0 24px;padding:0;list-style:none;color:#493767;font-size:14px;line-height:1.65}
+.doctor-credentials li{padding:8px 0;border-bottom:1px solid #eee8f0}
+.doctor-details{border-top:1px solid #ded6e5;padding-top:16px}
+.doctor-details summary{cursor:pointer;color:#493767;font-size:13px;font-weight:700;padding:5px 0}
+.doctor-details summary:hover{color:#7354d2}
+.doctor-details summary:focus-visible,.doctors-nav a:focus-visible{outline:2px solid #7354d2;outline-offset:5px}
+.doctor-history{margin:18px 0 0;padding:0;list-style:none}
+.doctor-history li{display:grid;grid-template-columns:95px 1fr;gap:12px;padding:11px 0;border-bottom:1px solid #eee8f0;font-size:12px;line-height:1.65;color:#746b84}
+.doctor-history time{color:#7354d2;font-weight:700}
+.doctor-story{display:inline-block;margin-top:20px;font-size:13px;color:#493767;text-underline-offset:4px}
+@media(max-width:760px){.doctors-nav{gap:12px}.doctors-nav>a:first-child{font-size:11px}.doctors-grid{grid-template-columns:1fr;gap:24px}.doctor-photo{height:300px}.doctor-copy{padding:24px}.doctor-history li{grid-template-columns:85px 1fr;gap:10px}.doctors-intro{font-size:14px}.doctor-card h3{font-size:30px}}
