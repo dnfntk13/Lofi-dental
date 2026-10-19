@@ -7,6 +7,7 @@
     "node": ">=20.19"
   },
   "scripts": {
+    "build:articles": "node tools/build-articles.mjs",
     "dev": "node server.mjs",
     "dentweb:sync": "node tools/dentweb-sync-agent.mjs",
     "dentweb:agent": "node tools/dentweb-sync-agent.mjs --daemon",

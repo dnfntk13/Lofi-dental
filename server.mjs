@@ -4758,7 +4758,7 @@ createServer(async (request, response) => {
 
       await addInboxRecord(record);
       if (!adminAuthorized && !isTrafficOptedOut(request) && !isExcludedTrafficIp(request) && !isLikelyBot(request.headers['user-agent']) && funnelSession(payload.funnelSession)) {
-        try { const source=record.acquisition; await saveTrafficEvent({id:randomBytes(12).toString('hex'),timestamp:record.createdAt,day:getKoreanDay(),kind:'booking_funnel',step:'accepted',session:payload.funnelSession,device:getDeviceType(request.headers['user-agent']||''),source:[source?.source,source?.medium].filter(Boolean).join(' / ')||source?.referrerHost||'Direct / unknown'}); } catch(error) { console.error('Booking measurement unavailable'); }
+        try { const source=record.acquisition; await saveTrafficEvent({id:randomBytes(12).toString('hex'),timestamp:record.createdAt,day:getKoreanDay(),kind:'booking_funnel',step:'accepted',session:payload.funnelSession,device:getDeviceType(request.headers['user-agent']||''),source:[source?.source,source?.medium].filter(Boolean).join(' / ')||source?.referrerHost||'Direct / unknown',landingPath:source?.landingPath||''}); } catch(error) { console.error('Booking measurement unavailable'); }
       }
       removeEmailVerification(email);
 
@@ -6498,7 +6498,7 @@ createServer(async (request, response) => {
       if (!funnelSteps.slice(0,-1).includes(payload.step)||!funnelSession(payload.session)) { response.writeHead(400);response.end();return; }
       if (!adminAuthorized&&!isTrafficOptedOut(request)&&!isExcludedTrafficIp(request)&&!isLikelyBot(request.headers['user-agent'])&&request.headers.origin && new URL(request.headers.origin).host===requestUrl.host) {
         const source=normalizeBookingAttribution(payload.acquisition);
-        await saveTrafficEvent({id:randomBytes(12).toString('hex'),timestamp:new Date().toISOString(),day:getKoreanDay(),kind:'booking_funnel',step:payload.step,session:payload.session,device:getDeviceType(request.headers['user-agent']||''),source:[source?.source,source?.medium].filter(Boolean).join(' / ')||source?.referrerHost||'Direct / unknown'});
+        await saveTrafficEvent({id:randomBytes(12).toString('hex'),timestamp:new Date().toISOString(),day:getKoreanDay(),kind:'booking_funnel',step:payload.step,session:payload.session,device:getDeviceType(request.headers['user-agent']||''),source:[source?.source,source?.medium].filter(Boolean).join(' / ')||source?.referrerHost||'Direct / unknown',landingPath:source?.landingPath||''});
       }
       response.writeHead(204);response.end();
     } catch { response.writeHead(400);response.end(); }
