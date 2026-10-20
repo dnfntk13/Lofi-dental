@@ -1131,6 +1131,10 @@
           <label class="edit-label" for="editTime">Time</label>
           <input class="edit-input" id="editTime" type="text" placeholder="e.g. 3:30 PM" />
         </div>
+        <div class="edit-field">
+          <label class="edit-label" for="editDuration">Duration (minutes)</label>
+          <input class="edit-input" id="editDuration" type="number" min="1" max="255" step="1" placeholder="Leave blank to keep current duration" />
+        </div>
         <div class="edit-actions">
           <button class="btn-small" type="button" id="editCancel">Cancel</button>
           <button class="btn-small primary" type="button" id="editSave">Save</button>
@@ -1148,6 +1152,10 @@
         <div class="edit-field">
           <label class="edit-label" for="createTime">Time (required)</label>
           <input class="edit-input" id="createTime" type="text" placeholder="e.g. 3:30 PM" required />
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="createDuration">Duration (minutes, optional)</label>
+          <input class="edit-input" id="createDuration" type="number" min="1" max="255" step="1" placeholder="e.g. 60" />
         </div>
         <div class="edit-field">
           <label class="edit-label" for="createEmail">Email (optional)</label>
@@ -1285,9 +1293,11 @@
       const editName = document.getElementById("editName");
       const editPhone = document.getElementById("editPhone");
       const editTime = document.getElementById("editTime");
+      const editDuration = document.getElementById("editDuration");
       const createOverlay = document.getElementById("createOverlay");
       const createDate = document.getElementById("createDate");
       const createTime = document.getElementById("createTime");
+      const createDuration = document.getElementById("createDuration");
       const createEmail = document.getElementById("createEmail");
       const createName = document.getElementById("createName");
       const createPhone = document.getElementById("createPhone");
@@ -1952,6 +1962,7 @@
       function openCreateModal(dateKey) {
         createDate.value = normalizeDate(dateKey) || "";
         createTime.value = "";
+        createDuration.value = "";
         createEmail.value = "";
         createName.value = "";
         createPhone.value = "";
@@ -1965,6 +1976,7 @@
       }
 
       async function createReservationFromModal() {
+        if (!createDuration.reportValidity()) return;
         const payload = {
           date: String(createDate.value || "").trim(),
           time: String(createTime.value || "").trim(),
@@ -1972,6 +1984,7 @@
           name: String(createName.value || "").trim(),
           phone: String(createPhone.value || "").trim(),
           concerns: String(createConcerns.value || "").trim(),
+          ...(createDuration.value !== "" ? { durationMinutes: Number(createDuration.value) } : {}),
         };
 
         if (!payload.date || !payload.time || !payload.name) {
@@ -2275,6 +2288,7 @@
         editName.value = extractNameFromRecord(reservation);
         editPhone.value = extractPhoneFromRecord(reservation);
         editTime.value = String(reservation.time || "");
+        editDuration.value = reservation.durationMinutes ?? "";
         editOverlay.classList.add("open");
         editName.focus();
       }
@@ -2285,6 +2299,7 @@
       }
 
       async function saveEditReservation() {
+        if (!editDuration.reportValidity()) return;
         if (!editingReservationId) return;
         const current = getReservationById(editingReservationId);
         if (!current) {
@@ -2314,6 +2329,7 @@
           name: nextName,
           phone: nextPhone,
           time: nextTime,
+          ...(editDuration.value !== "" ? { durationMinutes: Number(editDuration.value) } : {}),
           concerns,
           updatedAt: new Date().toISOString(),
         };

@@ -5,6 +5,7 @@ import { mkdir, readFile, readdir, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline/promises";
+import { reservationDuration } from "../lib/reservation-duration.mjs";
 
 function loadLocalEnvFile() {
   try {
@@ -112,6 +113,7 @@ async function claimDentwebJob() {
 }
 
 async function createDentwebReservation(job) {
+  job = { ...job, durationMinutes: reservationDuration(job.durationMinutes) };
   const connectionString = String(process.env.DENTWEB_SQL_CONNECTION_STRING || "").trim();
   if (!connectionString) throw new Error("DENTWEB_SQL_CONNECTION_STRING is required on the clinic PC");
 
@@ -134,6 +136,7 @@ if ($time -notmatch '^\\d{2}:\\d{2}$') { throw 'Invalid reservation date or time
 $appointmentAt = ($date -replace '-', '') + ($time -replace ':', '')
 $name = ([string]$job.name).Trim()
 $phoneDigits = ([string]$job.phone) -replace '[^0-9]', ''
+if ($phoneDigits -match '^82(1[016789]\\d{7,8})$') { $phoneDigits = '0' + $matches[1] }
 if (-not $name -or -not $phoneDigits) { throw 'Dentweb requires both patient name and phone number' }
 if ($name.Length -gt 40) { $name = $name.Substring(0, 40) }
 if ($phoneDigits -match '^(01[016789])(\\d{3,4})(\\d{4})$') { $phone = "$($matches[1])-$($matches[2])-$($matches[3])" } else { $phone = $phoneDigits }
@@ -148,60 +151,91 @@ try {
   $command.Transaction = $transaction
   $command.CommandText = @'
 SET NOCOUNT ON;
-DECLARE @linkedPatientId int;
+IF @requestedDuration IS NOT NULL AND (@requestedDuration < 1 OR @requestedDuration > 255)
+  THROW 51006, 'Invalid appointment duration.', 1;
+-- Resolve registered patients by phone and current name or a verified appointment alias.
+DECLARE @phoneKey varchar(30) = REPLACE(REPLACE(REPLACE(@phone, '-', ''), ' ', ''), '+', '');
+DECLARE @patientId int, @phoneMatches int, @identityMatches int;
+SELECT @phoneMatches = COUNT(*) FROM dbo.TB_환자정보 WITH (UPDLOCK, HOLDLOCK)
+WHERE n환자ID > 0 AND REPLACE(REPLACE(REPLACE(sz휴대폰번호, '-', ''), ' ', ''), '+', '') = @phoneKey;
+SELECT @identityMatches = COUNT(*), @patientId = MIN(p.n환자ID)
+FROM dbo.TB_환자정보 p WITH (UPDLOCK, HOLDLOCK)
+WHERE p.n환자ID > 0
+  AND REPLACE(REPLACE(REPLACE(p.sz휴대폰번호, '-', ''), ' ', ''), '+', '') = @phoneKey
+  AND (LTRIM(RTRIM(p.sz이름)) = @name OR EXISTS (
+    SELECT 1 FROM dbo.TB_예약목록 a WITH (UPDLOCK, HOLDLOCK)
+    WHERE a.n환자ID = p.n환자ID AND LTRIM(RTRIM(a.sz이름)) = @name
+      AND REPLACE(REPLACE(REPLACE(a.sz전화, '-', ''), ' ', ''), '+', '') = @phoneKey
+  ));
+IF @identityMatches > 1 OR (@phoneMatches > 0 AND @identityMatches <> 1)
+  THROW 51001, 'Existing patient identity is ambiguous or does not match the supplied name and phone.', 1;
+
+DECLARE @linkedPatientId int, @linkedStatus tinyint, @linkedName nvarchar(40), @linkedPhone varchar(30);
 IF @linkedReservationId > 0
 BEGIN
-  SELECT @linkedPatientId = n환자ID
-  FROM dbo.TB_예약목록 WITH (UPDLOCK, HOLDLOCK)
-  WHERE nID = @linkedReservationId AND n환자ID < 0;
+  SELECT @linkedPatientId = n환자ID, @linkedStatus = n이행현황, @linkedName = sz이름, @linkedPhone = sz전화
+  FROM dbo.TB_예약목록 WITH (UPDLOCK, HOLDLOCK) WHERE nID = @linkedReservationId;
+  IF @linkedPatientId IS NULL OR @linkedPatientId = 0 OR ISNULL(@linkedStatus, 255) <> 0
+    THROW 51002, 'Linked reservation is missing or is no longer active; refusing to replace it.', 1;
+  IF (@linkedPatientId > 0 AND (@patientId IS NULL OR @patientId <> @linkedPatientId))
+    OR (@linkedPatientId < 0 AND (@patientId IS NOT NULL OR LTRIM(RTRIM(ISNULL(@linkedName, ''))) <> @name
+      OR REPLACE(REPLACE(REPLACE(ISNULL(@linkedPhone, ''), '-', ''), ' ', ''), '+', '') <> @phoneKey))
+    THROW 51003, 'Linked reservation identity does not match the verified patient.', 1;
+  IF EXISTS (SELECT 1 FROM dbo.TB_예약목록 WITH (UPDLOCK, HOLDLOCK)
+    WHERE nID <> @linkedReservationId AND sz예약시각 = @appointmentAt
+      AND (n환자ID = @linkedPatientId OR (LTRIM(RTRIM(sz이름)) = @name
+        AND REPLACE(REPLACE(REPLACE(sz전화, '-', ''), ' ', ''), '+', '') = @phoneKey)))
+    THROW 51004, 'Another reservation already exists for this patient and time.', 1;
 
-  IF @linkedPatientId IS NOT NULL
-  BEGIN
-    UPDATE dbo.TB_예약목록
-    SET sz예약시각 = @appointmentAt, sz이름 = @name, sz전화 = @phone,
-        sz메모 = @memo, t최종수정 = GETDATE()
-    WHERE nID = @linkedReservationId;
-
-    UPDATE dbo.TB_신환예약자정보
-    SET sz이름 = @name, sz휴대폰번호 = @phone
-    WHERE nID = -@linkedPatientId;
-
-    UPDATE dbo.TB_덴트웹설정 SET t예약최종수정 = GETDATE();
-    SELECT @linkedReservationId AS reservationId, CAST(1 AS bit) AS duplicate;
-    RETURN;
-  END;
+  UPDATE dbo.TB_예약목록
+  SET sz예약시각 = @appointmentAt, sz이름 = @name, sz전화 = @phone,
+      n소요시간 = COALESCE(@requestedDuration, n소요시간),
+      sz메모 = CASE WHEN @memo = '' OR CHARINDEX(@memo, ISNULL(sz메모, '')) > 0 THEN sz메모
+        WHEN ISNULL(sz메모, '') = '' THEN @memo ELSE sz메모 + NCHAR(13) + NCHAR(10) + @memo END,
+      t최종수정 = GETDATE()
+  WHERE nID = @linkedReservationId;
+  UPDATE dbo.TB_덴트웹설정 SET t예약최종수정 = GETDATE();
+  SELECT @linkedReservationId AS reservationId, CAST(1 AS bit) AS duplicate;
+  RETURN;
 END;
 
-DECLARE @existingId int;
-SELECT TOP (1) @existingId = nID
+DECLARE @existingId int, @existingCount int, @existingStatus tinyint, @existingPatientId int;
+SELECT @existingId = MIN(nID), @existingCount = COUNT(*), @existingStatus = MIN(n이행현황), @existingPatientId = MIN(n환자ID)
 FROM dbo.TB_예약목록 WITH (UPDLOCK, HOLDLOCK)
-WHERE n환자ID < 1 AND sz이름 = @name AND sz전화 = @phone AND sz예약시각 = @appointmentAt;
-
+WHERE sz예약시각 = @appointmentAt AND
+  ((@patientId IS NOT NULL AND n환자ID = @patientId) OR
+   (LTRIM(RTRIM(sz이름)) = @name AND REPLACE(REPLACE(REPLACE(sz전화, '-', ''), ' ', ''), '+', '') = @phoneKey));
+IF @existingCount > 1 OR (@existingId IS NOT NULL AND (ISNULL(@existingStatus, 255) <> 0
+  OR (@patientId IS NOT NULL AND @existingPatientId <> @patientId)
+  OR (@patientId IS NULL AND @existingPatientId >= 0)))
+  THROW 51005, 'Existing reservation has a conflicting identity or status; refusing duplicate registration.', 1;
 IF @existingId IS NOT NULL
 BEGIN
+  IF @requestedDuration IS NOT NULL AND EXISTS (
+    SELECT 1 FROM dbo.TB_예약목록 WHERE nID = @existingId AND ISNULL(n소요시간, 0) <> @requestedDuration)
+    THROW 51007, 'Existing appointment duration differs; use its verified linked reservation to update.', 1;
   SELECT @existingId AS reservationId, CAST(1 AS bit) AS duplicate;
   RETURN;
 END;
 
 DECLARE @duration tinyint, @appointmentType tinyint, @doctor int, @staff int, @textColor int, @backgroundColor int;
 SELECT TOP (1)
-  @duration = n소요시간,
-  @appointmentType = n예약종류,
-  @doctor = n담당의사,
-  @staff = n담당직원,
-  @textColor = n글자색,
-  @backgroundColor = n배경색
+  @duration = n소요시간, @appointmentType = n예약종류,
+  @doctor = n담당의사, @staff = n담당직원,
+  @textColor = n글자색, @backgroundColor = n배경색
 FROM dbo.TB_예약목록
-WHERE n환자ID < 1 AND n이행현황 = 0
+WHERE (@patientId IS NOT NULL AND n환자ID = @patientId)
+   OR (@patientId IS NULL AND n환자ID < 1 AND n이행현황 = 0)
 ORDER BY nID DESC;
-
 IF @appointmentType IS NULL
-  THROW 51000, 'No active Dentweb new-patient reservation exists to supply display defaults.', 1;
+  THROW 51000, 'No Dentweb reservation exists for this patient category to supply display defaults.', 1;
+SET @duration = COALESCE(@requestedDuration, @duration);
 
-INSERT INTO dbo.TB_신환예약자정보 (sz이름, sz휴대폰번호)
-VALUES (@name, @phone);
-DECLARE @patientId int = -CONVERT(int, SCOPE_IDENTITY());
-
+IF @patientId IS NULL
+BEGIN
+  INSERT INTO dbo.TB_신환예약자정보 (sz이름, sz휴대폰번호) VALUES (@name, @phone);
+  SET @patientId = -CONVERT(int, SCOPE_IDENTITY());
+END;
 INSERT INTO dbo.TB_예약목록 (
   sz예약시각, sz작성시각, n환자ID, n소요시간, n예약종류, n이행현황,
   n담당의사, n담당직원, n치식, n임플치식, sz예약내용, nSMS전송일,
@@ -223,6 +257,8 @@ SELECT @reservationId AS reservationId, CAST(0 AS bit) AS duplicate;
   [void]$command.Parameters.Add('@createdAt', [Data.SqlDbType]::VarChar, 14)
   [void]$command.Parameters.Add('@memo', [Data.SqlDbType]::NVarChar, -1)
   [void]$command.Parameters.Add('@linkedReservationId', [Data.SqlDbType]::Int)
+  [void]$command.Parameters.Add('@requestedDuration', [Data.SqlDbType]::Int)
+  $command.Parameters['@requestedDuration'].Value = if ($null -eq $job.durationMinutes) { [DBNull]::Value } else { [int]$job.durationMinutes }
   $command.Parameters['@name'].Value = $name
   $command.Parameters['@phone'].Value = $phone
   $command.Parameters['@appointmentAt'].Value = $appointmentAt
@@ -1115,6 +1151,7 @@ async function startDaemon() {
         ok: true,
         syncInProgress,
         sqlConfigured: Boolean(String(process.env.DENTWEB_SQL_CONNECTION_STRING || "").trim()),
+        durationMinutesSupported: true,
         windowPattern,
         printButtonPattern,
         printDialogPattern,

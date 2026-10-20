@@ -26,6 +26,7 @@ import { prepareAdminAttachments } from "./lib/admin-ai-attachments.mjs";
 import { selectConversation, searchAdminRecords } from "./lib/admin-ai-context.mjs";
 import { instagramBookingRules, validatedInstagramExtraction, currentKoreanClock } from "./lib/instagram-booking-rules.mjs";
 import { autoQueueDentweb } from "./lib/dentweb-auto-queue.mjs";
+import { reservationDuration } from "./lib/reservation-duration.mjs";
 import { dentwebReservationId, sameDentwebReservation } from "./lib/dentweb-import-identity.mjs";
 import { normalizeBookingAttribution, summarizeBookingAttribution } from "./lib/booking-attribution.mjs";
 
@@ -5634,6 +5635,13 @@ createServer(async (request, response) => {
 
     try {
       const payload = await getJsonBody(request);
+      let durationMinutes;
+      try { durationMinutes = reservationDuration(payload.durationMinutes); }
+      catch (error) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: error.message }));
+        return;
+      }
       const date = String(payload.date || "").trim();
       const time = String(payload.time || "").trim();
       const email = String(payload.email || "").trim().toLowerCase();
@@ -5666,6 +5674,7 @@ createServer(async (request, response) => {
       if (concerns) record.concerns = concerns;
       if (phone) record.phone = phone;
       if (visitingFrom) record.visitingFrom = visitingFrom;
+      if (durationMinutes !== undefined) record.durationMinutes = durationMinutes;
 
       await addInboxRecord(record);
 
@@ -5842,6 +5851,7 @@ createServer(async (request, response) => {
           phone: String(record.phone || "").trim() || "01012341234",
           concerns: record.concerns,
           dentwebReservationId: record.dentwebReservationId,
+          durationMinutes: record.durationMinutes,
         } : null,
       }));
     } catch (error) {
@@ -5863,6 +5873,13 @@ createServer(async (request, response) => {
 
     try {
       const payload = await getJsonBody(request);
+      let durationMinutes;
+      try { durationMinutes = reservationDuration(payload.durationMinutes); }
+      catch (error) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: error.message }));
+        return;
+      }
       const date = String(payload.date || "").trim();
       const time = String(payload.time || "").trim();
       const email = String(payload.email || "").trim().toLowerCase();
@@ -5897,6 +5914,7 @@ createServer(async (request, response) => {
       if (name) nextRecord.name = name;
       if (phone) nextRecord.phone = phone;
       if (visitingFrom) nextRecord.visitingFrom = visitingFrom;
+      if (durationMinutes !== undefined) nextRecord.durationMinutes = durationMinutes;
 
       const collection = await getInboxCollection();
       if (collection) {
