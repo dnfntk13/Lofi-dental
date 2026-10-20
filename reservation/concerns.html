@@ -496,6 +496,8 @@
         }
       });
 
+      const measurementSubmissionKey = window.crypto?.randomUUID?.() ||
+        `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       concernForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         if (submitting) return;
@@ -551,6 +553,13 @@
           return;
         }
 
+        // This branch is reached only after a successful server acceptance.
+        // The deduplication key stays in this browser, never in the Google frame.
+        try {
+          await window.lofiAds?.trackCompleted(measurementSubmissionKey);
+        } catch (_) {
+          // Optional measurement must never prevent the booking receipt.
+        }
         const next = new URL("received.html", window.location.href);
         next.searchParams.set("date", date);
         next.searchParams.set("time", time);

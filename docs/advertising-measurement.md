@@ -12,6 +12,23 @@ The server marks a booking request only when it saves the submitted reservation.
 
 The former unconditional Google loaders and patient-email/date events were removed. On 2026-10-20, at the user's request to follow Concourse's installation, the public HTML response now includes Lofi's Google tag (`G-S9ZX4LDDRR`, verified in Google Ads installation instructions). It loads once in the initial head on production HTTPS, including anonymous visits. The shared response helper covers public home, treatment, doctor and article pages; unknown routes, booking, patient replies, admin, signage and authenticated staff views are excluded.
 
-Consent defaults to denied for analytics/ad storage, ad user data and personalization before initialization. Ads data redaction is on. The installation does not grant consent, send booking conversions or turn on automatic page-view reporting. Configuration removes query strings, fragments and referrers and disables Google signals, personalization and enhanced conversions. First-party Insights attribution remains separate. Loading the base tag is not evidence of successful conversion measurement: a future measurement activation still needs explicit visitor consent and a verified generic conversion label, without patient identifiers or treatment details.
+Consent defaults to denied for analytics/ad storage, ad user data and personalization before initialization. Ads data redaction is on. The base installation does not grant consent or turn on automatic page-view reporting. Configuration removes query strings, fragments and referrers and disables Google signals, personalization and enhanced conversions. First-party Insights attribution remains separate.
+
+## Optional booking-request conversion — 2026-10-20
+
+Following Concourse's isolated measurement design, the site offers a separate optional English/Korean advertising-measurement choice. Declining does not prevent booking. The page footer reopens the choice to withdraw. Authenticated staff, admin, patient reply and signage pages are excluded from this client.
+
+- Google Ads account: **lofi Korea (684-363-6892)**.
+- Action: **Lofi website booking request completed**, category **Submit lead form**.
+- Destination verified from the action's Google Ads event snippet: `AW-18223406681/vWfPCOr0maMdENm8zPFD`.
+- Count: **One**, **Don't use a value** (entered 0, no revenue estimate), click window **90 days**, data-driven attribution. Enhanced conversions remain off. The action is **Secondary** for observation in **All conversions**, so it does not change bid optimization. Google adds the lead category to account goals when creating its first action; this action was explicitly changed to Secondary after creation. Existing actions, campaign budgets and bid strategies are unchanged.
+- Trigger: only after `/api/reservations` returns a successful response to the public booking form. It measures **request acceptance**, not a confirmed appointment or completed treatment. The received page never fires a conversion on load or refresh.
+- `assets/ads-measurement.js` stores explicit browser consent and, only after acceptance, validated `gclid`, `gbraid`, or `wbraid` for up to 90 days. It does not change first-party attribution or transmit these identifiers to the clinic booking API.
+- Google conversion code runs in `ads-measurement.html`, in a hidden `sandbox="allow-scripts"` iframe **without** `allow-same-origin`, with `no-referrer`. The child cannot read the booking form, parent URL or parent storage. Only allowlisted ad click IDs enter its URL; the parent sends a generic completion message.
+- The isolated child keeps ad/analytics storage and personalization denied; `ad_user_data` is granted only after explicit advertising-measurement consent. No contact details, treatment choices, concerns, appointment date/time, booking ID or local deduplication key are passed to Google. No enhanced conversions or remarketing events are enabled.
+- A browser-local submission key and child event guard prevent duplicate sends. The booking receipt continues after at most two seconds even if the tag is blocked. Withdrawal removes the frame and stored click IDs; another tab's withdrawal is respected.
+- Existing reservation `measurement.googleReportingConsent: false` remains unchanged: clinic records and patient data are not exported. This isolated, optional browser event is separate from those records.
+
+Verification uses mocked Google scripts and local booking responses; no fabricated production reservation or Google conversion is sent. Google Ads can initially report the action as inactive/unverified until a real, consented visitor completes a request and reporting updates. SDK dispatch verification is not proof of Google attribution or a recorded real conversion.
 
 Botox and existing treatment/price content remain on the site. These landing pages are public service information, not alternate content for ad reviewers.

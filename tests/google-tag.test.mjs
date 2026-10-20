@@ -18,10 +18,16 @@ test('anonymous public pages and bilingual articles get one tag in the initial h
 });
 
 test('patient, booking, unknown and staff views never receive the tag', () => {
-  for (const page of ['/admin/index.html','/admin/calendar.html','/patient-reply.html','/reservation/index.html','/reservation/concerns.html','/reservation/received.html','/play/index.html','/display/index.html','/concourse-app.html','/unknown.html']) {
+  for (const page of ['/admin/index.html','/admin/calendar.html','/patient-reply.html','/play/index.html','/display/index.html','/concourse-app.html','/unknown.html']) {
     assert.equal(addGoogleTagToPage(html,page),html);
   }
   assert.equal(addGoogleTagToPage(html,'/index.html',true),html);
+  for (const page of ['/reservation/index.html','/reservation/concerns.html','/reservation/received.html']) {
+    const pageHtml = addGoogleTagToPage(html,page);
+    assert.ok(pageHtml.includes('lofi-ads-consent-client'));
+    assert.doesNotMatch(pageHtml, /id="lofi-google-tag"|googletagmanager/);
+    assert.equal(addGoogleTagToPage(html,page,true),html);
+  }
 });
 
 function browser(url) {
