@@ -1555,10 +1555,13 @@
           for (const record of allReservations) {
             const fresh = latest.get(String(record.id));
             if (!fresh || fresh.dentwebSyncUpdatedAt === record.dentwebSyncUpdatedAt) continue;
-            for (const key of ['dentwebSyncStatus','dentwebSyncUpdatedAt','dentwebSyncError','dentwebQueuedAt','dentwebProcessingAt','dentwebSyncedAt','dentwebReservationId']) record[key] = fresh[key];
+            for (const key of ['dentwebSyncStatus','dentwebSyncUpdatedAt','dentwebSyncError','dentwebQueuedAt','dentwebProcessingAt','dentwebSyncedAt','dentwebReservationId','cancelledAt','status','dentwebAction','cancellationRequestedAt']) record[key] = fresh[key];
             changed = true;
           }
-          if (changed && currentDetailDateKey && !document.activeElement?.matches('input,textarea,select')) renderDetailList(currentDetailDateKey);
+          if (changed && !document.activeElement?.matches('input,textarea,select')) {
+            renderCalendar();
+            if (currentDetailDateKey) renderDetailList(currentDetailDateKey);
+          }
         } catch { /* Preserve the last known status while offline. */ }
         finally { dentwebStatusRefreshing = false; }
       }
@@ -1906,6 +1909,7 @@
       function buildEventMap() {
         const map = {};
         for (const r of allReservations) {
+          if (r.cancelledAt || r.status === "cancelled") continue;
           const key = normalizeDate(r.date);
           if (!key) continue;
           if (!map[key]) map[key] = [];
@@ -2225,6 +2229,7 @@
           const source = formatSourceLabel(r);
           const concerns = String(r.concerns || "No concerns recorded.").trim();
           const dentwebStatus = String(r.dentwebSyncStatus || "");
+          const cancellation = r.cancelledAt || r.status === "cancelled" ? "Cancelled" : r.dentwebAction === "cancel" ? "Cancellation " + dentwebStatus : "";
           const metaHtml = [
             detailMeta("Email", email),
             detailMeta("Phone", phone),
@@ -2238,13 +2243,14 @@
               <span class="detail-time">${escHtml(r.time)}</span>
               <p class="detail-name">${escHtml(patientName)}</p>
               <span class="detail-source">${escHtml(source)}</span>
+              ${cancellation ? `<span class="detail-source">${escHtml(cancellation)}</span>` : ""}
             </div>
             ${metaHtml ? `<div class="detail-meta-grid">${metaHtml}</div>` : ""}
             <div>
               <span class="detail-section-label">Patient concerns</span>
               <p class="detail-concerns">${escHtml(concerns)}</p>
             </div>
-            <div class="detail-actions">
+            <div class="detail-actions" ${cancellation ? "hidden" : ""}>
               ${String(r.source || "").toLowerCase() === "dentweb" ? "" : `<button class="detail-action dentweb" type="button" onclick="addReservationToDentweb('${escHtml(r.id)}')" ${dentwebStatus === "completed" || dentwebStatus === "pending" || dentwebStatus === "processing" ? "disabled" : ""}>${dentwebStatus === "completed" ? "Added to Dentweb" : dentwebStatus === "pending" ? "Queued for Dentweb" : dentwebStatus === "processing" ? "Adding to Dentweb" : dentwebStatus === "failed" ? "Retry Dentweb" : "Add to Dentweb"}</button>`}
               <button class="detail-action" type="button" onclick="openEditModal('${escHtml(r.id)}')">Edit</button>
               <button class="detail-action delete" type="button" onclick="deleteReservation('${escHtml(r.id)}', '${escHtml(dateKey)}')">Delete</button>

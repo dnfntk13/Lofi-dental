@@ -17,7 +17,7 @@ function Scalar([string]$text) {
   $cmd = $connection.CreateCommand(); $cmd.CommandText = $text
   try { return $cmd.ExecuteScalar() } finally { $cmd.Dispose() }
 }
-function Reserve([string]$name, [string]$phone, [string]$at, [int]$linked = 0, [string]$memo = 'New concern', $duration = $null) {
+function Reserve([string]$name, [string]$phone, [string]$at, [int]$linked = 0, [string]$memo = 'New concern', $duration = $null, [bool]$cancel = $false) {
   $tx = $connection.BeginTransaction([Data.IsolationLevel]::Serializable)
   $cmd = $connection.CreateCommand(); $cmd.Transaction = $tx; $cmd.CommandText = $sql
   [void]$cmd.Parameters.Add('@name', [Data.SqlDbType]::NVarChar, 40)
@@ -27,6 +27,8 @@ function Reserve([string]$name, [string]$phone, [string]$at, [int]$linked = 0, [
   [void]$cmd.Parameters.Add('@memo', [Data.SqlDbType]::NVarChar, -1)
   [void]$cmd.Parameters.Add('@linkedReservationId', [Data.SqlDbType]::Int)
   [void]$cmd.Parameters.Add('@requestedDuration', [Data.SqlDbType]::Int)
+  [void]$cmd.Parameters.Add('@cancel', [Data.SqlDbType]::Bit)
+  $cmd.Parameters['@cancel'].Value = $cancel
   $cmd.Parameters['@requestedDuration'].Value = if ($null -eq $duration) { [DBNull]::Value } else { $duration }
   $cmd.Parameters['@name'].Value = $name; $cmd.Parameters['@phone'].Value = $phone
   $cmd.Parameters['@appointmentAt'].Value = $at; $cmd.Parameters['@createdAt'].Value = '20300101100000'
@@ -104,6 +106,17 @@ VALUES('202901011000',17,30,2,1,1,1,0,1,N'Important old note',N'Existing Patient
   $newLong = Reserve 'New Long Patient' '010-5555-6666' '203001091230' 0 '60 minute visit' 60
   Assert ((Scalar "SELECT n소요시간 FROM #TB_예약목록 WHERE nID=$($newLong.id)") -eq 60) 'New patient duration failed'
   Assert ((Scalar 'SELECT COUNT(*) FROM #TB_예약목록') -eq 6) 'Duration checks created duplicate records'
+  MustReject { Reserve 'New Patient' '010-3333-4444' '203001051000' 0 '' $null $true } 51008
+  MustReject { Reserve 'Wrong Name' '010-3333-4444' '203001051000' $fresh.id '' $null $true } 51009
+  MustReject { Reserve 'New Patient' '010-3333-4444' '203001061000' $fresh.id '' $null $true } 51009
+  MustReject { Reserve 'Existing Patient' '010-1111-2222' '202901011000' 1 '' $null $true } 51009
+  $memoBefore = Scalar "SELECT sz메모 FROM #TB_예약목록 WHERE nID=$($fresh.id)"
+  [void](Reserve 'New Patient' '010-3333-4444' '203001051000' $fresh.id '' $null $true)
+  Assert ((Scalar "SELECT n이행현황 FROM #TB_예약목록 WHERE nID=$($fresh.id)") -eq 2) 'Cancellation not saved'
+  Assert ((Scalar "SELECT sz메모 FROM #TB_예약목록 WHERE nID=$($fresh.id)") -eq $memoBefore) 'Cancellation lost notes'
+  [void](Reserve 'New Patient' '010-3333-4444' '203001051000' $fresh.id '' $null $true)
+  Assert ((Scalar 'SELECT COUNT(*) FROM #TB_예약목록') -eq 6) 'Cancellation/retry deleted or inserted records'
+  Write-Output 'PASS: linked cancellation, idempotent retry, notes preserved, missing/changed/attended reservation rejection.'
   Write-Output 'PASS: explicit 60 minutes for existing/new patients, linked duration update, omitted duration preserved, retry, mismatch/invalid rejection.'
   Write-Output 'PASS: alias identity, existing ID/duration, replay, linked update/memo, attended guard, mismatch/ambiguity, closed duplicate, new patient, wrong linked identity.'
 } finally { $connection.Dispose() }

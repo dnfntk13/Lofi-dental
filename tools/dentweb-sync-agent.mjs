@@ -105,7 +105,7 @@ async function updateDentwebJob(id, status, details = {}) {
 
 async function claimDentwebJob() {
   const response = await fetch(`${serverUrl}/api/admin/dentweb/jobs/next`, {
-    headers: { Authorization: adminAuthHeader(), Accept: "application/json" },
+    headers: { Authorization: adminAuthHeader(), Accept: "application/json", "X-Dentweb-Cancellation": "1" },
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.message || `Dentweb job fetch failed with ${response.status}`);
@@ -151,6 +151,25 @@ try {
   $command.Transaction = $transaction
   $command.CommandText = @'
 SET NOCOUNT ON;
+IF @cancel = 1
+BEGIN
+  IF @linkedReservationId < 1
+    THROW 51008, 'Cancellation requires an existing linked reservation.', 1;
+  DECLARE @cancelStatus int, @cancelAt varchar(12), @cancelName nvarchar(40), @cancelPhone varchar(30);
+  SELECT @cancelStatus=n이행현황, @cancelAt=sz예약시각, @cancelName=sz이름, @cancelPhone=sz전화
+  FROM dbo.TB_예약목록 WITH (UPDLOCK, HOLDLOCK) WHERE nID=@linkedReservationId;
+  IF @cancelStatus IS NULL OR @cancelStatus NOT IN (0,2) OR @cancelAt <> @appointmentAt
+    OR LTRIM(RTRIM(ISNULL(@cancelName,''))) <> @name
+    OR REPLACE(REPLACE(ISNULL(@cancelPhone,''),'-',''),' ','') <> REPLACE(REPLACE(@phone,'-',''),' ','')
+    THROW 51009, 'Cancellation identity, schedule or status changed; refusing overwrite.', 1;
+  IF @cancelStatus=0
+  BEGIN
+    UPDATE dbo.TB_예약목록 SET n이행현황=2,t최종수정=GETDATE() WHERE nID=@linkedReservationId;
+    UPDATE dbo.TB_덴트웹설정 SET t예약최종수정=GETDATE();
+  END;
+  SELECT @linkedReservationId AS reservationId, CAST(1 AS bit) AS duplicate;
+  RETURN;
+END;
 IF @requestedDuration IS NOT NULL AND (@requestedDuration < 1 OR @requestedDuration > 255)
   THROW 51006, 'Invalid appointment duration.', 1;
 -- Resolve registered patients by phone and current name or a verified appointment alias.
@@ -258,6 +277,8 @@ SELECT @reservationId AS reservationId, CAST(0 AS bit) AS duplicate;
   [void]$command.Parameters.Add('@memo', [Data.SqlDbType]::NVarChar, -1)
   [void]$command.Parameters.Add('@linkedReservationId', [Data.SqlDbType]::Int)
   [void]$command.Parameters.Add('@requestedDuration', [Data.SqlDbType]::Int)
+  [void]$command.Parameters.Add('@cancel', [Data.SqlDbType]::Bit)
+  $command.Parameters['@cancel'].Value = ($job.action -eq 'cancel')
   $command.Parameters['@requestedDuration'].Value = if ($null -eq $job.durationMinutes) { [DBNull]::Value } else { [int]$job.durationMinutes }
   $command.Parameters['@name'].Value = $name
   $command.Parameters['@phone'].Value = $phone
@@ -297,7 +318,7 @@ async function processDentwebJobs() {
     job = await claimDentwebJob();
     if (!job) return;
     const result = await createDentwebReservation(job);
-    await updateDentwebJob(job.id, "completed", { dentwebReservationId: result.reservationId });
+    await updateDentwebJob(job.id, "completed", { dentwebReservationId: result.reservationId, action: job.action });
     console.log(`Dentweb reservation ${result.duplicate ? "already existed" : "created"}: ${result.reservationId}`);
   } catch (error) {
     console.error(`Dentweb SQL job failed: ${error.message || error}`);
@@ -1152,6 +1173,7 @@ async function startDaemon() {
         syncInProgress,
         sqlConfigured: Boolean(String(process.env.DENTWEB_SQL_CONNECTION_STRING || "").trim()),
         durationMinutesSupported: true,
+        cancellationSupported: true,
         windowPattern,
         printButtonPattern,
         printDialogPattern,

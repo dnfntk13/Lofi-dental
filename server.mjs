@@ -27,6 +27,7 @@ import { prepareAdminAttachments } from "./lib/admin-ai-attachments.mjs";
 import { selectConversation, searchAdminRecords } from "./lib/admin-ai-context.mjs";
 import { instagramBookingRules, validatedInstagramExtraction, currentKoreanClock } from "./lib/instagram-booking-rules.mjs";
 import { autoQueueDentweb } from "./lib/dentweb-auto-queue.mjs";
+import { queueCancellation, isCancelledReservation } from "./lib/reservation-cancellation.mjs";
 import { reservationDuration } from "./lib/reservation-duration.mjs";
 import { dentwebReservationId, sameDentwebReservation } from "./lib/dentweb-import-identity.mjs";
 import { normalizeBookingAttribution, summarizeBookingAttribution } from "./lib/booking-attribution.mjs";
@@ -413,6 +414,7 @@ function getReservedTimesForDate(records, date) {
   if (!normalizedDate) return [];
   const times = new Set();
   (Array.isArray(records) ? records : []).forEach((record) => {
+    if (isCancelledReservation(record)) return;
     if (normalizeReservationDate(record?.date) !== normalizedDate) return;
     const time = normalizeReservationTime(record?.time);
     if (time) times.add(time);
@@ -5732,6 +5734,43 @@ createServer(async (request, response) => {
     return;
   }
 
+  const cancelMatch = pathname.match(/^\/api\/admin\/reservations\/([^/]+)\/cancel$/);
+  if (cancelMatch && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    try {
+      const id = decodeURIComponent(cancelMatch[1]);
+      const payload = await getJsonBody(request);
+      const collection = await getInboxCollection();
+      let saved;
+      if (collection) {
+        const existing = await collection.findOne({ id }, { projection: { _id: 0 } });
+        const next = queueCancellation(existing, payload.dentwebReservationId);
+        if (next === existing) saved = existing;
+        else {
+          const result = await collection.replaceOne(
+            { id, dentwebReservationId: existing.dentwebReservationId, dentwebSyncStatus: existing.dentwebSyncStatus, updatedAt: existing.updatedAt ?? null },
+            next,
+          );
+          if (!result.matchedCount) throw new Error("Reservation changed; reload before cancellation");
+          saved = next;
+        }
+      } else {
+        const inbox = await readInbox();
+        const index = inbox.findIndex(item => item.id === id);
+        saved = queueCancellation(inbox[index], payload.dentwebReservationId);
+        inbox[index] = saved;
+        await mkdir(dataDir, { recursive: true });
+        await writeFile(inboxPath, JSON.stringify(inbox, null, 2), "utf-8");
+      }
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ ok: true, record: saved }));
+    } catch (error) {
+      response.writeHead(409, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: error.message }));
+    }
+    return;
+  }
+
   const dentwebSyncMatch = pathname.match(/^\/api\/admin\/reservations\/([^/]+)\/dentweb-sync$/);
   if (dentwebSyncMatch && request.method === "POST") {
     if (!adminAuthorized) { requestAuth(response); return; }
@@ -5755,7 +5794,6 @@ createServer(async (request, response) => {
         syncFields.dentwebQueuedAt = now;
         syncFields.dentwebProcessingAt = null;
         syncFields.dentwebSyncedAt = null;
-        syncFields.dentwebReservationId = null;
       }
       if (status === "processing") syncFields.dentwebProcessingAt = now;
       if (status === "completed") {
@@ -5764,13 +5802,21 @@ createServer(async (request, response) => {
         if (Number.isInteger(dentwebReservationId) && dentwebReservationId > 0) {
           syncFields.dentwebReservationId = dentwebReservationId;
         }
+        if (payload.action === "cancel") {
+          syncFields.cancelledAt = now;
+          syncFields.status = "cancelled";
+        }
       }
 
       let savedRecord = null;
       const collection = await getInboxCollection();
+      const cancellationCompletion = status === "completed" && payload.action === "cancel";
+      const completionFilter = cancellationCompletion
+        ? { dentwebAction: "cancel", dentwebReservationId: Number(payload.dentwebReservationId), dentwebSyncStatus: { $in: ["processing", "completed"] } }
+        : {};
       if (collection) {
         savedRecord = await collection.findOneAndUpdate(
-          { id },
+          { id, ...completionFilter },
           { $set: syncFields },
           { returnDocument: "after", projection: { _id: 0 } },
         );
@@ -5778,6 +5824,11 @@ createServer(async (request, response) => {
         const inbox = await readInbox();
         const index = inbox.findIndex((record) => String(record.id) === id);
         if (index >= 0) {
+          if (cancellationCompletion && (inbox[index].dentwebAction !== "cancel"
+            || Number(inbox[index].dentwebReservationId) !== Number(payload.dentwebReservationId)
+            || !["processing", "completed"].includes(inbox[index].dentwebSyncStatus))) {
+            throw new Error("Cancellation completion does not match the claimed reservation");
+          }
           inbox[index] = { ...inbox[index], ...syncFields };
           savedRecord = inbox[index];
           await mkdir(dataDir, { recursive: true });
@@ -5812,7 +5863,10 @@ createServer(async (request, response) => {
       if (collection) {
         record = await collection.findOneAndUpdate(
           {
-            source: { $ne: "dentweb" },
+            $and: [
+              { $or: [{ source: { $ne: "dentweb" } }, { dentwebAction: "cancel" }] },
+              ...(request.headers["x-dentweb-cancellation"] === "1" ? [] : [{ dentwebAction: { $ne: "cancel" } }]),
+            ],
             $or: [
               { dentwebSyncStatus: "pending" },
               { dentwebSyncStatus: "processing", dentwebProcessingAt: { $lt: staleBefore } },
@@ -5823,7 +5877,8 @@ createServer(async (request, response) => {
         );
       } else {
         const inbox = await readInbox();
-        const index = inbox.findIndex((item) => item.source !== "dentweb" && (
+        const index = inbox.findIndex((item) => (item.source !== "dentweb" || item.dentwebAction === "cancel")
+          && (item.dentwebAction !== "cancel" || request.headers["x-dentweb-cancellation"] === "1") && (
           item.dentwebSyncStatus === "pending"
           || (item.dentwebSyncStatus === "processing" && String(item.dentwebProcessingAt || "") < staleBefore)
         ));
@@ -5853,6 +5908,7 @@ createServer(async (request, response) => {
           concerns: record.concerns,
           dentwebReservationId: record.dentwebReservationId,
           durationMinutes: record.durationMinutes,
+          action: record.dentwebAction || "upsert",
         } : null,
       }));
     } catch (error) {
