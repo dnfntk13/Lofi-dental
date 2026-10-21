@@ -27,6 +27,7 @@ import { selectConversation, searchAdminRecords } from "./lib/admin-ai-context.m
 import { instagramBookingRules, validatedInstagramExtraction, currentKoreanClock } from "./lib/instagram-booking-rules.mjs";
 import { autoQueueDentweb } from "./lib/dentweb-auto-queue.mjs";
 import { queueCancellation, isCancelledReservation } from "./lib/reservation-cancellation.mjs";
+import { queueLinkedReschedule, assertRescheduleCallback } from "./lib/linked-reschedule.mjs";
 import { reservationDuration } from "./lib/reservation-duration.mjs";
 import { dentwebReservationId, sameDentwebReservation } from "./lib/dentweb-import-identity.mjs";
 import { normalizeBookingAttribution, summarizeBookingAttribution } from "./lib/booking-attribution.mjs";
@@ -1286,6 +1287,7 @@ async function upsertInboxRecord(record) {
   const collection = await getInboxCollection();
   if (collection) {
     const existing = await collection.findOne({ id: record.id }, { projection: { _id: 0 } });
+    if (existing?.dentwebReschedule) throw new Error("Explicit linked reschedule records require review");
     const merged = {
       ...(existing || {}),
       ...record,
@@ -1293,13 +1295,15 @@ async function upsertInboxRecord(record) {
       createdAt: existing?.createdAt || record.createdAt,
     };
     Object.assign(merged, autoQueueDentweb(merged, { date: normalizeReservationDate(merged.date), time: normalizeReservationTime(merged.time) }));
-    await collection.replaceOne({ id: record.id }, merged, { upsert: true });
+    const result = await collection.replaceOne({ id: record.id, dentwebReschedule: null }, merged, { upsert: !existing });
+    if (existing && !result.matchedCount) throw new Error("Reservation changed during update");
     return merged;
   }
 
   const messages = await readInbox();
   const index = messages.findIndex((message) => message.id === record.id);
   if (index >= 0) {
+    if (messages[index].dentwebReschedule) throw new Error("Explicit linked reschedule records require review");
     messages[index] = {
       ...messages[index],
       ...record,
@@ -1319,11 +1323,11 @@ async function upsertInboxRecord(record) {
 async function deleteInboxRecord(id) {
   const collection = await getInboxCollection();
   if (collection) {
-    const result = await collection.deleteOne({ id });
+    const result = await collection.deleteOne({ id, dentwebReschedule: null });
     return result.deletedCount > 0;
   }
   const messages = await readInbox();
-  const filtered = messages.filter((m) => m.id !== id);
+  const filtered = messages.filter((m) => m.id !== id || m.dentwebReschedule);
   if (filtered.length === messages.length) return false;
   await mkdir(dataDir, { recursive: true });
   await writeFile(inboxPath, JSON.stringify(filtered, null, 2), "utf-8");
@@ -5733,6 +5737,37 @@ createServer(async (request, response) => {
     return;
   }
 
+  const rescheduleMatch = pathname.match(/^\/api\/admin\/reservations\/([^/]+)\/linked-reschedule$/);
+  if (rescheduleMatch && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    try {
+      if (process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED !== "1") throw new Error("Linked rescheduling is not enabled");
+      const collection = await getInboxCollection();
+      // Fail closed without atomic compare-and-swap storage; no file fallback.
+      if (!collection) throw new Error("Atomic reservation storage is required");
+      const id = decodeURIComponent(rescheduleMatch[1]);
+      const payload = await getJsonBody(request);
+      const existing = await collection.findOne({ id }, { projection: { _id: 0 } });
+      const next = queueLinkedReschedule(existing, payload);
+      if (next !== existing) {
+        const result = await collection.replaceOne({ id,
+          source: existing.source, dentwebReservationId: existing.dentwebReservationId,
+          dentwebSyncStatus: existing.dentwebSyncStatus,
+          dentwebSyncUpdatedAt: existing.dentwebSyncUpdatedAt ?? null,
+          dentwebReschedule: existing.dentwebReschedule ?? null,
+          dentwebAction: existing.dentwebAction ?? null, updatedAt: existing.updatedAt ?? null,
+        }, next);
+        if (!result.matchedCount) throw new Error("Reservation changed; reload before rescheduling");
+      }
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ ok: true, record: next }));
+    } catch (error) {
+      response.writeHead(409, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: error.message }));
+    }
+    return;
+  }
+
   const cancelMatch = pathname.match(/^\/api\/admin\/reservations\/([^/]+)\/cancel$/);
   if (cancelMatch && request.method === "POST") {
     if (!adminAuthorized) { requestAuth(response); return; }
@@ -5747,7 +5782,7 @@ createServer(async (request, response) => {
         if (next === existing) saved = existing;
         else {
           const result = await collection.replaceOne(
-            { id, dentwebReservationId: existing.dentwebReservationId, dentwebSyncStatus: existing.dentwebSyncStatus, updatedAt: existing.updatedAt ?? null },
+            { id, dentwebReservationId: existing.dentwebReservationId, dentwebSyncStatus: existing.dentwebSyncStatus, updatedAt: existing.updatedAt ?? null, dentwebReschedule: null },
             next,
           );
           if (!result.matchedCount) throw new Error("Reservation changed; reload before cancellation");
@@ -5814,6 +5849,21 @@ createServer(async (request, response) => {
         ? { dentwebAction: "cancel", dentwebReservationId: Number(payload.dentwebReservationId), dentwebSyncStatus: { $in: ["processing", "completed"] } }
         : {};
       if (collection) {
+        const existing = await collection.findOne({ id }, { projection: { _id: 0 } });
+        assertRescheduleCallback(existing, { ...payload, status });
+        // Every callback is fenced against an operation created after the read.
+        completionFilter.dentwebReschedule = existing?.dentwebReschedule ?? null;
+        completionFilter.$and = [{ dentwebAction: existing?.dentwebAction ?? null }];
+        if (existing?.dentwebAction === "linked-reschedule") {
+          completionFilter.dentwebSyncStatus = existing.dentwebSyncStatus;
+          syncFields.dentwebRescheduleVerified = status === "completed" ? payload.verification : null;
+          if (status === "completed") {
+            // Complete the explicit web request, never copy native schedule fields back.
+            syncFields.date = existing.dentwebReschedule.target.date;
+            syncFields.time = existing.dentwebReschedule.target.time;
+            syncFields.updatedAt = now;
+          }
+        }
         savedRecord = await collection.findOneAndUpdate(
           { id, ...completionFilter },
           { $set: syncFields },
@@ -5823,6 +5873,7 @@ createServer(async (request, response) => {
         const inbox = await readInbox();
         const index = inbox.findIndex((record) => String(record.id) === id);
         if (index >= 0) {
+          assertRescheduleCallback(inbox[index], { ...payload, status });
           if (cancellationCompletion && (inbox[index].dentwebAction !== "cancel"
             || Number(inbox[index].dentwebReservationId) !== Number(payload.dentwebReservationId)
             || !["processing", "completed"].includes(inbox[index].dentwebSyncStatus))) {
@@ -5863,7 +5914,9 @@ createServer(async (request, response) => {
         record = await collection.findOneAndUpdate(
           {
             $and: [
-              { $or: [{ source: { $ne: "dentweb" } }, { dentwebAction: "cancel" }] },
+              { $or: [{ source: { $ne: "dentweb" } }, { dentwebAction: "cancel" }, { dentwebAction: "linked-reschedule" }] },
+              ...(process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED === "1" && request.headers["x-dentweb-linked-reschedule"] === "1"
+                ? [] : [{ dentwebAction: { $ne: "linked-reschedule" } }]),
               ...(request.headers["x-dentweb-cancellation"] === "1" ? [] : [{ dentwebAction: { $ne: "cancel" } }]),
             ],
             $or: [
@@ -5877,6 +5930,7 @@ createServer(async (request, response) => {
       } else {
         const inbox = await readInbox();
         const index = inbox.findIndex((item) => (item.source !== "dentweb" || item.dentwebAction === "cancel")
+          && item.dentwebAction !== "linked-reschedule"
           && (item.dentwebAction !== "cancel" || request.headers["x-dentweb-cancellation"] === "1") && (
           item.dentwebSyncStatus === "pending"
           || (item.dentwebSyncStatus === "processing" && String(item.dentwebProcessingAt || "") < staleBefore)
@@ -5908,6 +5962,7 @@ createServer(async (request, response) => {
           dentwebReservationId: record.dentwebReservationId,
           durationMinutes: record.durationMinutes,
           action: record.dentwebAction || "upsert",
+          reschedule: record.dentwebReschedule,
         } : null,
       }));
     } catch (error) {
@@ -5975,6 +6030,7 @@ createServer(async (request, response) => {
       const collection = await getInboxCollection();
       if (collection) {
         const existing = await collection.findOne({ id }, { projection: { _id: 0 } });
+        if (existing?.dentwebReschedule) throw new Error("Explicit linked reschedule records cannot be edited by the generic update route");
         let merged = {
           ...(existing || {}),
           ...nextRecord,
@@ -5999,7 +6055,8 @@ createServer(async (request, response) => {
           };
         }
         Object.assign(merged, autoQueueDentweb(merged, { previous: existing, date: normalizeReservationDate(merged.date), time: normalizeReservationTime(merged.time) }));
-        await collection.replaceOne({ id }, merged, { upsert: true });
+        const replaced = await collection.replaceOne({ id, dentwebReschedule: null }, merged, { upsert: !existing });
+        if (!replaced.matchedCount && existing) throw new Error("Reservation changed during update");
         try {
           await saveOrUpdatePatient(merged, { name: merged.name || null, phone: merged.phone || null });
         } catch (error) {
@@ -6014,6 +6071,7 @@ createServer(async (request, response) => {
       const idx = inbox.findIndex((r) => r.id === id);
       if (idx >= 0) {
         const existing = inbox[idx] || {};
+        if (existing.dentwebReschedule) throw new Error("Explicit linked reschedule records cannot be edited by the generic update route");
         let merged = {
           ...existing,
           ...nextRecord,

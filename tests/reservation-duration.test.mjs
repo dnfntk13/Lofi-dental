@@ -18,10 +18,10 @@ test('HTTP create/update and job handoff retain minutes, omission and linked ID'
   let saved;
   const collection = {
     findOne: async () => saved,
-    replaceOne: async (_, record) => { saved = record; },
+    replaceOne: async (_, record) => { saved = record; return { matchedCount: 1 }; },
     findOneAndUpdate: async () => saved,
   };
-  const context = vm.createContext({ reservationDuration, autoQueueDentweb, console,
+  const context = vm.createContext({ reservationDuration, autoQueueDentweb, console, process: { env: {} },
     getJsonBody: async r => r.body, getInboxCollection: async () => collection,
     addInboxRecord: async r => { saved = {...r}; }, getPatientThreadEmail: () => 'test',
     saveOrUpdateEmailThread: async () => {}, saveOrUpdatePatient: async () => {},
@@ -38,7 +38,7 @@ test('HTTP create/update and job handoff retain minutes, omission and linked ID'
   const job=handler('  if (pathname === "/api/admin/dentweb/jobs/next"', '  if (pathname.startsWith("/api/admin/reservations/") && request.method === "PUT")');
   async function call(route,path,method,body) {
     const result={};
-    await route(path,{method,body},{writeHead:s=>result.status=s,end:b=>result.body=JSON.parse(b)});
+    await route(path,{method,body,headers:{}},{writeHead:s=>result.status=s,end:b=>result.body=JSON.parse(b)});
     return result;
   }
   const body={name:'Test',phone:'01000000000',date:'2030-01-07',time:'12:30',durationMinutes:60};

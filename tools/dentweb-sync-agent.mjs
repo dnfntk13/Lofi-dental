@@ -6,6 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import readline from "node:readline/promises";
 import { reservationDuration } from "../lib/reservation-duration.mjs";
+import { validateRescheduleRequest } from "../lib/linked-reschedule.mjs";
+import { linkedRescheduleScript } from "../lib/linked-reschedule-script.mjs";
 
 function loadLocalEnvFile() {
   try {
@@ -105,7 +107,9 @@ async function updateDentwebJob(id, status, details = {}) {
 
 async function claimDentwebJob() {
   const response = await fetch(`${serverUrl}/api/admin/dentweb/jobs/next`, {
-    headers: { Authorization: adminAuthHeader(), Accept: "application/json", "X-Dentweb-Cancellation": "1" },
+    headers: { Authorization: adminAuthHeader(), Accept: "application/json", "X-Dentweb-Cancellation": "1",
+      ...(process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED === "1" ? { "X-Dentweb-Linked-Reschedule": "1" } : {}),
+    },
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.message || `Dentweb job fetch failed with ${response.status}`);
@@ -113,6 +117,17 @@ async function claimDentwebJob() {
 }
 
 async function createDentwebReservation(job) {
+  if (job.action === "linked-reschedule") {
+    if (process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED !== "1") throw new Error("Linked rescheduling is disabled on this agent");
+    const reschedule = validateRescheduleRequest(job.reschedule);
+    if (Number(job.dentwebReservationId) !== reschedule.expected.reservationId) throw new Error("Linked reschedule ID mismatch");
+    if (!String(process.env.DENTWEB_SQL_CONNECTION_STRING || "").trim()) throw new Error("Clinic SQL connection is not configured");
+    const output = await runPowerShell(linkedRescheduleScript, {
+      DENTWEB_JOB_BASE64: Buffer.from(JSON.stringify({ ...job, reschedule }), "utf-8").toString("base64"),
+    });
+    return JSON.parse(output);
+  }
+  if (!["upsert", "cancel"].includes(job.action || "upsert")) throw new Error("Unsupported Dentweb action");
   job = { ...job, durationMinutes: reservationDuration(job.durationMinutes) };
   const connectionString = String(process.env.DENTWEB_SQL_CONNECTION_STRING || "").trim();
   if (!connectionString) throw new Error("DENTWEB_SQL_CONNECTION_STRING is required on the clinic PC");
@@ -318,11 +333,13 @@ async function processDentwebJobs() {
     job = await claimDentwebJob();
     if (!job) return;
     const result = await createDentwebReservation(job);
-    await updateDentwebJob(job.id, "completed", { dentwebReservationId: result.reservationId, action: job.action });
+    await updateDentwebJob(job.id, "completed", { dentwebReservationId: result.reservationId, action: job.action,
+      operationId: job.reschedule?.operationId, verification: result.verification });
     console.log(`Dentweb reservation ${result.duplicate ? "already existed" : "created"}: ${result.reservationId}`);
   } catch (error) {
     console.error(`Dentweb SQL job failed: ${error.message || error}`);
-    if (job?.id) await updateDentwebJob(job.id, "failed", { error: error.message || String(error) }).catch(() => {});
+    if (job?.id) await updateDentwebJob(job.id, "failed", { error: error.message || String(error),
+      action: job.action, operationId: job.reschedule?.operationId, dentwebReservationId: job.dentwebReservationId }).catch(() => {});
   } finally {
     syncInProgress = false;
   }
@@ -1174,6 +1191,7 @@ async function startDaemon() {
         sqlConfigured: Boolean(String(process.env.DENTWEB_SQL_CONNECTION_STRING || "").trim()),
         durationMinutesSupported: true,
         cancellationSupported: true,
+        linkedRescheduleSupported: process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED === "1",
         windowPattern,
         printButtonPattern,
         printDialogPattern,
