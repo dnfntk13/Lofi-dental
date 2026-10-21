@@ -32,3 +32,11 @@ Following Concourse's isolated measurement design, the site offers a separate op
 Verification uses mocked Google scripts and local booking responses; no fabricated production reservation or Google conversion is sent. Google Ads can initially report the action as inactive/unverified until a real, consented visitor completes a request and reporting updates. SDK dispatch verification is not proof of Google attribution or a recorded real conversion.
 
 Botox and existing treatment/price content remain on the site. These landing pages are public service information, not alternate content for ad reviewers.
+
+## Shared head and WhatsApp channel conversion — 2026-10-21
+
+The shared public-page head now configures both `G-S9ZX4LDDRR` and `AW-18223406681` using a single loader. Coverage includes public home, treatment, doctor, article, price-guide, Instagram and WhatsApp landing pages. Booking pages retain their head-injected consent client and isolated conversion frame; no Google script can read their form fields. Admin, patient replies, signage, unknown routes and authenticated staff views remain excluded.
+
+The user supplied WhatsApp channel destination `AW-18223406681/VlJ6CPr1kKQdENm8zPFD`. After measurement consent, an actual HTTPS link click to `whatsapp.com/channel/<id>` or `www.whatsapp.com/channel/<id>` sends this separate conversion once per browser session. This measures a channel link click, not a channel subscription or a booking. No link URL or patient data is passed to the isolated frame. Same-tab navigation waits at most two seconds; new-tab and modified clicks retain their normal behavior. Booking and channel events have separate acknowledgments and deduplication.
+
+The consent notice now mentions channel clicks, and its version is renewed so earlier consent is not silently expanded. The supplied email `user_data` block is intentionally not installed: Google customer data policy restricts enhanced-conversion measurement involving sensitive health/medical categories (https://support.google.com/google-ads/answer/7475709). The existing booking action fires only after successful server acceptance, not raw form submit attempts. No account goals, bid strategies or conversion-action settings are changed by this code update.

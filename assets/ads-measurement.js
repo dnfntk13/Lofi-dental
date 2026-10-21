@@ -4,7 +4,7 @@
   if (window.lofiAds || location.protocol !== 'https:' ||
       !['lofiesthetic.com', 'www.lofiesthetic.com'].includes(location.hostname)) return;
   var consentKey = 'lofi_ads_consent_v1', clickKey = 'lofi_ads_click_v1';
-  var version = '2026-10-20', maxAge = 90 * 86400000;
+  var version = '2026-10-21', maxAge = 90 * 86400000;
   var choice = '', frame, ready = false, pending = new Map(), sent = new Set();
   var memoryClick = null, panel, settings;
   function read(key) { try { return JSON.parse(localStorage.getItem(key)); } catch (_) { return null; } }
@@ -64,25 +64,45 @@
       item.dispatched = true; sent.add(key);
       try { sessionStorage.setItem('lofi_ads_sent_' + key, '1'); } catch (_) {}
       // No patient ID, submission ID, URL, treatment, date, or contact fields.
-      frame.contentWindow.postMessage({ type: 'lofi:booking-completed' }, '*');
+      frame.contentWindow.postMessage({ type: item.type }, '*');
     });
   }
-  function trackCompleted(key) {
+  function trackEvent(key, type) {
     if (!accepted() || typeof key !== 'string' || !key || alreadySent(key)) return Promise.resolve(false);
     if (pending.has(key)) return pending.get(key).promise;
     var resolve, promise = new Promise(function (done) { resolve = done; });
     var timer = setTimeout(function () { pending.delete(key); resolve(false); }, 2000);
-    pending.set(key, { resolve: resolve, promise: promise, timer: timer, dispatched: false });
+    pending.set(key, { type: type, resolve: resolve, promise: promise, timer: timer, dispatched: false });
     start(); flush();
     return promise;
   }
+  function trackCompleted(key) {
+    if (typeof key !== 'string' || !key) return Promise.resolve(false);
+    return trackEvent('booking:' + key, 'lofi:booking-completed');
+  }
+  document.addEventListener('click', function (event) {
+    if (event.defaultPrevented || !accepted()) return;
+    var link = event.target.closest?.('a');
+    if (!link?.href) return;
+    var url;
+    try { url = new URL(link.href); } catch (_) { return; }
+    if (url.protocol !== 'https:' || !['whatsapp.com', 'www.whatsapp.com'].includes(url.hostname) ||
+        !/^\/channel\/[^/]+\/?$/.test(url.pathname)) return;
+    // A channel visit is separate from booking; no address or contact data leaves this page.
+    var completion = trackEvent('whatsapp-channel', 'lofi:whatsapp-channel-click');
+    if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey &&
+        event.button === 0 && (!link.target || link.target === '_self') && !link.hasAttribute('download')) {
+      event.preventDefault();
+      completion.finally(function () { location.assign(link.href); });
+    }
+  });
   window.addEventListener('message', function (event) {
     if (!accepted() || !frame || event.source !== frame.contentWindow || event.origin !== 'null') return;
     if (event.data?.type === 'lofi:measurement-ready') { ready = true; flush(); }
     if (event.data?.type === 'lofi:measurement-failed') stop();
     if (event.data?.type === 'lofi:measurement-sent') {
       pending.forEach(function (item, key) {
-        if (item.dispatched) { clearTimeout(item.timer); item.resolve(true); pending.delete(key); }
+        if (item.dispatched && item.type === event.data.eventType) { clearTimeout(item.timer); item.resolve(true); pending.delete(key); }
       });
     }
   });
@@ -108,8 +128,8 @@
     title.textContent = ko ? '광고 효과 측정 (선택)' : 'Advertising measurement (optional)';
     var notice = document.createElement('p');
     notice.textContent = ko
-      ? '동의하면 Google LLC(미국)에 광고 클릭 식별자, 접속 정보 및 일반적인 예약 요청 접수 완료 신호를 전달합니다. 연락처·진료 내용·예약 일시는 전달하지 않으며 맞춤 광고는 사용하지 않습니다. 거절해도 예약과 진료에 영향이 없습니다.'
-      : 'With your permission, Google LLC (United States) receives advertising click identifiers, connection data and a generic booking-request completion signal. We do not send contact details, treatment information or appointment times, and do not enable personalised ads. Declining does not affect booking or care.';
+      ? '동의하면 Google LLC(미국)에 광고 클릭 식별자, 접속 정보, 일반적인 예약 요청 접수 완료 및 WhatsApp 채널 클릭 신호를 전달합니다. 연락처·진료 내용·예약 일시는 전달하지 않으며 맞춤 광고는 사용하지 않습니다. 거절해도 예약과 진료에 영향이 없습니다.'
+      : 'With your permission, Google LLC (United States) receives advertising click identifiers, connection data, generic booking-request completion and WhatsApp channel click signals. We do not send contact details, treatment information or appointment times, and do not enable personalised ads. Declining does not affect booking or care.';
     var retention = document.createElement('p');
     retention.textContent = ko
       ? '이 브라우저에 선택을 저장하며, 동의한 광고 클릭 식별자는 최대 90일 보관합니다. 페이지 하단의 광고 측정 설정에서 언제든 철회할 수 있습니다.'

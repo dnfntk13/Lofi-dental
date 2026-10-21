@@ -1,18 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { runInNewContext } from 'node:vm';
-import { addGoogleTagToPage, googleTagId } from '../lib/google-tag.mjs';
+import { addGoogleTagToPage, googleTagId, googleAdsId } from '../lib/google-tag.mjs';
 
 const html = '<!doctype html><html><head><title>Lofi</title></head><body></body></html>';
 const tagged = addGoogleTagToPage(html, '/english/index.html');
 const script = tagged.match(/<script id="lofi-google-tag">([\s\S]*?)<\/script>/)[1];
 
 test('anonymous public pages and bilingual articles get one tag in the initial head', () => {
-  for (const page of ['/index.html','/english/index.html','/articles/index.html','/articles/ko/veneers-or-whitening.html','/dental-implants-seoul.html']) {
+  for (const page of ['/index.html','/english/index.html','/articles/index.html','/articles/ko/veneers-or-whitening.html','/dental-implants-seoul.html','/price-guide.html','/whatsapp/index.html','/instagram/index.html']) {
     const result = addGoogleTagToPage(html,page);
     assert.ok(result.indexOf('lofi-google-tag') < result.indexOf('<title>'));
     assert.equal(addGoogleTagToPage(result,page),result);
     assert.ok(result.includes(googleTagId));
+    assert.ok(result.includes(googleAdsId));
     assert.ok(!result.includes('GTM-T6JDX3SJ'));
   }
 });
@@ -51,6 +52,7 @@ test('first visit loads once, with denied consent before config and no personal 
   assert.equal(commands[0][0],'consent');
   assert.ok(Object.values(commands[0][2]).every(value=>value==='denied'));
   const config = commands.find(args=>args[0]==='config')[2];
+  assert.deepEqual(Array.from(commands.filter(args=>args[0]==='config'),args=>args[1]),[googleTagId,googleAdsId]);
   assert.equal(config.page_location,'https://lofiesthetic.com/');
   assert.equal(config.page_referrer,'');
   assert.equal(config.send_page_view,false);

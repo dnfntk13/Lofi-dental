@@ -12,7 +12,11 @@
   'use strict';
   if (window.parent === window) return;
   var origins = ['https://lofiesthetic.com', 'https://www.lofiesthetic.com'];
-  var active = false, loaded = false, completed = false, parentOrigin = '';
+  var active = false, loaded = false, completed = new Set(), parentOrigin = '';
+  var destinations = {
+    'lofi:booking-completed': 'AW-18223406681/vWfPCOr0maMdENm8zPFD',
+    'lofi:whatsapp-channel-click': 'AW-18223406681/VlJ6CPr1kKQdENm8zPFD'
+  };
   window.dataLayer = [];
   function gtag() { window.dataLayer.push(arguments); }
   window.addEventListener('message', function (event) {
@@ -39,13 +43,14 @@
       };
       script.onerror = function () { window.parent.postMessage({ type: 'lofi:measurement-failed' }, parentOrigin); };
       document.head.appendChild(script);
-    } else if (event.data?.type === 'lofi:booking-completed' && loaded && !completed) {
-      completed = true;
+    } else if (Object.hasOwn(destinations, event.data?.type) && loaded && !completed.has(event.data.type)) {
+      var eventType = event.data.type;
+      completed.add(eventType);
       gtag('event', 'conversion', {
-        send_to: 'AW-18223406681/vWfPCOr0maMdENm8zPFD',
+        send_to: destinations[eventType],
         allow_ad_personalization_signals: false,
         event_timeout: 1500,
-        event_callback: function () { window.parent.postMessage({ type: 'lofi:measurement-sent' }, parentOrigin); }
+        event_callback: function () { window.parent.postMessage({ type: 'lofi:measurement-sent', eventType: eventType }, parentOrigin); }
       });
     }
   });

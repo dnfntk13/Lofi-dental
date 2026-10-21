@@ -8,7 +8,7 @@ const child = readFileSync(new URL('../ads-measurement.html', import.meta.url), 
 const consentKey = 'lofi_ads_consent_v1', clickKey = 'lofi_ads_click_v1';
 function setup({consent, url='https://lofiesthetic.com/', blocked=false, oldClick}={}) {
   const values = new Map(), sessions = new Map(), events = {}, nodes = [], messages = [], timers = new Map();
-  if (consent) values.set(consentKey, JSON.stringify({choice:consent,version:'2026-10-20'}));
+  if (consent) values.set(consentKey, JSON.stringify({choice:consent,version:'2026-10-21'}));
   if (oldClick) values.set(clickKey, JSON.stringify(oldClick));
   const storage = map => ({
     getItem:k=>{if(blocked)throw Error();return map.get(k)||null;},
@@ -26,13 +26,13 @@ function setup({consent, url='https://lofiesthetic.com/', blocked=false, oldClic
   }
   const window = {addEventListener:(name,handler)=>{events[name]=handler;}};
   const document = {head:element('head'),body:element('body'),readyState:'complete',
-    documentElement:{lang:'en'},createElement:element};
+    documentElement:{lang:'en'},createElement:element,addEventListener:(name,handler)=>{events[name]=handler;}};
   const context = {window,document,location:new URL(url),localStorage:storage(values),sessionStorage:storage(sessions),
-    URLSearchParams,Map,Set,Date,Promise,setTimeout:(fn)=>{const key={};timers.set(key,fn);return key;},clearTimeout:key=>timers.delete(key)};
+    URL,URLSearchParams,Map,Set,Date,Promise,setTimeout:(fn)=>{const key={};timers.set(key,fn);return key;},clearTimeout:key=>timers.delete(key)};
   runInNewContext(client,context);
   const frame=()=>nodes.findLast(n=>n.tag==='iframe'&&!n.removed);
   const choose=label=>nodes.find(n=>n.tag==='button'&&n.textContent===label).onclick();
-  const message=(type,source=frame()?.contentWindow,origin='null')=>events.message({source,origin,data:{type}});
+  const message=(type,source=frame()?.contentWindow,origin='null',eventType='lofi:booking-completed')=>events.message({source,origin,data:{type,eventType}});
   return {window,context,nodes,values,sessions,messages,timers,events,frame,choose,message};
 }
 test('no frame or click storage before permission, or after decline',()=>{
@@ -103,6 +103,32 @@ test('child validates parent, loads after consent and emits generic event once',
   assert.equal(conversions.length,1);
   assert.equal(conversions[0][2].send_to,'AW-18223406681/vWfPCOr0maMdENm8zPFD');
   assert.doesNotMatch(JSON.stringify(conversions),/email|phone|concerns|treatment|transaction_id/);
+  send('lofi:whatsapp-channel-click');send('lofi:whatsapp-channel-click');send('toString');
+  const all=window.dataLayer.filter(args=>args[0]==='event');
+  assert.equal(all.length,2);
+  assert.equal(all[1][2].send_to,'AW-18223406681/VlJ6CPr1kKQdENm8zPFD');
+  all[1][2].event_callback();
+  assert.equal(messages.at(-1).data.eventType,'lofi:whatsapp-channel-click');
+});
+
+test('channel clicks require consent, exact WhatsApp host and channel path, and deduplicate',()=>{
+  const click=(s,href)=>s.events.click({target:{closest:()=>({href,target:'_blank'})}});
+  const declined=setup();click(declined,'https://whatsapp.com/channel/abc');
+  assert.equal(declined.messages.length,0);
+  const s=setup({consent:'accepted'});s.message('lofi:measurement-ready');
+  for(const url of ['https://evil.example/whatsapp.com/channel/abc','https://whatsapp.com.evil.example/channel/abc','https://wa.me/1234','https://whatsapp.com/channel','http://whatsapp.com/channel/abc'])click(s,url);
+  assert.equal(s.messages.length,0);
+  click(s,'https://whatsapp.com/channel/abc');click(s,'https://www.whatsapp.com/channel/abc');
+  assert.equal(s.messages.length,1);
+  assert.equal(s.messages[0].data.type,'lofi:whatsapp-channel-click');
+});
+
+test('channel acknowledgment does not finish a pending booking',async()=>{
+  const s=setup({consent:'accepted'});s.message('lofi:measurement-ready');
+  const booking=s.window.lofiAds.trackCompleted('key');
+  s.message('lofi:measurement-sent',s.frame().contentWindow,'null','lofi:whatsapp-channel-click');
+  assert.equal(s.timers.size,1);
+  s.message('lofi:measurement-sent');assert.equal(await booking,true);
 });
 test('completion wired after accepted POST; receipt page has no replay hook',()=>{
   const form=readFileSync(new URL('../reservation/concerns.html',import.meta.url),'utf8');
