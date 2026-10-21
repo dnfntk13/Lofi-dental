@@ -22,7 +22,6 @@ import { getAdminAiModel, adminAiRequestOptions, parseAdminAiJson } from "./lib/
 import { createAdminAuthority } from "./lib/admin-ai-authority.mjs";
 import { createAdminAiUsage } from "./lib/admin-ai-usage.mjs";
 import { addAdminAiToPage } from "./lib/admin-ai-page.mjs";
-import { addGoogleTagToPage } from "./lib/google-tag.mjs";
 import { prepareAdminAttachments } from "./lib/admin-ai-attachments.mjs";
 import { selectConversation, searchAdminRecords } from "./lib/admin-ai-context.mjs";
 import { instagramBookingRules, validatedInstagramExtraction, currentKoreanClock } from "./lib/instagram-booking-rules.mjs";
@@ -6899,8 +6898,7 @@ createServer(async (request, response) => {
     }
     let file = await readFile(safeAbsolutePath);
     if (extension === '.html') {
-      const page = addGoogleTagToPage(file.toString('utf8'), safeRelativePath, adminAuthorized);
-      file = Buffer.from(addAdminAiToPage(page, adminAuthorized));
+      file = Buffer.from(addAdminAiToPage(file.toString('utf8'), adminAuthorized));
     }
     const contentType = mimeTypes[extension] || "application/octet-stream";
     if (shouldTrackTraffic(request, pathname, safeRelativePath, extension)) {

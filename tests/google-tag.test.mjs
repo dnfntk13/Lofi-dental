@@ -1,69 +1,48 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { runInNewContext } from 'node:vm';
-import { addGoogleTagToPage, googleTagId, googleAdsId } from '../lib/google-tag.mjs';
+import { addGoogleTagToPage, googleTagSnippet } from '../lib/google-tag.mjs';
 
-const html = '<!doctype html><html><head><title>Lofi</title></head><body></body></html>';
-const tagged = addGoogleTagToPage(html, '/english/index.html');
-const script = tagged.match(/<script id="lofi-google-tag">([\s\S]*?)<\/script>/)[1];
-
-test('anonymous public pages and bilingual articles get one tag in the initial head', () => {
-  for (const page of ['/index.html','/english/index.html','/articles/index.html','/articles/ko/veneers-or-whitening.html','/dental-implants-seoul.html','/price-guide.html','/whatsapp/index.html','/instagram/index.html']) {
-    const result = addGoogleTagToPage(html,page);
-    assert.ok(result.indexOf('lofi-google-tag') < result.indexOf('<title>'));
-    assert.equal(addGoogleTagToPage(result,page),result);
-    assert.ok(result.includes(googleTagId));
-    assert.ok(result.includes(googleAdsId));
-    assert.ok(!result.includes('GTM-T6JDX3SJ'));
+const root=new URL('../',import.meta.url);
+const htmlFiles=fs.readdirSync(root,{recursive:true}).filter(p=>p.endsWith('.html')&&!/^(node_modules|output|\.git)[\\/]/.test(p));
+test('literal snippet is present once inside each installed HTML head',()=>{
+  let count=0;
+  for(const p of htmlFiles){
+    const html=fs.readFileSync(new URL(p.replaceAll('\\','/'),root),'utf8');
+    if(!html.includes('G-S9ZX4LDDRR'))continue;
+    if(p.replaceAll('\\','/')==='content/google-tag.html')continue;
+    count++;
+    const head=html.match(/<head\b[^>]*>([\s\S]*?)<\/head>/i)?.[1];
+    assert.ok(head?.includes(googleTagSnippet),p);
+    assert.equal(html.split(googleTagSnippet).length-1,1,p);
+    assert.equal((html.match(/googletagmanager\.com\/gtag\/js\?id=/g)||[]).length,1,p);
+    assert.doesNotMatch(html,/lofiAds|lofi-google-tag|lofi-ads-consent-client|ads-measurement\.js/);
   }
+  assert.equal(count,38);
 });
-
-test('patient, booking, unknown and staff views never receive the tag', () => {
-  for (const page of ['/admin/index.html','/admin/calendar.html','/patient-reply.html','/play/index.html','/display/index.html','/concourse-app.html','/unknown.html']) {
-    assert.equal(addGoogleTagToPage(html,page),html);
-  }
-  assert.equal(addGoogleTagToPage(html,'/index.html',true),html);
-  for (const page of ['/reservation/index.html','/reservation/concerns.html','/reservation/received.html']) {
-    const pageHtml = addGoogleTagToPage(html,page);
-    assert.ok(pageHtml.includes('lofi-ads-consent-client'));
-    assert.doesNotMatch(pageHtml, /id="lofi-google-tag"|googletagmanager/);
-    assert.equal(addGoogleTagToPage(html,page,true),html);
-  }
+test('article generation preserves exact snippet without duplication',()=>{
+  const html='<html><head><title>Article</title></head><body></body></html>';
+  const tagged=addGoogleTagToPage(html);
+  assert.ok(tagged.includes(googleTagSnippet));
+  assert.equal(addGoogleTagToPage(tagged),tagged);
+  assert.match(fs.readFileSync(new URL('tools/build-articles.mjs',root),'utf8'),/writeFileSync\(filename, addGoogleTagToPage\(html\)\)/);
 });
-
-function browser(url) {
-  const nodes = [];
-  const window = { location:new URL(url) };
-  const document = {
-    head:{appendChild:node=>nodes.push(node)},
-    createElement:()=>({}),
-    getElementById:id=>nodes.find(node=>node.id===id),
-  };
-  return {window,document,nodes};
-}
-
-test('first visit loads once, with denied consent before config and no personal URL data', () => {
-  const context = browser('https://lofiesthetic.com/?email=private@example.com#gclid=secret');
-  runInNewContext(script,context);
-  runInNewContext(script,context);
-  assert.equal(context.nodes.length,1);
-  assert.equal(context.nodes[0].src,`https://www.googletagmanager.com/gtag/js?id=${googleTagId}`);
-  const commands = context.window.dataLayer.map(args=>Array.from(args));
-  assert.equal(commands[0][0],'consent');
-  assert.ok(Object.values(commands[0][2]).every(value=>value==='denied'));
-  const config = commands.find(args=>args[0]==='config')[2];
-  assert.deepEqual(Array.from(commands.filter(args=>args[0]==='config'),args=>args[1]),[googleTagId,googleAdsId]);
-  assert.equal(config.page_location,'https://lofiesthetic.com/');
-  assert.equal(config.page_referrer,'');
-  assert.equal(config.send_page_view,false);
-  assert.doesNotMatch(JSON.stringify(commands),/private@example|gclid|secret/);
-  assert.ok(!commands.some(args=>args[0]==='event'));
+test('server serves static head and does not inject a second tag',()=>{
+  assert.doesNotMatch(fs.readFileSync(new URL('server.mjs',root),'utf8'),/addGoogleTagToPage/);
+  assert.doesNotMatch(fs.readFileSync(new URL('reservation/concerns.html',root),'utf8'),/trackCompleted|measurementSubmissionKey/);
 });
-
-test('development and other origins do not load the production tag', () => {
-  for (const url of ['http://localhost:5173/','http://lofiesthetic.com/','https://concourse.to/','https://lofiesthetic.com.example/']) {
-    const context=browser(url);
-    runInNewContext(script,context);
-    assert.equal(context.nodes.length,0);
-  }
+test('supplied script configures both IDs and uses the supplied conversion behavior',()=>{
+  const handlers={},context={window:{},document:{addEventListener:(name,fn)=>handlers[name]=fn},Date};
+  context.dataLayer=context.window.dataLayer=[];
+  for(const [,script] of googleTagSnippet.matchAll(/<script>([\s\S]*?)<\/script>/g))runInNewContext(script,context);
+  const commands=()=>Array.from(context.dataLayer,args=>Array.from(args));
+  assert.deepEqual(commands().filter(a=>a[0]==='config').map(a=>a[1]),['G-S9ZX4LDDRR','AW-18223406681']);
+  assert.equal(commands().filter(a=>a[0]==='event').length,0);
+  handlers.submit({target:{closest:()=>null}});
+  assert.equal(commands().filter(a=>a[0]==='event').length,0);
+  handlers.submit({target:{closest:()=>({querySelector:()=>({value:' test@example.invalid '})})}});
+  assert.equal(commands().find(a=>a[1]==='user_data')[2].email,'test@example.invalid');
+  handlers.click({target:{closest:()=>({href:'https://whatsapp.com/channel/example'})}});
+  assert.deepEqual(commands().filter(a=>a[0]==='event').map(a=>a[2].send_to),['AW-18223406681/vWfPCOr0maMdENm8zPFD','AW-18223406681/VlJ6CPr1kKQdENm8zPFD']);
 });

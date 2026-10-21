@@ -1,6 +1,47 @@
 <!doctype html>
 <html lang="en">
 <head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-S9ZX4LDDRR"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-S9ZX4LDDRR');
+  gtag('config', 'AW-18223406681');
+</script>
+
+<script>
+    document.addEventListener('submit', function(event) {
+        var form = event.target.closest('#concernForm');
+        if (form) {
+            var emailInput = form.querySelector('#email');
+            var email = emailInput ? emailInput.value.trim() : '';
+            
+            if (email) {
+                gtag('set', 'user_data', {
+                    'email': email
+                });
+            }
+            
+            gtag('event', 'conversion', {
+                'send_to': 'AW-18223406681/vWfPCOr0maMdENm8zPFD'
+            });
+        }
+    });
+
+    document.addEventListener('click', function(event) {
+        var link = event.target.closest('a');
+        
+        if (link && link.href && link.href.includes('whatsapp.com/channel')) {
+            gtag('event', 'conversion', {
+                'send_to': 'AW-18223406681/VlJ6CPr1kKQdENm8zPFD'
+            });
+        }
+    });
+</script>
+
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Smile Makeover in Seoul | Cosmetic Dentistry in Gangnam | lofi</title>
 <meta name="description" content="Explore smile makeover planning in Seoul: tooth shade, veneers and restorative care, with English consultation at lofi in Apgujeong, Gangnam.">

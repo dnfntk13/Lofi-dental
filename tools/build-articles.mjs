@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { updated } from '../content/articles.mjs';
 import { articles } from '../content/article-answers.mjs';
+import { addGoogleTagToPage } from '../lib/google-tag.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const origin = 'https://lofiesthetic.com';
@@ -41,7 +42,7 @@ function answerContent(c, lang) {
 function write(url, html) {
   const filename = path.join(root, url.endsWith('/') ? url + 'index.html' : url);
   fs.mkdirSync(path.dirname(filename), { recursive: true });
-  fs.writeFileSync(filename, html);
+  fs.writeFileSync(filename, addGoogleTagToPage(html));
 }
 for (const lang of ['en', 'ko']) {
   const t = ui[lang], other = lang === 'en' ? 'ko' : 'en';

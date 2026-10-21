@@ -48,11 +48,7 @@ test('only accepted website requests count, using Korea dates and aggregated sou
   assert.doesNotMatch(JSON.stringify(summary),/private@example|email/);
 });
 
-test('booking pages never transmit patient email, appointment time or a conversion on page view', async () => {
-  for (const file of ['reservation/concerns.html','reservation/received.html','english/index.html','lofi-lab-en.html']) {
-    const html=await readFile(new URL(`../${file}`,import.meta.url),'utf8');
-    assert.doesNotMatch(html,/googletagmanager|\bgtag\s*\(/);
-  }
+test('first-party attribution and duplicate booking guard remain wired', async () => {
   const html=await readFile(new URL('../reservation/concerns.html',import.meta.url),'utf8');
   assert.match(html,/acquisition: window\.lofiAttribution\?\.get/);
   assert.match(html,/if \(submitting\) return/);

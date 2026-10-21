@@ -1,5 +1,46 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="ko"><head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-S9ZX4LDDRR"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-S9ZX4LDDRR');
+  gtag('config', 'AW-18223406681');
+</script>
+
+<script>
+    document.addEventListener('submit', function(event) {
+        var form = event.target.closest('#concernForm');
+        if (form) {
+            var emailInput = form.querySelector('#email');
+            var email = emailInput ? emailInput.value.trim() : '';
+            
+            if (email) {
+                gtag('set', 'user_data', {
+                    'email': email
+                });
+            }
+            
+            gtag('event', 'conversion', {
+                'send_to': 'AW-18223406681/vWfPCOr0maMdENm8zPFD'
+            });
+        }
+    });
+
+    document.addEventListener('click', function(event) {
+        var link = event.target.closest('a');
+        
+        if (link && link.href && link.href.includes('whatsapp.com/channel')) {
+            gtag('event', 'conversion', {
+                'send_to': 'AW-18223406681/VlJ6CPr1kKQdENm8zPFD'
+            });
+        }
+    });
+</script>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>진료를 이해하는 시간 | lofi</title><meta name="description" content="스마일 메이크오버부터 라미네이트, 임플란트, 전악 수복, 치아미백까지. 압구정 로우파이 치과에서 상담 전에 알아두면 좋은 질문과 정보를 전합니다."><meta name="robots" content="index,follow,max-image-preview:large">
 <link rel="canonical" href="https://lofiesthetic.com/articles/ko/"><link rel="alternate" hreflang="en" href="https://lofiesthetic.com/articles/"><link rel="alternate" hreflang="ko" href="https://lofiesthetic.com/articles/ko/"><link rel="alternate" hreflang="x-default" href="https://lofiesthetic.com/articles/">
 <meta property="og:type" content="website"><meta property="og:title" content="진료를 이해하는 시간"><meta property="og:description" content="스마일 메이크오버부터 라미네이트, 임플란트, 전악 수복, 치아미백까지. 압구정 로우파이 치과에서 상담 전에 알아두면 좋은 질문과 정보를 전합니다."><meta property="og:url" content="https://lofiesthetic.com/articles/ko/"><meta property="og:image" content="https://lofiesthetic.com/assets/story/waiting-room.jpg">

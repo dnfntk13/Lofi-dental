@@ -1,5 +1,46 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="ko"><head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-S9ZX4LDDRR"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-S9ZX4LDDRR');
+  gtag('config', 'AW-18223406681');
+</script>
+
+<script>
+    document.addEventListener('submit', function(event) {
+        var form = event.target.closest('#concernForm');
+        if (form) {
+            var emailInput = form.querySelector('#email');
+            var email = emailInput ? emailInput.value.trim() : '';
+            
+            if (email) {
+                gtag('set', 'user_data', {
+                    'email': email
+                });
+            }
+            
+            gtag('event', 'conversion', {
+                'send_to': 'AW-18223406681/vWfPCOr0maMdENm8zPFD'
+            });
+        }
+    });
+
+    document.addEventListener('click', function(event) {
+        var link = event.target.closest('a');
+        
+        if (link && link.href && link.href.includes('whatsapp.com/channel')) {
+            gtag('event', 'conversion', {
+                'send_to': 'AW-18223406681/VlJ6CPr1kKQdENm8zPFD'
+            });
+        }
+    });
+</script>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>스마일 메이크오버 상담 전, 무엇을 준비하면 좋을까요? | lofi</title><meta name="description" content="압구정 로우파이 치과에서 스마일 메이크오버를 상담하기 전 알아둘 질문들. 원하는 변화, 기존 보철물, 치료 대안과 방문 계획을 정리합니다."><meta name="robots" content="index,follow,max-image-preview:large">
 <link rel="canonical" href="https://lofiesthetic.com/articles/ko/smile-makeover-consultation.html"><link rel="alternate" hreflang="en" href="https://lofiesthetic.com/articles/smile-makeover-consultation.html"><link rel="alternate" hreflang="ko" href="https://lofiesthetic.com/articles/ko/smile-makeover-consultation.html"><link rel="alternate" hreflang="x-default" href="https://lofiesthetic.com/articles/smile-makeover-consultation.html">
 <meta property="og:type" content="article"><meta property="og:title" content="스마일 메이크오버 상담 전, 무엇을 준비하면 좋을까요?"><meta property="og:description" content="압구정 로우파이 치과에서 스마일 메이크오버를 상담하기 전 알아둘 질문들. 원하는 변화, 기존 보철물, 치료 대안과 방문 계획을 정리합니다."><meta property="og:url" content="https://lofiesthetic.com/articles/ko/smile-makeover-consultation.html"><meta property="og:image" content="https://lofiesthetic.com/assets/story/waiting-room.jpg">

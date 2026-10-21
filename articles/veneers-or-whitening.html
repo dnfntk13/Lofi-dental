@@ -1,5 +1,46 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en"><head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-S9ZX4LDDRR"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-S9ZX4LDDRR');
+  gtag('config', 'AW-18223406681');
+</script>
+
+<script>
+    document.addEventListener('submit', function(event) {
+        var form = event.target.closest('#concernForm');
+        if (form) {
+            var emailInput = form.querySelector('#email');
+            var email = emailInput ? emailInput.value.trim() : '';
+            
+            if (email) {
+                gtag('set', 'user_data', {
+                    'email': email
+                });
+            }
+            
+            gtag('event', 'conversion', {
+                'send_to': 'AW-18223406681/vWfPCOr0maMdENm8zPFD'
+            });
+        }
+    });
+
+    document.addEventListener('click', function(event) {
+        var link = event.target.closest('a');
+        
+        if (link && link.href && link.href.includes('whatsapp.com/channel')) {
+            gtag('event', 'conversion', {
+                'send_to': 'AW-18223406681/VlJ6CPr1kKQdENm8zPFD'
+            });
+        }
+    });
+</script>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Veneers or teeth whitening: how to frame the decision | lofi</title><meta name="description" content="Comparing veneers and teeth whitening in Seoul? Understand the difference between changing tooth shade and covering the front surface before your consultation."><meta name="robots" content="index,follow,max-image-preview:large">
 <link rel="canonical" href="https://lofiesthetic.com/articles/veneers-or-whitening.html"><link rel="alternate" hreflang="en" href="https://lofiesthetic.com/articles/veneers-or-whitening.html"><link rel="alternate" hreflang="ko" href="https://lofiesthetic.com/articles/ko/veneers-or-whitening.html"><link rel="alternate" hreflang="x-default" href="https://lofiesthetic.com/articles/veneers-or-whitening.html">
 <meta property="og:type" content="article"><meta property="og:title" content="Veneers or teeth whitening: how to frame the decision"><meta property="og:description" content="Comparing veneers and teeth whitening in Seoul? Understand the difference between changing tooth shade and covering the front surface before your consultation."><meta property="og:url" content="https://lofiesthetic.com/articles/veneers-or-whitening.html"><meta property="og:image" content="https://lofiesthetic.com/assets/story/shade-lab.jpg">
