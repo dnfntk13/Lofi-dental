@@ -231,7 +231,7 @@
 
       <section class="panel" style="margin-bottom:18px" aria-labelledby="bookingInsightsTitle">
         <h2 class="panel-title" id="bookingInsightsTitle">Booking requests · <span class="period-label">Selected period</span></h2>
-        <p><strong id="bookingRequests">0</strong> saved requests · <strong id="googleAdsBookingRequests">0</strong> attributed to Google Ads</p>
+        <p><strong id="bookingRequests">—</strong> saved requests · <strong id="googleAdsBookingRequests">—</strong> attributed to Google Ads</p>
         <p class="panel-note">Successful website submissions, not confirmed appointments. First-party attribution is session-based and may be unavailable.</p>
         <div class="list" id="bookingSources"></div>
       </section>
@@ -452,7 +452,7 @@
         document.getElementById('instagramPeriod').textContent = data.sinceDay ? data.sinceDay + ' – ' + data.throughDay + ' · Asia/Seoul' : '';
         for (const [id,key] of [['instagramBooked','totalPatients'],['instagramLinked','campaignPatients'],['instagramUnknown','unknownCampaignPatients'],['instagramPending','pendingPatients']]) document.getElementById(id).textContent = data.available ? data[key] : '—';
         const auditStatus = document.getElementById('instagramAuditStatus');
-        auditStatus.textContent = !data.available ? 'Awaiting the first verified DM audit.' : (data.stale ? 'Update needed: this is a partial count from the last audit. ' : 'Verified through the last audit. ') + 'Last checked: ' + new Date(data.auditedAt).toLocaleString('en-GB',{timeZone:'Asia/Seoul'}) + ' KST.';
+        auditStatus.textContent = !data.available ? (data.auditedAt ? 'No verified audit coverage for the selected period. Last checked: ' + new Date(data.auditedAt).toLocaleString('en-GB',{timeZone:'Asia/Seoul'}) + ' KST.' : 'Awaiting the first verified DM audit.') : (data.stale ? 'Update needed: this is a partial count from the last audit. ' : 'Verified through the last audit. ') + 'Last checked: ' + new Date(data.auditedAt).toLocaleString('en-GB',{timeZone:'Asia/Seoul'}) + ' KST.';
         auditStatus.style.color = data.stale ? '#a34b19' : '';
         document.getElementById('instagramUnidentified').textContent = data.limitations || '';
         const rows = data.byCampaign || [];
