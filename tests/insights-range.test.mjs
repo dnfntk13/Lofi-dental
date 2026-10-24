@@ -40,4 +40,6 @@ test('Instagram range follows first confirmation day and keeps incomplete audit 
   assert.equal(result.totalPatients, 2);
   assert.equal(result.stale, true);
   assert.equal(result.sinceDay, '2026-10-19');
+  const earlier = {...audit, coverage:{sinceDay:'2026-10-01',throughDay:'2026-10-05'}, patients:[]};
+  assert.equal(summarizeCampaignAudit(earlier, {}, new Date('2026-10-24T04:00:00Z'), selected).available, false);
 });
