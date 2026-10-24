@@ -209,3 +209,12 @@ OPENAI_MODEL=gpt-4o-mini
 - Static multipage site.
 - Primary entry point is `index.html`.
 - Mobile and PDF tooling live in separate repositories.
+
+
+## Insights date range
+
+`/admin/insights` defaults to **This week** (Monday through today in Asia/Seoul). Staff can choose **This month** or inclusive **Custom dates** and share/bookmark the selected query string. The same period applies to stored traffic, the booking funnel, successful web requests by `createdAt`, and Instagram first confirmations. Today is marked in progress. Web requests and first-party Google source attribution remain separate from Google Ads conversion reporting and confirmed appointments.
+
+`GET /api/admin/traffic?preset=this_week` and `preset=this_month` use Korean calendar days. `preset=custom&from=YYYY-MM-DD&to=YYYY-MM-DD` supports up to 366 days and rejects invalid, reversed or future ranges. Omitting parameters preserves the legacy last-30-days API window. Traffic reports explicitly flag the 15,000-event retrieval cap; missing historical records are not backfilled. Instagram audit coverage remains visible and partial if it does not cover the selected period. AI insights use the same applied range.
+
+Validation: `node --test tests/insights-range.test.mjs tests/booking-attribution.test.mjs tests/booking-funnel.test.mjs tests/instagram-campaign-audit.test.mjs`.

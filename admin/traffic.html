@@ -75,6 +75,12 @@
       .btn.danger { border-color: rgba(163, 38, 38, 0.22); color: #a32626; }
       .btn.success { border-color: rgba(46, 125, 50, 0.26); color: var(--green); }
 
+      .range-controls { display:flex; flex-wrap:wrap; align-items:end; gap:12px; margin-bottom:14px; }
+      .range-controls label { display:grid; gap:6px; font-size:.9rem; font-weight:700; }
+      .range-controls input, .range-controls select { padding:10px; border:1px solid var(--line); border-radius:8px; color:var(--ink); background:white; font:inherit; }
+      .range-controls input:disabled { background:var(--wash); }
+      .range-note { margin:0 0 18px; color:var(--soft); font-size:.86rem; }
+      .chart-scroll { overflow-x:auto; }
       .status { margin: 0 0 14px; min-height: 1.3em; color: var(--soft); font-size: 0.9rem; }
       .status.error { color: #a32626; }
 
@@ -205,42 +211,33 @@
         </div>
       </div>
 
+      <form id="rangeForm" class="range-controls" aria-label="Report date range">
+        <label>Period<select id="rangePreset"><option value="this_week">This week</option><option value="this_month">This month</option><option value="custom">Custom dates</option></select></label>
+        <label>From<input id="rangeFrom" type="date" required disabled></label>
+        <label>To<input id="rangeTo" type="date" required disabled></label>
+        <button class="btn" type="submit" id="rangeApply">Apply</button>
+      </form>
+      <p class="range-note" id="rangeNote" aria-live="polite">Korea time (Asia/Seoul). This week starts on Monday. Up to 366 days.</p>
       <p class="status" id="statusMsg">Loading insights...</p>
       <section class="ai-panel" id="aiInsightsPanel" aria-live="polite"></section>
 
-      <section class="panel"><h2>Web booking journey · Last 30 days</h2><p>Unique browser sessions at each step, measured from launch. Not unique patients. Admin sessions, opted-out traffic and known bots excluded. Earlier bookings are not backfilled. Entry page uses existing 24-hour acquisition attribution; unknown means no recorded entry path. Accepted means a booking request was received, not a clinically confirmed appointment.</p><div id="bookingFunnel"></div><div id="funnelBreakdown"></div></section>
-      <section class="metric-grid" aria-label="Insights summary">
-        <div class="metric">
-          <p class="metric-label">Today</p>
-          <p class="metric-value" id="todayViews">-</p>
-          <p class="metric-note"><span id="todayVisitors">-</span> visitors</p>
-        </div>
-        <div class="metric">
-          <p class="metric-label">Yesterday</p>
-          <p class="metric-value" id="yesterdayViews">-</p>
-          <p class="metric-note" id="todayDelta">Compared with yesterday</p>
-        </div>
-        <div class="metric">
-          <p class="metric-label">Last 7 Days</p>
-          <p class="metric-value" id="sevenDayViews">-</p>
-          <p class="metric-note"><span id="sevenDayVisitors">-</span> visitors</p>
-        </div>
-        <div class="metric">
-          <p class="metric-label">Last 30 Days</p>
-          <p class="metric-value" id="thirtyDayViews">-</p>
-          <p class="metric-note"><span id="thirtyDayVisitors">-</span> visitors</p>
-        </div>
+      <section class="panel"><h2>Web booking journey · <span class="period-label">Selected period</span></h2><p>Unique browser sessions at each step, measured from launch. Not unique patients. Admin sessions, opted-out traffic and known bots excluded. Earlier bookings are not backfilled. Entry page uses existing 24-hour acquisition attribution; unknown means no recorded entry path. Accepted means a booking request was received, not a clinically confirmed appointment.</p><div id="bookingFunnel"></div><div id="funnelBreakdown"></div></section>
+      <section class="metric-grid" aria-label="Selected period summary">
+        <div class="metric"><p class="metric-label">Page views</p><p class="metric-value" id="selectedViews">—</p><p class="metric-note period-label">Selected period</p></div>
+        <div class="metric"><p class="metric-label">Visitors</p><p class="metric-value" id="selectedVisitors">—</p><p class="metric-note">Recorded browser visitors, not patients</p></div>
+        <div class="metric"><p class="metric-label">Web booking requests</p><p class="metric-value" id="selectedBookings">—</p><p class="metric-note">Successfully saved, by request date</p></div>
+        <div class="metric"><p class="metric-label">Google Ads attributed requests</p><p class="metric-value" id="selectedGoogleBookings">—</p><p class="metric-note">First-party source; not Google’s conversion count</p></div>
       </section>
 
       <section class="panel" style="margin-bottom:18px" aria-labelledby="bookingInsightsTitle">
-        <h2 class="panel-title" id="bookingInsightsTitle">Booking requests · Last 30 days</h2>
+        <h2 class="panel-title" id="bookingInsightsTitle">Booking requests · <span class="period-label">Selected period</span></h2>
         <p><strong id="bookingRequests">0</strong> saved requests · <strong id="googleAdsBookingRequests">0</strong> attributed to Google Ads</p>
-        <p class="panel-note">Successful website submissions, not confirmed appointments. First-party attribution is session-based and may be unavailable. No patient data is sent to Google.</p>
+        <p class="panel-note">Successful website submissions, not confirmed appointments. First-party attribution is session-based and may be unavailable.</p>
         <div class="list" id="bookingSources"></div>
       </section>
 
       <section class="panel" style="margin-bottom:18px">
-        <h2 class="panel-title">Instagram · Confirmed patients · Last 14 days</h2>
+        <h2 class="panel-title">Instagram · Confirmed patients · <span class="period-label">Selected period</span></h2>
         <p id="instagramPeriod" class="panel-note"></p>
         <p><strong id="instagramBooked">—</strong> confirmed patients · <strong id="instagramLinked">—</strong> campaign-linked · <strong id="instagramUnknown">—</strong> campaign unknown · <strong id="instagramPending">—</strong> pending verification</p>
         <p class="panel-note">Verified Instagram DM confirmations, based on the first confirmation date in Korea time, not the visit date. Each new patient counts once. Cancellations, follow-ups and rescheduling of earlier bookings are excluded. Video attribution comes from the conversation; unknown sources and unreadable replies are kept separate.</p>
@@ -260,16 +257,16 @@
         <div class="stack">
           <section class="panel">
             <div class="panel-head">
-              <h2 class="panel-title">30 Day Trend</h2>
+              <h2 class="panel-title">Daily trend · <span class="period-label">Selected period</span></h2>
               <span class="panel-note">Korea time</span>
             </div>
-            <div class="chart" id="dailyChart" aria-label="Daily page views chart"></div>
+            <div class="chart-scroll"><div class="chart" id="dailyChart" aria-label="Daily page views chart"></div></div>
           </section>
 
           <section class="panel">
             <div class="panel-head">
               <h2 class="panel-title">Top Pages</h2>
-              <span class="panel-note">Last 30 days</span>
+              <span class="panel-note period-label">Selected period</span>
             </div>
             <div class="list" id="topPages"></div>
           </section>
@@ -290,21 +287,21 @@
         <div class="panel">
           <div class="panel-head">
             <h2 class="panel-title">External Sites</h2>
-            <span class="panel-note">Last 30 days</span>
+            <span class="panel-note period-label">Selected period</span>
           </div>
           <div class="list" id="externalSites"></div>
         </div>
         <div class="panel">
           <div class="panel-head">
             <h2 class="panel-title">Acquisition Paths</h2>
-            <span class="panel-note">Last 30 days</span>
+            <span class="panel-note period-label">Selected period</span>
           </div>
           <div class="list" id="acquisitionPaths"></div>
         </div>
         <div class="panel">
           <div class="panel-head">
             <h2 class="panel-title">Devices & Browsers</h2>
-            <span class="panel-note">Last 30 days</span>
+            <span class="panel-note period-label">Selected period</span>
           </div>
           <div class="list" id="devices"></div>
           <div class="list" id="browsers" style="margin-top:14px"></div>
@@ -318,6 +315,22 @@
       const optOutBtn = document.getElementById("optOutBtn");
       const aiInsightsBtn = document.getElementById("aiInsightsBtn");
       const aiInsightsPanel = document.getElementById("aiInsightsPanel");
+      const rangeForm = document.getElementById('rangeForm');
+      const rangePreset = document.getElementById('rangePreset');
+      const rangeFrom = document.getElementById('rangeFrom');
+      const rangeTo = document.getElementById('rangeTo');
+      const rangeApply = document.getElementById('rangeApply');
+      const rangeNote = document.getElementById('rangeNote');
+      let selectedRange = { preset: 'this_week' };
+      let loadVersion = 0;
+      const initialParams = new URLSearchParams(location.search);
+      if (['this_week','this_month'].includes(initialParams.get('preset'))) selectedRange.preset = initialParams.get('preset');
+      else if (initialParams.get('from') || initialParams.get('to')) selectedRange = { preset:'custom', from:initialParams.get('from') || '', to:initialParams.get('to') || '' };
+      rangePreset.value = selectedRange.preset;
+      rangeFrom.value = selectedRange.from || '';
+      rangeTo.value = selectedRange.to || '';
+      rangeFrom.disabled = rangeTo.disabled = selectedRange.preset !== 'custom';
+      function rangeQuery() { return new URLSearchParams(selectedRange).toString(); }
       let currentComputerOptedOut = false;
       const formatter = new Intl.NumberFormat("en-US");
       const timeFormatter = new Intl.DateTimeFormat("en-US", {
@@ -350,6 +363,8 @@
 
       function renderChart(days) {
         const chart = document.getElementById("dailyChart");
+        chart.style.gridTemplateColumns = `repeat(${Math.max(days.length,1)}, minmax(8px, 1fr))`;
+        chart.style.minWidth = `${days.length * 12}px`;
         const max = Math.max(...days.map((day) => day.views || 0), 1);
         chart.innerHTML = days.map((day) => {
           const height = Math.max(3, Math.round((day.views / max) * 100));
@@ -407,6 +422,7 @@
       }
 
       async function generateAiInsights() {
+        const version = loadVersion;
         const originalText = aiInsightsBtn.textContent;
         aiInsightsBtn.disabled = true;
         aiInsightsBtn.textContent = "AI working...";
@@ -414,14 +430,16 @@
         aiInsightsPanel.innerHTML = '<span class="ai-title">AI insights</span>Analyzing website insights...';
 
         try {
-          const res = await fetch("/api/admin/traffic/ai-assist", {
+          const res = await fetch(`/api/admin/traffic/ai-assist?${rangeQuery()}`, {
             method: "POST",
             headers: { Accept: "application/json" },
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(data.message || "Failed to generate AI insights.");
+          if (version !== loadVersion) return;
           renderAiInsights(data.assist || {});
         } catch (error) {
+          if (version !== loadVersion) return;
           aiInsightsPanel.classList.add("open");
           aiInsightsPanel.innerHTML = `<span class="ai-title">AI insights</span>${escapeHtml(error.message || "Failed to generate AI insights.")}`;
         } finally {
@@ -431,7 +449,7 @@
       }
 
       function renderInstagram(data = {}) {
-        document.getElementById('instagramPeriod').textContent = data.sinceDay ? data.sinceDay + ' – ' + data.throughDay + ' · Asia/Seoul · rolling 14 days' : '';
+        document.getElementById('instagramPeriod').textContent = data.sinceDay ? data.sinceDay + ' – ' + data.throughDay + ' · Asia/Seoul' : '';
         for (const [id,key] of [['instagramBooked','totalPatients'],['instagramLinked','campaignPatients'],['instagramUnknown','unknownCampaignPatients'],['instagramPending','pendingPatients']]) document.getElementById(id).textContent = data.available ? data[key] : '—';
         const auditStatus = document.getElementById('instagramAuditStatus');
         auditStatus.textContent = !data.available ? 'Awaiting the first verified DM audit.' : (data.stale ? 'Update needed: this is a partial count from the last audit. ' : 'Verified through the last audit. ') + 'Last checked: ' + new Date(data.auditedAt).toLocaleString('en-GB',{timeZone:'Asia/Seoul'}) + ' KST.';
@@ -456,6 +474,19 @@
         catch(error) {status.textContent=error.message;} finally {button.disabled=false;}
       });
       function render(data) {
+        const range = data.range || {};
+        const label = `${range.from} – ${range.to}`;
+        document.querySelectorAll('.period-label').forEach(node => { node.textContent = label; });
+        rangeNote.textContent = `${label} · Asia/Seoul · ${range.days} days · ${range.includesToday ? 'Includes today (in progress)' : 'Completed calendar days'} · Week starts Monday. Up to 366 days.`;
+        if (data.coverage?.note) rangeNote.textContent += ' ' + data.coverage.note;
+        rangeNote.style.color = data.coverage?.truncated ? '#a34b19' : '';
+        rangeFrom.value = range.from || '';
+        rangeTo.value = range.to || '';
+        rangeFrom.max = rangeTo.max = range.today || '';
+        setText('selectedViews', data.totals?.selectedViews);
+        setText('selectedVisitors', data.totals?.selectedVisitors);
+        setText('selectedBookings', data.bookings?.total);
+        setText('selectedGoogleBookings', data.bookings?.googleAds);
         const f=data.bookingFunnel||{}, steps=f.steps||{};
         const labels={booking_open:'Booking opened',time_selected:'Time selected',details_started:'Details started',submit_attempt:'Submit attempted',accepted:'Request accepted'};
         const area=document.getElementById('bookingFunnel');area.textContent='';
@@ -464,19 +495,9 @@
         for(const [label,rows] of [['Device',f.byDevice||[]],['Source',f.bySource||[]],['Entry page',f.byLandingPath||[]]]){for(const row of rows){const p=document.createElement('p');p.textContent=label+' — '+row.label+': '+Object.keys(labels).map(k=>(row[k]||0)).join(' → ');breakdown.appendChild(p);}}
 
         renderInstagram(data.instagramCampaigns);
-        const totals = data.totals || {};
         setText("bookingRequests", data.bookings?.total);
         setText("googleAdsBookingRequests", data.bookings?.googleAds);
         renderRows("bookingSources", Array.isArray(data.bookings?.bySource) ? data.bookings.bySource : []);
-        setText("todayViews", totals.todayViews);
-        setText("todayVisitors", totals.todayVisitors);
-        setText("yesterdayViews", totals.yesterdayViews);
-        setText("sevenDayViews", totals.sevenDayViews);
-        setText("sevenDayVisitors", totals.sevenDayVisitors);
-        setText("thirtyDayViews", totals.thirtyDayViews);
-        setText("thirtyDayVisitors", totals.thirtyDayVisitors);
-        const delta = Number(totals.todayViews || 0) - Number(totals.yesterdayViews || 0);
-        document.getElementById("todayDelta").textContent = `${delta >= 0 ? "+" : ""}${formatter.format(delta)} vs yesterday`;
         renderChart(Array.isArray(data.daily) ? data.daily : []);
         renderRows("topPages", Array.isArray(data.topPages) ? data.topPages : []);
         renderRows("externalSites", Array.isArray(data.externalSites) ? data.externalSites : []);
@@ -512,23 +533,50 @@
       }
 
       async function loadTraffic() {
+        const version = ++loadVersion;
+        rangeApply.disabled = true;
+        aiInsightsBtn.disabled = true;
+        aiInsightsPanel.classList.remove('open');
         refreshBtn.disabled = true;
         refreshBtn.textContent = "Refreshing...";
         statusMsg.className = "status";
         statusMsg.textContent = "Loading insights...";
         try {
-          const res = await fetch("/api/admin/traffic", { headers: { Accept: "application/json" } });
-          if (!res.ok) throw new Error("Insights request failed");
-          render(await res.json());
+          const res = await fetch(`/api/admin/traffic?${rangeQuery()}`, { headers: { Accept: "application/json" } });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || "Insights request failed");
+          if (version !== loadVersion) return;
+          render(data);
+          const url = new URL(location.href);
+          ['preset','from','to'].forEach(key => url.searchParams.delete(key));
+          new URLSearchParams(selectedRange).forEach((value,key) => url.searchParams.set(key,value));
+          history.replaceState(null, '', url);
         } catch (error) {
+          if (version !== loadVersion) return;
           statusMsg.className = "status error";
-          statusMsg.textContent = "Failed to load insights. Try refreshing after a new page visit.";
+          statusMsg.textContent = error.message || "Failed to load insights. Previous totals have not been updated.";
         } finally {
+          if (version !== loadVersion) return;
+          rangeApply.disabled = false;
+          aiInsightsBtn.disabled = false;
           refreshBtn.disabled = false;
           refreshBtn.textContent = "Refresh";
         }
       }
 
+      rangePreset.addEventListener('change', () => {
+        const custom = rangePreset.value === 'custom';
+        rangeFrom.disabled = rangeTo.disabled = !custom;
+        if (custom) { rangeFrom.focus(); return; }
+        selectedRange = {preset:rangePreset.value};
+        loadTraffic();
+      });
+      rangeForm.addEventListener('submit', event => {
+        event.preventDefault();
+        if (!rangeForm.reportValidity()) return;
+        selectedRange = rangePreset.value === 'custom' ? {preset:'custom',from:rangeFrom.value,to:rangeTo.value} : {preset:rangePreset.value};
+        loadTraffic();
+      });
       refreshBtn.addEventListener("click", loadTraffic);
       optOutBtn.addEventListener("click", toggleOptOut);
       aiInsightsBtn.addEventListener("click", generateAiInsights);
