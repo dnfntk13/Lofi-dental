@@ -1,55 +1,126 @@
-.lofi-home{margin:0;background:#f8f6f2;color:#302748;font-family:Arial,'Noto Sans KR',sans-serif}
-.lofi-home *{box-sizing:border-box}
-.lofi-home .skip-link{position:absolute;top:-80px;left:16px;padding:12px;background:white;z-index:100}
-.lofi-home .skip-link:focus{top:12px}
-.lofi-home a{color:inherit}
-.lofi-home .shell{width:min(1240px,90vw);margin:auto}
-.lofi-home .masthead{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:25px 0;border-bottom:1px solid #30274824}
-.lofi-home .brand img{display:block;width:126px;height:auto}
-.lofi-home .site-nav{display:flex;align-items:center;gap:28px;font-size:13px}
-.lofi-home .site-nav a{text-decoration:none;padding:10px 0}
-.lofi-home .site-nav a:hover{text-decoration:underline;text-underline-offset:6px}
-.lofi-home .language{border-left:1px solid #30274825;padding-left:24px!important}
-.lofi-home .hours{display:flex;justify-content:space-between;gap:12px;padding:16px 0;font-size:12px;letter-spacing:.015em}
-.lofi-home .hours strong{font-weight:600;display:flex;align-items:center;gap:9px}
-.lofi-home .hours strong::before{content:'';width:6px;height:6px;border-radius:50%;background:#7354d2}
-.lofi-home .opening{display:grid;grid-template-columns:1.05fr 1fr;min-height:590px;margin:18px 0 72px;gap:6%;align-items:center}
-.lofi-home .eyebrow{font-size:11px;font-weight:600;letter-spacing:.17em;text-transform:uppercase;color:#786494;margin:0 0 26px}
-.lofi-home h1{font-family:Georgia,'Noto Sans KR',serif;font-weight:400;font-size:clamp(48px,5.8vw,82px);line-height:1.04;letter-spacing:-.055em;margin:0 0 26px;text-wrap:balance}
-.lofi-home h1 em{color:#7354d2;font-weight:400}
-.lofi-home .intro-copy{max-width:410px;font-size:16px;color:#746b84;margin:0 0 28px;line-height:1.8}
-.lofi-home .actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
-.lofi-home .action{display:inline-flex;justify-content:center;align-items:center;gap:24px;padding:15px 21px;border:1px solid #cabfda;border-radius:7px;text-decoration:none;font-size:13px;min-height:48px;transition:background .2s}
-.lofi-home .action.primary{background:#7354d2;color:#fff;border-color:#7354d2}
-.lofi-home .action:hover{background:#e9e2f3}
-.lofi-home .action.primary:hover{background:#5c40b1}
-.lofi-home .hero-photo{margin:0;position:relative;height:580px;border-radius:160px 12px 12px 12px;overflow:hidden;background:#ded5cb}
-.lofi-home .hero-photo img{width:100%;height:100%;object-fit:cover;display:block}
-.lofi-home .hero-photo figcaption{position:absolute;bottom:0;left:0;right:0;padding:36px 25px 24px;color:#fff;font-size:12px;letter-spacing:.04em;background:linear-gradient(transparent,#211b1b9e)}
-.lofi-home .section-head{display:flex;justify-content:space-between;gap:32px;align-items:end;margin-bottom:30px}
-.lofi-home h2{font-family:Georgia,'Noto Sans KR',serif;font-size:clamp(30px,3.5vw,48px);font-weight:400;line-height:1.2;margin:0;letter-spacing:-.035em}
-.lofi-home .section-head .eyebrow{margin-bottom:14px}
-.lofi-home .text-link{font-size:13px;text-decoration:none;border-bottom:1px solid #a396b7;padding-bottom:7px;white-space:nowrap}
-.lofi-home .care-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
-.lofi-home .care-card{text-decoration:none;display:block}
-.lofi-home .care-card img{width:100%;height:260px;object-fit:cover;border-radius:10px;background:#eee9f1;display:block}
-.lofi-home .care-card h3{display:flex;justify-content:space-between;gap:12px;font-size:20px;font-weight:500;margin:21px 0 9px}
-.lofi-home .care-card p{font-size:14px;color:#746b84;margin:0;max-width:340px}
-.lofi-home .care-card:hover h3{color:#7354d2}
-.lofi-home .chapter{padding:0 0 84px}
-.lofi-home .philosophy{display:grid;grid-template-columns:1fr 1.2fr;gap:8%;background:#ebe5f3;border-radius:12px;padding:52px;margin:4px 0 84px}
-.lofi-home .philosophy p{color:#655b75;font-size:16px;margin:0 0 25px}
-.lofi-home .philosophy .eyebrow{font-size:11px;margin-bottom:20px}
-.lofi-home .credentials{border-top:1px solid #30274825;margin-top:28px;padding-top:18px;font-size:12px!important}
-.lofi-home .visit{display:grid;grid-template-columns:1fr 1fr;gap:7%;align-items:center;padding:0 0 70px}
-.lofi-home .visit img{width:100%;height:360px;object-fit:cover;border-radius:12px}
-.lofi-home .visit h2{margin-bottom:25px}
-.lofi-home .visit address{font-style:normal;line-height:1.8;font-size:15px;color:#746b84;margin-bottom:20px}
-.lofi-home .visit .visit-hours{font-size:14px;line-height:1.9;margin:0 0 26px}
-.lofi-home .site-footer{width:100%;margin:0;border-top:1px solid #30274824;padding:28px 0 100px;display:flex;justify-content:space-between;gap:24px;align-items:start;font-size:12px;color:#746b84}
-.lofi-home .footer-links{display:flex;gap:20px;flex-wrap:wrap;justify-content:flex-end}
-.lofi-home .footer-links a{text-decoration:none}
-.lofi-home .mobile-book{display:none}
-html:lang(ko) .lofi-home h1{font-family:Lofi,'Noto Sans KR',sans-serif;font-size:clamp(42px,4.8vw,65px);line-height:1.25;letter-spacing:-.06em}
-html:lang(ko) .lofi-home h2{font-family:Lofi,'Noto Sans KR',sans-serif;font-size:clamp(28px,3vw,40px)}
-@media(max-width:760px){.lofi-home .shell{width:90vw}.lofi-home .masthead{padding:20px 0;gap:12px}.lofi-home .brand img{width:95px}.lofi-home .site-nav{gap:15px;font-size:12px}.lofi-home .site-nav .desktop-link{display:none}.lofi-home .language{padding-left:14px!important}.lofi-home .hours{flex-direction:column;font-size:11px;gap:7px}.lofi-home .opening{grid-template-columns:1fr;gap:28px;margin:30px 0 55px;min-height:0}.lofi-home h1{font-size:54px;max-width:500px}.lofi-home .hero-photo{height:410px;border-radius:100px 10px 10px 10px}.lofi-home .eyebrow{margin-bottom:20px}.lofi-home .intro-copy{font-size:15px}.lofi-home .section-head{align-items:start;flex-direction:column;gap:20px}.lofi-home .care-grid{grid-template-columns:1fr;gap:32px}.lofi-home .care-card img{height:290px}.lofi-home .care-card h3{margin-top:17px}.lofi-home .chapter{padding-bottom:55px}.lofi-home .philosophy{grid-template-columns:1fr;padding:28px;gap:25px;margin-bottom:55px}.lofi-home .visit{grid-template-columns:1fr;gap:30px}.lofi-home .visit img{height:280px}.lofi-home .site-footer{flex-direction:column;padding-bottom:115px}.lofi-home .footer-links{justify-content:flex-start;gap:18px}.lofi-home .mobile-book{display:flex;position:fixed;bottom:16px;left:5vw;z-index:20;min-width:210px;box-shadow:0 5px 24px #30274820}}
+/* Smile study: scoped homepage styles. Clinical photographs retain their original proportions. */
+body[data-home-preserved]{--editorial-ink:#30213f;--editorial-muted:#756c7d;--editorial-line:#dcd5e2;background:#f9f9f7;color:var(--editorial-ink)}
+[data-home-preserved] .page{width:min(1280px,90%);padding-top:28px}
+[data-home-preserved] .topbar{display:flex;justify-content:space-between;align-items:center;padding-bottom:22px;border-bottom:1px solid var(--editorial-line)}
+[data-home-preserved] .logo-img{width:112px;max-width:112px}
+[data-home-preserved] .doctors-nav{gap:30px}
+[data-home-preserved] .doctors-nav a{color:var(--editorial-ink);font-size:12px;text-decoration:none;border:0}
+[data-home-preserved] .doctors-nav .lang-toggle{border:1px solid var(--editorial-line);border-radius:4px;padding:9px 15px}
+[data-home-preserved] .opening-banner{display:flex;justify-content:space-between;border:0;padding:14px 0;color:var(--editorial-muted)}
+[data-home-preserved] .opening-banner strong,[data-home-preserved] .opening-banner span{font-size:10px;font-weight:400;letter-spacing:.04em}
+[data-home-preserved] .hero{display:grid;grid-template-columns:minmax(0,1fr);gap:0;margin:38px 0 72px}
+[data-home-preserved] .hero-main{display:grid;grid-template-columns:1.6fr 1fr;column-gap:8%;padding:0 0 42px;align-items:end}
+[data-home-preserved] .hero-main .hero-eyebrow{grid-column:1/-1;color:#857093;font-size:10px;letter-spacing:.18em;margin:0 0 24px}
+[data-home-preserved] .hero-main h1{grid-column:1;grid-row:2;font-family:Arial,Helvetica,sans-serif;font-size:clamp(45px,5.2vw,74px);font-weight:500;line-height:1.06;letter-spacing:-.065em;color:var(--editorial-ink);margin:0;max-width:none}
+[data-home-preserved] .quote-line{display:block;white-space:normal;text-indent:0}
+[data-home-preserved] .quote-line:last-child{color:#8b6ca4}
+html:lang(ko) [data-home-preserved] .hero-main h1{font-family:'Noto Sans KR',sans-serif;font-size:clamp(38px,4.6vw,65px);line-height:1.3;letter-spacing:-.065em;max-width:none;word-break:keep-all}
+[data-home-preserved] .hero-main .hero-lead{grid-column:2;grid-row:2;font-size:14px;line-height:1.85;color:var(--editorial-muted);max-width:39ch;margin:0 0 10px}
+[data-home-preserved] .hero-actions{grid-column:1/-1;grid-row:4;display:flex;flex-direction:row;gap:10px;flex-wrap:wrap;margin:18px 0 0;align-self:end;width:100%}
+[data-home-preserved] .hero-actions .btn{font-size:11px;padding:14px 18px;border-radius:4px;letter-spacing:0;transition:background .2s}
+[data-home-preserved] .hero-main .btn-book{background:#30213f;color:#fff;border:1px solid #30213f;min-height:0}
+[data-home-preserved] .hero-main .btn-before-after{background:transparent;border:1px solid #c6b9d0;color:#30213f}
+[data-home-preserved] .hero-actions .btn:hover{background:#e8def0;color:#30213f}
+[data-home-preserved] .hero-results{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;background:#eae4ef;border:1px solid #ded4e6;padding:26px 30px 20px;min-width:0;align-self:stretch}
+[data-home-preserved] .results-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 0 12px}
+[data-home-preserved] .results-heading span{font-size:9px;letter-spacing:.12em;color:#6e5b7c}
+[data-home-preserved] .results-heading h2{font-size:21px;letter-spacing:-.04em;font-weight:400;margin:0;color:#30213f}
+[data-home-preserved] .hero-result{position:relative;display:grid;grid-template-columns:72px minmax(0,1fr);align-items:center;margin:0;border:0;border-radius:0;overflow:hidden;background:#f6f3f8}
+[data-home-preserved] .hero-result figcaption{font-size:9px;font-weight:500;letter-spacing:.1em;color:#655274;padding:0;text-align:center}
+[data-home-preserved] .hero-result img{display:block;width:100%;height:auto;object-fit:contain}
+[data-home-preserved] .results-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:6px 0 0}
+[data-home-preserved] .results-footer p{font-size:10px;line-height:1.6;color:#71627d;margin:0}
+[data-home-preserved] .results-footer a{font-size:11px;color:#30213f;text-decoration:none;white-space:nowrap}
+[data-home-preserved] .results-footer a span{font-size:18px;margin-left:12px}
+[data-home-preserved] .main-treatments{grid-column:1/-1;grid-row:3;margin:0;padding:28px 0 0}
+[data-home-preserved] .main-treatments h2{font-size:9px;letter-spacing:.14em;color:var(--editorial-muted);font-weight:400;margin:0 0 16px}
+[data-home-preserved] .treatment-list{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:24px}
+[data-home-preserved] .treatment-list li{display:block;padding:14px 0;border-top:1px solid var(--editorial-line);border-bottom:0}
+[data-home-preserved] .treatment-name{font-size:14px;font-weight:500;color:#30213f;letter-spacing:-.02em}
+[data-home-preserved] .treatment-detail{display:block;font-size:10px;line-height:1.6;margin-top:8px;color:var(--editorial-muted)}
+[data-home-preserved] .section{padding:66px 0 76px;border-color:var(--editorial-line)}
+[data-home-preserved] .section h2{font:400 clamp(32px,4vw,54px)/1.15 Arial,'Noto Sans KR',sans-serif;letter-spacing:-.055em;color:var(--editorial-ink)}
+[data-home-preserved] .section-label{font-size:10px;letter-spacing:.18em;color:#8b6ca4;margin-bottom:18px}
+[data-home-preserved] .doctors-intro,[data-home-preserved] .journal-home-intro,[data-home-preserved] .treatment-guides-intro{color:var(--editorial-muted);font-size:14px;line-height:1.9;max-width:65ch}
+[data-home-preserved] .doctors-grid{gap:36px;margin-top:36px}
+[data-home-preserved] .doctor-card{border:0;border-radius:0;background:transparent;overflow:hidden}
+[data-home-preserved] .doctor-photo{height:390px;background:#ece8ef}
+[data-home-preserved] .doctor-photo--joey img{object-fit:contain;background:#eeedf2}
+[data-home-preserved] .doctor-copy{padding:28px 0}
+[data-home-preserved] .doctor-role{font-size:9px;letter-spacing:.14em;color:#806591}
+[data-home-preserved] .doctor-card h3{font:400 clamp(28px,3vw,40px)/1.2 Arial,sans-serif;letter-spacing:-.04em;color:var(--editorial-ink)}
+[data-home-preserved] .doctor-summary{font-size:13px;line-height:1.9;color:var(--editorial-muted)}
+[data-home-preserved] .doctor-credentials{font-size:12px;color:#554261}
+[data-home-preserved] .doctor-credentials li,[data-home-preserved] .doctor-details,[data-home-preserved] .doctor-history li{border-color:var(--editorial-line)}
+[data-home-preserved] .doctor-details summary{font-size:12px;font-weight:400}
+[data-home-preserved] .journal-grid{gap:24px}
+[data-home-preserved] .journal-image-link{display:none}
+[data-home-preserved] .journal-card{border:0;border-top:1px solid #b4a3c0;border-radius:0;background:transparent;box-shadow:none;transition:background .2s}
+[data-home-preserved] .journal-card:hover{background:#eee8f2;transform:none}
+[data-home-preserved] .journal-card-image{aspect-ratio:1.5;overflow:hidden}
+[data-home-preserved] .journal-card-body{padding:24px 12px 24px 0}
+[data-home-preserved] .journal-card h3{font:400 25px/1.4 Arial,'Noto Sans KR',sans-serif;letter-spacing:-.04em;color:var(--editorial-ink)}
+[data-home-preserved] .journal-card p{font-size:13px;line-height:1.85;color:var(--editorial-muted)}
+[data-home-preserved] .journal-text-link{font-size:12px;color:#554261}
+[data-home-preserved] .hotel-location{margin-top:16px}
+[data-home-preserved] .hotel-map{border-radius:0;filter:saturate(.65)}
+[data-home-preserved] .nearby-hotel{border-radius:0;border-color:var(--editorial-line)}
+[data-home-preserved] .distance-button{font-size:11px;border-radius:4px;background:#30213f;padding:10px 16px}
+[data-home-preserved] .clinic-map-button{background:#eae3ef;color:#30213f}
+[data-home-preserved] .visitor-distance .distance-result{font-size:12px;font-weight:400;color:var(--editorial-muted)}
+[data-home-preserved] .treatment-article{padding:32px 0;border-color:var(--editorial-line)}
+[data-home-preserved] .treatment-article h3{font-weight:400;color:#554261}
+[data-home-preserved] .treatment-article-copy p{font-size:14px;line-height:1.9;color:var(--editorial-muted)}
+[data-home-preserved] .treatment-more{border-radius:4px}
+[data-home-preserved] .visit-contact h2{font-size:32px;margin:0 0 24px}
+[data-home-preserved] .contact-bar,[data-home-preserved] .contact{font-size:11px!important;color:var(--editorial-muted);margin:0!important}
+[data-home-preserved] .contact-bar{gap:12px;justify-content:space-between}
+[data-home-preserved] .contact-phone,[data-home-preserved] .map-link{font-size:10px;padding:6px 8px;border-color:var(--editorial-line)}
+[data-home-preserved] footer{padding:28px 0 0;border-top:1px solid var(--editorial-line);color:var(--editorial-muted);font-size:10px}
+body[data-home-preserved].lofi-floating-ctas .sticky-appointment,body[data-home-preserved] .consult-chat-launch{border-radius:4px;background:#30213f;color:white;font-size:12px;box-shadow:0 5px 20px #352e4314}
+body[data-home-preserved] .consult-chat-launch{background:#f9f9f7;color:#30213f;border:1px solid #c9c0cf}
+[data-home-preserved] a:focus-visible{outline:2px solid #8b6ca4;outline-offset:5px}
+@media(max-width:1000px){[data-home-preserved] .hero-main{grid-template-columns:1.3fr 1fr;column-gap:5%}[data-home-preserved] .hero-main h1{font-size:56px}[data-home-preserved] .hero-actions .btn{padding:12px;font-size:10px}[data-home-preserved] .treatment-list{gap:14px}}
+@media(max-width:760px){
+[data-home-preserved] .page{width:90%;padding-top:20px}
+[data-home-preserved] .topbar{flex-direction:row;gap:16px;padding-bottom:18px}
+[data-home-preserved] .logo-img{width:86px;max-width:86px}
+[data-home-preserved] .doctors-nav{gap:8px 12px;max-width:205px}
+[data-home-preserved] .doctors-nav a{font-size:10px}
+[data-home-preserved] .doctors-nav .lang-toggle{padding:7px 10px}
+[data-home-preserved] .opening-banner{gap:5px;padding:12px 0}
+[data-home-preserved] .opening-banner strong,[data-home-preserved] .opening-banner span{font-size:9px}
+[data-home-preserved] .hero{margin:26px 0 42px;gap:0}
+[data-home-preserved] .hero-main{display:block;padding:0 0 30px}
+[data-home-preserved] .hero-main .hero-eyebrow{font-size:9px;margin-bottom:18px}
+[data-home-preserved] .hero-main h1{font-size:clamp(38px,10.2vw,64px);margin-bottom:20px;max-width:none}
+html:lang(ko) [data-home-preserved] .hero-main h1{font-size:clamp(33px,8.8vw,47px);line-height:1.35}
+[data-home-preserved] .hero-main .hero-lead{font-size:13px;line-height:1.8;margin-bottom:20px}
+[data-home-preserved] .hero-actions .btn{font-size:11px;padding:12px 15px}
+[data-home-preserved] .hero-results{padding:18px 12px 14px;gap:12px;margin:0 -8px}
+[data-home-preserved] .results-heading{flex-wrap:wrap;gap:10px;padding-bottom:2px}
+[data-home-preserved] .results-heading span{font-size:8px}
+[data-home-preserved] .results-heading h2{font-size:18px}
+[data-home-preserved] .results-heading span:last-child{display:none}
+[data-home-preserved] .hero-result{display:block}
+[data-home-preserved] .hero-result figcaption{text-align:left;font-size:8px;padding:7px 9px}
+[data-home-preserved] .results-footer{align-items:start;flex-direction:column;gap:9px}
+[data-home-preserved] .results-footer p{font-size:9px}
+[data-home-preserved] .results-footer a{font-size:10px}
+[data-home-preserved] .main-treatments{padding-top:24px}
+[data-home-preserved] .treatment-list{grid-template-columns:1fr 1fr;gap:0 20px}
+[data-home-preserved] .treatment-list li{padding:13px 0}
+[data-home-preserved] .treatment-name{font-size:13px}
+[data-home-preserved] .treatment-detail{font-size:10px;margin-top:4px}
+[data-home-preserved] .section{padding:40px 0 50px}
+[data-home-preserved] .section h2{font-size:34px;line-height:1.25}
+[data-home-preserved] .doctors-grid{grid-template-columns:1fr;gap:28px;margin-top:26px}
+[data-home-preserved] .doctor-photo{height:340px}
+[data-home-preserved] .doctor-copy{padding:24px 0}
+[data-home-preserved] .doctor-card h3{font-size:32px}
+[data-home-preserved] .journal-card h3{font-size:24px}
+[data-home-preserved] .journal-home-heading{gap:16px}
+[data-home-preserved] .hotel-map{height:300px}
+[data-home-preserved] .contact-bar{gap:14px}
+}
+@media(prefers-reduced-motion:reduce){[data-home-preserved] .hero-actions .btn,[data-home-preserved] .journal-card{transition:none}}
