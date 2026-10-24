@@ -1,4 +1,5 @@
 import { sendStaticFile } from './lib/static-file-stream.mjs';
+import { resolveInsightsRange, inInsightsRange } from './lib/insights-range.mjs';
 import { appendSentCopy } from './lib/sent-mail-copy.mjs';
 import { isPublicPricingQuestion, publicConsultContactReply, removePublicPricingInformation, publicConsultThreadWithoutPrices } from './lib/public-consult-price-policy.mjs';
 import { deliverReminders } from './lib/reservation-reminders.mjs';
@@ -1099,10 +1100,10 @@ async function saveTrafficEvent(event) {
   await writeFile(trafficPath, JSON.stringify(events.slice(0, limit), null, 2), "utf-8");
 }
 
-async function readTrafficEvents({ sinceDay, limit = 10000 } = {}) {
+async function readTrafficEvents({ sinceDay, throughDay, limit = 10000 } = {}) {
   const collection = await getTrafficCollection();
   if (collection) {
-    const query = sinceDay ? { day: { $gte: sinceDay } } : {};
+    const query = sinceDay ? { day: { $gte: sinceDay, ...(throughDay ? { $lte: throughDay } : {}) } } : {};
     return collection
       .find(query, { projection: { _id: 0 } })
       .sort({ timestamp: -1 })
@@ -1115,7 +1116,7 @@ async function readTrafficEvents({ sinceDay, limit = 10000 } = {}) {
     const parsed = JSON.parse(data);
     const events = Array.isArray(parsed) ? parsed : [];
     return events
-      .filter((event) => !sinceDay || String(event.day || "") >= sinceDay)
+      .filter((event) => (!sinceDay || String(event.day || "") >= sinceDay) && (!throughDay || String(event.day || "") <= throughDay))
       .sort((a, b) => String(b.timestamp || "").localeCompare(String(a.timestamp || "")))
       .slice(0, limit);
   } catch {
@@ -1195,8 +1196,9 @@ function getAcquisitionPath(event, titles = {}) {
   return getReferrerUrl(event.referrer) || "Direct / none";
 }
 
-function summarizeTraffic(events, titles = {}) {
+function summarizeTraffic(events, titles = {}, range = resolveInsightsRange()) {
   events = events.filter(event => event.kind !== "booking_funnel");
+  events = events.filter(event => inInsightsRange(event, range));
   const today = getKoreanDay();
   const yesterday = addDaysToDay(today, -1);
   const sevenDayStart = addDaysToDay(today, -6);
@@ -1217,13 +1219,16 @@ function summarizeTraffic(events, titles = {}) {
   let sevenDayViews = 0;
   let thirtyDayViews = 0;
 
-  for (let offset = 29; offset >= 0; offset -= 1) {
-    dailyMap.set(addDaysToDay(today, -offset), { day: addDaysToDay(today, -offset), views: 0, visitors: new Set() });
+  const selectedVisitors = new Set();
+  for (let offset = 0; offset < range.days; offset += 1) {
+    const day = addDaysToDay(range.from, offset);
+    dailyMap.set(day, { day, views: 0, visitors: new Set() });
   }
 
   for (const event of events) {
     const day = String(event.day || getKoreanDay(event.timestamp));
     const visitorId = String(event.visitorId || "");
+    if (visitorId) selectedVisitors.add(visitorId);
     if (day === today) {
       todayViews += 1;
       if (visitorId) todayVisitors.add(visitorId);
@@ -1233,7 +1238,7 @@ function summarizeTraffic(events, titles = {}) {
       sevenDayViews += 1;
       if (visitorId) sevenDayVisitors.add(visitorId);
     }
-    if (day >= thirtyDayStart) {
+    {
       thirtyDayViews += 1;
       if (visitorId) thirtyDayVisitors.add(visitorId);
       incrementCount(pageMap, event.page || event.path || "/");
@@ -1253,8 +1258,10 @@ function summarizeTraffic(events, titles = {}) {
 
   return {
     generatedAt: new Date().toISOString(),
-    range: { today, sevenDayStart, thirtyDayStart },
+    range: { today, sevenDayStart, thirtyDayStart, ...range },
     totals: {
+      selectedViews: events.length,
+      selectedVisitors: selectedVisitors.size,
       todayViews,
       todayVisitors: todayVisitors.size,
       yesterdayViews,
@@ -1674,8 +1681,8 @@ async function generateTrafficAiAssist(summary) {
 
   const prompt = {
     range: summary?.range || null,
-    totals: summary?.totals || {},
-    daily: Array.isArray(summary?.daily) ? summary.daily.slice(-30) : [],
+    totals: { views: summary?.totals?.selectedViews, visitors: summary?.totals?.selectedVisitors },
+    daily: Array.isArray(summary?.daily) ? summary.daily : [],
     topPages: Array.isArray(summary?.topPages) ? summary.topPages.slice(0, 12) : [],
     externalSites: Array.isArray(summary?.externalSites) ? summary.externalSites.slice(0, 10) : [],
     acquisitionPaths: Array.isArray(summary?.acquisitionPaths) ? summary.acquisitionPaths.slice(0, 10) : [],
@@ -6639,20 +6646,24 @@ createServer(async (request, response) => {
 
   if (pathname === "/api/admin/traffic" && request.method === "GET") {
     if (!adminAuthorized) { requestAuth(response); return; }
+    let range;
+    try { range = resolveInsightsRange(requestUrl.searchParams); }
+    catch (error) { response.writeHead(400, { 'Content-Type': 'application/json' }); response.end(JSON.stringify({ message: error.message })); return; }
     try {
-      const today = getKoreanDay();
-      const sinceDay = addDaysToDay(today, -29);
-      const events = await readTrafficEvents({ sinceDay, limit: 15000 });
+      const fetched = await readTrafficEvents({ sinceDay: range.from, throughDay: range.to, limit: 15001 });
+      const truncated = fetched.length > 15000;
+      const events = fetched.slice(0, 15000).filter(event => inInsightsRange(event, range));
       const [titles, records, audit] = await Promise.all([readCampaignTitles(), readAllBookingRecords(), readCampaignAudit()]);
       response.writeHead(200, {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "no-store",
       });
       response.end(JSON.stringify({
-        ...summarizeTraffic(events, titles),
+        ...summarizeTraffic(events, titles, range),
+        coverage: { truncated, note: truncated ? 'Traffic is limited to the latest 15,000 stored events in this range. Choose a shorter period for full traffic totals.' : 'Counts include stored records only; earlier unrecorded activity is not backfilled.' },
         bookingFunnel: summarizeFunnel(events),
-        instagramCampaigns: summarizeCampaignAudit(audit, titles),
-        bookings: summarizeBookingAttribution(records, sinceDay, titles),
+        instagramCampaigns: summarizeCampaignAudit(audit, titles, new Date(), range),
+        bookings: summarizeBookingAttribution(records, range.from, titles, range.to),
         optOut: {
           currentComputer: isTrafficOptedOut(request),
           currentIpExcluded: isExcludedTrafficIp(request),
@@ -6668,11 +6679,14 @@ createServer(async (request, response) => {
 
   if (pathname === "/api/admin/traffic/ai-assist" && request.method === "POST") {
     if (!adminAuthorized) { requestAuth(response); return; }
+    let range;
+    try { range = resolveInsightsRange(requestUrl.searchParams); }
+    catch (error) { response.writeHead(400, { 'Content-Type': 'application/json' }); response.end(JSON.stringify({ message: error.message })); return; }
     try {
-      const today = getKoreanDay();
-      const sinceDay = addDaysToDay(today, -29);
-      const events = await readTrafficEvents({ sinceDay, limit: 15000 });
-      const assist = await generateTrafficAiAssist({ ...summarizeTraffic(events), bookings: summarizeBookingAttribution(await readInbox(), sinceDay, await readCampaignTitles()) });
+      const fetched = await readTrafficEvents({ sinceDay: range.from, throughDay: range.to, limit: 15001 });
+      if (fetched.length > 15000) { const error = new Error('Choose a shorter period before requesting AI insights; traffic exceeds 15,000 events.'); error.statusCode = 400; throw error; }
+      const titles = await readCampaignTitles();
+      const assist = await generateTrafficAiAssist({ ...summarizeTraffic(fetched, titles, range), bookings: summarizeBookingAttribution(await readAllBookingRecords(), range.from, titles, range.to) });
       response.writeHead(200, {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "no-store",
