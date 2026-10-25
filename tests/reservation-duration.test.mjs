@@ -60,7 +60,7 @@ test('HTTP create/update and job handoff retain minutes, omission and linked ID'
 });
 
 test('duration-only edits requeue the linked record without changing appointment identity', () => {
-  const previous = {name:'Test', date:'2030-01-07', time:'12:30', durationMinutes:30,
+  const previous = {name:'Test', phone:'+12025550123', date:'2030-01-07', time:'12:30', durationMinutes:30,
     dentwebReservationId:123, dentwebSyncStatus:'completed'};
   const options = {previous,date:previous.date,time:previous.time,now:new Date('2026-10-20T00:00:00Z')};
   const result = autoQueueDentweb({...previous,durationMinutes:60},options);

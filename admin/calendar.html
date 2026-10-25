@@ -2244,6 +2244,7 @@
               <p class="detail-name">${escHtml(patientName)}</p>
               <span class="detail-source">${escHtml(source)}</span>
               ${cancellation ? `<span class="detail-source">${escHtml(cancellation)}</span>` : ""}
+              ${dentwebStatus === "waiting_identity" ? '<span class="detail-source">Awaiting patient name and contact number</span>' : ""}
             </div>
             ${metaHtml ? `<div class="detail-meta-grid">${metaHtml}</div>` : ""}
             <div>
@@ -2251,7 +2252,7 @@
               <p class="detail-concerns">${escHtml(concerns)}</p>
             </div>
             <div class="detail-actions" ${cancellation ? "hidden" : ""}>
-              ${String(r.source || "").toLowerCase() === "dentweb" ? "" : `<button class="detail-action dentweb" type="button" onclick="addReservationToDentweb('${escHtml(r.id)}')" ${dentwebStatus === "completed" || dentwebStatus === "pending" || dentwebStatus === "processing" ? "disabled" : ""}>${dentwebStatus === "completed" ? "Added to Dentweb" : dentwebStatus === "pending" ? "Queued for Dentweb" : dentwebStatus === "processing" ? "Adding to Dentweb" : dentwebStatus === "failed" ? "Retry Dentweb" : "Add to Dentweb"}</button>`}
+              ${String(r.source || "").toLowerCase() === "dentweb" ? "" : `<button class="detail-action dentweb" type="button" onclick="addReservationToDentweb('${escHtml(r.id)}')" ${dentwebStatus === "completed" || dentwebStatus === "pending" || dentwebStatus === "processing" || dentwebStatus === "waiting_identity" ? "disabled" : ""}>${dentwebStatus === "completed" ? "Added to Dentweb" : dentwebStatus === "pending" ? "Queued for Dentweb" : dentwebStatus === "processing" ? "Adding to Dentweb" : dentwebStatus === "failed" ? "Retry Dentweb" : dentwebStatus === "waiting_identity" ? "Awaiting patient details" : "Add to Dentweb"}</button>`}
               <button class="detail-action" type="button" onclick="openEditModal('${escHtml(r.id)}')">Edit</button>
               <button class="detail-action delete" type="button" onclick="deleteReservation('${escHtml(r.id)}', '${escHtml(dateKey)}')">Delete</button>
             </div>

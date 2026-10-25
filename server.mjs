@@ -27,6 +27,7 @@ import { prepareAdminAttachments } from "./lib/admin-ai-attachments.mjs";
 import { selectConversation, searchAdminRecords } from "./lib/admin-ai-context.mjs";
 import { instagramBookingRules, validatedInstagramExtraction, currentKoreanClock } from "./lib/instagram-booking-rules.mjs";
 import { autoQueueDentweb } from "./lib/dentweb-auto-queue.mjs";
+import { assertDentwebJobIdentity } from "./lib/dentweb-job-identity.mjs";
 import { queueCancellation, isCancelledReservation } from "./lib/reservation-cancellation.mjs";
 import { queueLinkedReschedule, assertRescheduleCallback } from "./lib/linked-reschedule.mjs";
 import { reservationDuration } from "./lib/reservation-duration.mjs";
@@ -4762,8 +4763,8 @@ createServer(async (request, response) => {
         date,
         time,
         email,
-        name: email,
-        phone: "01012341234",
+        name: "",
+        phone: "",
         concerns,
         acquisition: isTrafficOptedOut(request) || isExcludedTrafficIp(request) ? null : normalizeBookingAttribution(payload.acquisition),
         measurement: { event: "booking_request", version: 1, googleReportingConsent: false },
@@ -5825,6 +5826,18 @@ createServer(async (request, response) => {
         return;
       }
 
+      if (status === "pending") {
+        const existing = (await readInbox()).find(record => record.id === id);
+        if (existing) {
+          try { assertDentwebJobIdentity({ ...existing, action: existing.dentwebAction || "upsert" }); }
+          catch (error) {
+            response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+            response.end(JSON.stringify({ message: error.message }));
+            return;
+          }
+        }
+      }
+
       const now = new Date().toISOString();
       const syncFields = {
         dentwebSyncStatus: status,
@@ -5963,8 +5976,8 @@ createServer(async (request, response) => {
           id: record.id,
           date: record.date,
           time: record.time,
-          name: String(record.name || "").trim() || String(record.email || "").trim(),
-          phone: String(record.phone || "").trim() || "01012341234",
+          name: String(record.name || "").trim(),
+          phone: String(record.phone || "").trim(),
           concerns: record.concerns,
           dentwebReservationId: record.dentwebReservationId,
           durationMinutes: record.durationMinutes,

@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import readline from "node:readline/promises";
 import { reservationDuration } from "../lib/reservation-duration.mjs";
+import { assertDentwebJobIdentity } from "../lib/dentweb-job-identity.mjs";
 import { validateRescheduleRequest } from "../lib/linked-reschedule.mjs";
 import { linkedRescheduleScript } from "../lib/linked-reschedule-script.mjs";
 
@@ -117,6 +118,7 @@ async function claimDentwebJob() {
 }
 
 async function createDentwebReservation(job) {
+  assertDentwebJobIdentity(job);
   if (job.action === "linked-reschedule") {
     if (process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED !== "1") throw new Error("Linked rescheduling is disabled on this agent");
     const reschedule = validateRescheduleRequest(job.reschedule);
@@ -1190,6 +1192,7 @@ async function startDaemon() {
         syncInProgress,
         sqlConfigured: Boolean(String(process.env.DENTWEB_SQL_CONNECTION_STRING || "").trim()),
         durationMinutesSupported: true,
+        identityReadinessVersion: 1,
         cancellationSupported: true,
         linkedRescheduleSupported: process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED === "1",
         windowPattern,
