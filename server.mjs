@@ -4432,7 +4432,6 @@ createServer(async (request, response) => {
   }
 
   const canonicalRedirects = new Map([
-    ["/price-guide.html", "/contact-options.html"],
     ["/english", "/"],
     ["/english/", "/"],
     ["/english.html", "/"],
