@@ -4432,6 +4432,7 @@ createServer(async (request, response) => {
   }
 
   const canonicalRedirects = new Map([
+    ["/price-guide.html", "/contact-options.html"],
     ["/english", "/"],
     ["/english/", "/"],
     ["/english.html", "/"],
@@ -4441,7 +4442,7 @@ createServer(async (request, response) => {
     ["/index.html", "/korean"],
   ]);
   const canonicalPath = canonicalRedirects.get(pathname);
-  if (canonicalPath && request.method === "GET") {
+  if (canonicalPath && (request.method === "GET" || request.method === "HEAD")) {
     response.writeHead(301, {
       Location: `${canonicalPath}${requestUrl.search}`,
       "Cache-Control": "public, max-age=3600",
