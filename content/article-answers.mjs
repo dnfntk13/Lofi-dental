@@ -63,4 +63,23 @@ const additions = [
     }
   }
 ];
-export const articles = [...treatmentArticles.map((a, i) => ({ ...a, en: { ...a.en, ...additions[i].en }, ko: { ...a.ko, ...additions[i].ko } })), ...visitArticles];
+const consultationVideo = {
+  url: 'https://www.youtube.com/watch?v=9E_OVRHR01o',
+  en: {
+    title: 'Can veneers match an existing crown?',
+    summary: 'In this consultation at lofi, we discuss colour, shape and how many teeth show when you smile. Watch the conversation, then bring your own questions about existing dental work to your consultation.',
+    link: 'Watch the consultation on YouTube (2:48)',
+  },
+  ko: {
+    title: '기존 크라운과 라미네이트 색을 맞출 수 있나요?',
+    summary: '로우파이 치과의 실제 상담에서 치아 색과 형태, 웃을 때 보이는 치아 범위를 이야기합니다. 영상을 보고 기존 보철물에 대해 궁금한 점을 상담에서 물어보세요.',
+    link: '유튜브에서 상담 영상 보기 (2분 48초)',
+  },
+};
+export const articles = [...treatmentArticles.map((a, i) => ({
+  ...a,
+  ...(['veneers-or-whitening', 'teeth-whitening-existing-dental-work'].includes(a.slug)
+    ? { consultationVideo, updated: '2026-10-28' } : {}),
+  en: { ...a.en, ...additions[i].en },
+  ko: { ...a.ko, ...additions[i].ko },
+})), ...visitArticles];
