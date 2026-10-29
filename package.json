@@ -8,6 +8,8 @@
   },
   "scripts": {
     "build:articles": "node tools/build-articles.mjs",
+    "build:prices": "node tools/build-price-guide-schema.mjs",
+    "check:prices": "node --test tests/price-guide-aeo.test.mjs",
     "dev": "node server.mjs",
     "dentweb:sync": "node tools/dentweb-sync-agent.mjs",
     "dentweb:agent": "node tools/dentweb-sync-agent.mjs --daemon",
