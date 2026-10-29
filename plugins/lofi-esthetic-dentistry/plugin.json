@@ -19,10 +19,10 @@
   "extensions": {
     "com.openai": {
       "interface": {
-        "displayName": "Lofi Esthetic Dentistry",
+        "displayName": "lofi esthetic dentistry",
         "shortDescription": "Dental prices & clinic guide",
         "longDescription": "Compare the clinic's published dental fee guides with and without Korean National Health Insurance, read general treatment overviews, and find its address, regular hours and contact options. English is the default language. Provides public information only; does not access patient records, diagnose, book appointments or send messages.",
-        "developerName": "lofi dental",
+        "developerName": "lofi esthetic dentistry",
         "category": "Healthcare",
         "capabilities": [
           "Read"
