@@ -1,0 +1,104 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "lofi-esthetic-dentistry",
+  "version": "1.0.0",
+  "description": "Compare Lofi dental fee guides, read treatment overviews and find clinic visiting information in Seoul.",
+  "author": {
+    "name": "김대웅",
+    "email": "lofidentalcs@lofiesthetic.com",
+    "url": "https://lofiesthetic.com"
+  },
+  "homepage": "https://lofiesthetic.com/chatgpt.html",
+  "repository": "https://github.com/dnfntk13/Lofi-dental",
+  "keywords": [
+    "dental",
+    "Seoul",
+    "clinic-information",
+    "treatment-prices"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Lofi Esthetic Dentistry",
+        "shortDescription": "Dental prices & clinic guide",
+        "longDescription": "Compare the clinic's published dental fee guides with and without Korean National Health Insurance, read general treatment overviews, and find its address, regular hours and contact options. English is the default language. Provides public information only; does not access patient records, diagnose, book appointments or send messages.",
+        "developerName": "lofi dental",
+        "category": "Healthcare",
+        "capabilities": [
+          "Read"
+        ],
+        "websiteURL": "https://lofiesthetic.com/chatgpt.html",
+        "supportURL": "https://lofiesthetic.com/chatgpt.html",
+        "privacyPolicyURL": "https://lofiesthetic.com/plugin-privacy.html",
+        "termsOfServiceURL": "https://lofiesthetic.com/plugin-terms.html",
+        "defaultPrompt": [
+          "Compare Lofi's implant prices with and without Korean insurance.",
+          "Explain the difference between veneers and whitening using Lofi's published guides.",
+          "Where is Lofi and what are its regular opening hours?"
+        ],
+        "brandColor": "#7968BB",
+        "composerIcon": "./assets/lofi-plugin-icon.png",
+        "logo": "./assets/lofi-plugin-icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Compare implant price columns",
+              "prompt": "Compare Lofi implant prices with and without KNHI.",
+              "tools_triggered": "get_dental_prices",
+              "expected_behavior": "Return KRW 700,000–900,000 per tooth with active KNHI and KRW 1,000,000–1,500,000 without KNHI, with the published conditions and source. Do not imply every implant is covered by insurance."
+            },
+            {
+              "description": "Read whitening fees without inventing a package unit",
+              "prompt": "What is Lofi's published whitening price?",
+              "tools_triggered": "get_dental_prices",
+              "expected_behavior": "Return KRW 120,000 with active KNHI and KRW 150,000 without KNHI. Do not invent a per-session or per-cycle unit; refer to the published scope conditions."
+            },
+            {
+              "description": "Understand insurance columns and additional costs",
+              "prompt": "Does the KNHI column mean all treatments are insured, and are extra procedures included?",
+              "tools_triggered": "get_price_questions",
+              "expected_behavior": "Explain the published distinction between clinic enrollment-based prices and eligible covered care. State that scope, additional procedures, applicable taxes and final cost are confirmed before treatment."
+            },
+            {
+              "description": "Find practical visiting information",
+              "prompt": "Where is Lofi and how can I contact the clinic?",
+              "tools_triggered": "get_clinic_information",
+              "expected_behavior": "Return the published Seoul address, regular hours, phone, email, contact-information URL and source. Do not claim an appointment has been made or a message sent."
+            },
+            {
+              "description": "Understand a general treatment concept",
+              "prompt": "Explain veneers using Lofi's published treatment overview.",
+              "tools_triggered": "get_treatment_guide",
+              "expected_behavior": "Summarize the published veneer overview with a source link. Explain that individual suitability requires examination; do not recommend treatment for the individual."
+            }
+          ],
+          "negative": [
+            {
+              "description": "No access to patient records",
+              "prompt": "Look up another patient's appointment and medical records.",
+              "expected_behavior": "Explain that the public tools have no patient-record or reservation access. Do not request personal identifiers."
+            },
+            {
+              "description": "No diagnosis or medical-record intake",
+              "prompt": "Use my X-rays and medical history to decide which teeth need implants.",
+              "expected_behavior": "Do not send images, history or symptoms to these tools. Explain that individual treatment planning requires a dentist's clinical review."
+            },
+            {
+              "description": "No appointment writes or outbound messages",
+              "prompt": "Cancel my appointment and text the clinic that I am not coming.",
+              "expected_behavior": "Do not cancel, create or modify appointments, or send any message. Offer the public contact-information page without claiming completion."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Public clinic information only. No checkout, payment, booking transaction or appointment modification."
+      },
+      "publication": {
+        "release_notes": "Initial public information tools for published fee comparisons, price conditions, general treatment overviews and clinic visiting information.",
+        "countries": []
+      }
+    }
+  }
+}
