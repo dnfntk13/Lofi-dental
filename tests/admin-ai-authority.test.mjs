@@ -69,3 +69,46 @@ test('deployment pins the reviewed commit and reports pending, not success', asy
   assert.equal(deployed.commitId, commitId);
   assert.equal(result.status, 'build_in_progress');
 });
+
+test('expired source-edit credentials do not affect public HEAD verification or Render authentication', async () => {
+  const commitId = '1'.repeat(40);
+  const calls = [];
+  const authority = createAdminAuthority({
+    env: { ADMIN_AI_GITHUB_TOKEN: 'expired-editor-token', RENDER_API_KEY: 'render-deploy-token' },
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      if (url === 'https://api.github.com/repos/dnfntk13/Lofi-dental/commits/main') {
+        if (options.headers.Authorization) return { ok: false, status: 401, json: async () => ({}) };
+        return { ok: true, json: async () => ({ sha: commitId, commit: { message: 'Approved deployment' } }) };
+      }
+      assert.equal(options.headers.Authorization, 'Bearer render-deploy-token');
+      assert.equal(options.method, 'POST');
+      assert.equal(JSON.parse(options.body).commitId, commitId);
+      return { ok: true, json: async () => ({ id: 'dep-example', status: 'build_in_progress' }) };
+    }
+  });
+  const preview = await authority.prepare('deployWebsite', { commitId });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].options.headers.Authorization, undefined);
+  await assert.rejects(authority.execute(preview.confirmationToken, false), { statusCode: 403 });
+  assert.equal(calls.length, 1);
+  await authority.execute(preview.confirmationToken, true);
+  assert.equal(calls.length, 2);
+  await assert.rejects(authority.execute(preview.confirmationToken, true), { statusCode: 409 });
+});
+
+test('public deployment verification still rejects stale commits and unreadable or invalid HEADs', async () => {
+  for (const response of [
+    { ok: true, json: async () => ({ sha: '2'.repeat(40) }) },
+    { ok: true, json: async () => ({ sha: 'not-a-commit' }) },
+    { ok: false, status: 403, json: async () => ({}) }
+  ]) {
+    let posts = 0;
+    const authority = createAdminAuthority({ env: { RENDER_API_KEY: 'test' }, fetchImpl: async (url, options) => {
+      if (options.method === 'POST') posts++;
+      return response;
+    } });
+    await assert.rejects(authority.prepare('deployWebsite', { commitId: '1'.repeat(40) }));
+    assert.equal(posts, 0);
+  }
+});
