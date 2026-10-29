@@ -10,6 +10,7 @@
     "build:articles": "node tools/build-articles.mjs",
     "build:prices": "node tools/build-price-guide-schema.mjs",
     "check:prices": "node --test tests/price-guide-aeo.test.mjs",
+    "check:plugin": "node --test tests/public-lofi-mcp.test.mjs",
     "dev": "node server.mjs",
     "dentweb:sync": "node tools/dentweb-sync-agent.mjs",
     "dentweb:agent": "node tools/dentweb-sync-agent.mjs --daemon",
@@ -19,10 +20,12 @@
     "preview": "PORT=4173 node server.mjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "imap": "^0.8.19",
     "mailparser": "^3.6.7",
     "mongodb": "^7.3.0",
     "nodemailer": "^9.0.1",
-    "pdf-parse": "^1.1.1"
+    "pdf-parse": "^1.1.1",
+    "zod": "^4.6.7"
   }
 }

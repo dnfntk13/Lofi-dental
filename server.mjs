@@ -1,4 +1,5 @@
 import { sendStaticFile } from './lib/static-file-stream.mjs';
+import { createPublicLofiMcpHandler } from './lib/public-lofi-mcp.mjs';
 import { resolveInsightsRange, inInsightsRange } from './lib/insights-range.mjs';
 import { appendSentCopy } from './lib/sent-mail-copy.mjs';
 import { isPublicPricingQuestion, publicConsultContactReply, removePublicPricingInformation, publicConsultThreadWithoutPrices } from './lib/public-consult-price-policy.mjs';
@@ -4412,12 +4413,19 @@ async function migrateInboxToEmailThreads() {
     return Object.fromEntries(entries);
   }
 
+const handlePublicLofiMcp = createPublicLofiMcpHandler(rootDir);
+
 createServer(async (request, response) => {
   const forwardedHostHeader = String(request.headers["x-forwarded-host"] || "").split(",")[0].trim();
   const rawHost = forwardedHostHeader || String(request.headers.host || "");
   const requestHost = rawHost.split(":")[0].toLowerCase();
   const requestUrl = new URL(request.url || "/", `http://${request.headers.host || `localhost:${port}`}`);
   const pathname = requestUrl.pathname;
+
+  if (pathname === '/mcp') {
+    await handlePublicLofiMcp(request, response);
+    return;
+  }
 
   const isAcmeChallengePath = pathname.startsWith("/.well-known/acme-challenge/");
 
