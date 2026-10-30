@@ -29,7 +29,7 @@ import { selectConversation, searchAdminRecords } from "./lib/admin-ai-context.m
 import { instagramBookingRules, validatedInstagramExtraction, currentKoreanClock } from "./lib/instagram-booking-rules.mjs";
 import { autoQueueDentweb } from "./lib/dentweb-auto-queue.mjs";
 import { assertDentwebJobIdentity } from "./lib/dentweb-job-identity.mjs";
-import { provisionalConflict } from "./lib/dentweb-provisional.mjs";
+import { provisionalConflict, supersedeProvisional } from "./lib/dentweb-provisional.mjs";
 import { queueCancellation, isCancelledReservation } from "./lib/reservation-cancellation.mjs";
 import { queueLinkedReschedule, assertRescheduleCallback } from "./lib/linked-reschedule.mjs";
 import { reservationDuration } from "./lib/reservation-duration.mjs";
@@ -5792,6 +5792,32 @@ createServer(async (request, response) => {
     return;
   }
 
+  const supersedeMatch = pathname.match(/^\/api\/admin\/reservations\/([^/]+)\/supersede$/);
+  if (supersedeMatch && request.method === "POST") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    try {
+      const collection = await getInboxCollection();
+      if (!collection) throw new Error("Atomic reservation storage is required");
+      const id = decodeURIComponent(supersedeMatch[1]);
+      const payload = await getJsonBody(request);
+      const existing = await collection.findOne({id}, {projection:{_id:0}});
+      const replacement = await collection.findOne({id:String(payload.replacementId || '')}, {projection:{_id:0}});
+      const next = supersedeProvisional(existing, replacement, payload.evidence);
+      if (next !== existing) {
+        const result = await collection.replaceOne({id, dentwebReservationId:existing.dentwebReservationId ?? null,
+          dentwebSyncStatus:existing.dentwebSyncStatus, dentwebProcessingAt:existing.dentwebProcessingAt ?? null,
+          dentwebQueuedAt:existing.dentwebQueuedAt ?? null, updatedAt:existing.updatedAt ?? null}, next);
+        if (!result.matchedCount) throw new Error("Reservation changed; reload before resolving duplicate");
+      }
+      response.writeHead(200, {"Content-Type":"application/json; charset=utf-8"});
+      response.end(JSON.stringify({ok:true,record:next}));
+    } catch(error) {
+      response.writeHead(409, {"Content-Type":"application/json; charset=utf-8"});
+      response.end(JSON.stringify({message:error.message}));
+    }
+    return;
+  }
+
   const cancelMatch = pathname.match(/^\/api\/admin\/reservations\/([^/]+)\/cancel$/);
   if (cancelMatch && request.method === "POST") {
     if (!adminAuthorized) { requestAuth(response); return; }
@@ -5941,7 +5967,7 @@ createServer(async (request, response) => {
   if (pathname === "/api/admin/dentweb/capabilities" && request.method === "GET") {
     if (!adminAuthorized) { requestAuth(response); return; }
     response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
-    response.end(JSON.stringify({ identityReadinessVersion: 2, provisionalBookingSupported: true }));
+    response.end(JSON.stringify({ identityReadinessVersion: 2, provisionalBookingSupported: true, provisionalDuplicateResolution: true }));
     return;
   }
 

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { prepareDentwebIdentity } from '../lib/dentweb-job-identity.mjs';
-import { provisionalConflict } from '../lib/dentweb-provisional.mjs';
+import { provisionalConflict, supersedeProvisional } from '../lib/dentweb-provisional.mjs';
 const request={id:'1793359847995-test',email:'patient@example.com',date:'2030-01-07',time:'11:00',name:'',phone:''};
 test('email-only booking has no invented phone and distinct idempotency per web record',()=>{
   const job=prepareDentwebIdentity(request);
@@ -20,4 +20,18 @@ test('same email/day repeated requests are held for review, cancelled ones exclu
   assert.equal(provisionalConflict(request,[request,other]),true);
   assert.equal(provisionalConflict(request,[request,{...other,cancelledAt:'2030-01-01'}]),false);
   assert.equal(provisionalConflict(request,[request,{...other,date:'2030-01-08'}]),false);
+});
+
+test('verified time choice preserves cancelled request and never supersedes queued or linked work',()=>{
+  const old={...request,dentwebSyncStatus:'waiting_identity',concerns:'Original concern'};
+  const next={...request,id:'1793359847995-other',time:'13:00'};
+  const result=supersedeProvisional(old,next,'Patient email selected 13:00');
+  assert.equal(result.time,old.time);assert.equal(result.concerns,old.concerns);
+  assert.equal(result.supersededBy,next.id);assert.ok(result.cancelledAt);
+  assert.equal(provisionalConflict(next,[result,next]),false);
+  assert.equal(supersedeProvisional(result,next,'Same evidence'),result);
+  for(const delta of [{dentwebSyncStatus:'pending'},{dentwebReservationId:123},{dentwebQueuedAt:'previous'},{dentwebProcessingAt:'previous'},{dentwebSyncedAt:'previous'}])
+    assert.throws(()=>supersedeProvisional({...old,...delta},next,'Evidence'),/unsubmitted/);
+  assert.throws(()=>supersedeProvisional(old,{...next,email:'other@example.com'},'Evidence'),/Matching/);
+  assert.throws(()=>supersedeProvisional(old,next,''),/evidence/);
 });
