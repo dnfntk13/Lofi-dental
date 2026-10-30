@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { reservationDuration } from '../lib/reservation-duration.mjs';
 import { autoQueueDentweb } from '../lib/dentweb-auto-queue.mjs';
+import { provisionalConflict } from '../lib/dentweb-provisional.mjs';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 
@@ -21,7 +22,7 @@ test('HTTP create/update and job handoff retain minutes, omission and linked ID'
     replaceOne: async (_, record) => { saved = record; return { matchedCount: 1 }; },
     findOneAndUpdate: async () => saved,
   };
-  const context = vm.createContext({ reservationDuration, autoQueueDentweb, console, process: { env: {} },
+  const context = vm.createContext({ reservationDuration, autoQueueDentweb, provisionalConflict, readInbox:async()=>[saved], console, process: { env: {} },
     getJsonBody: async r => r.body, getInboxCollection: async () => collection,
     addInboxRecord: async r => { saved = {...r}; }, getPatientThreadEmail: () => 'test',
     saveOrUpdateEmailThread: async () => {}, saveOrUpdatePatient: async () => {},
@@ -38,7 +39,7 @@ test('HTTP create/update and job handoff retain minutes, omission and linked ID'
   const job=handler('  if (pathname === "/api/admin/dentweb/jobs/next"', '  if (pathname.startsWith("/api/admin/reservations/") && request.method === "PUT")');
   async function call(route,path,method,body) {
     const result={};
-    await route(path,{method,body,headers:{}},{writeHead:s=>result.status=s,end:b=>result.body=JSON.parse(b)});
+    await route(path,{method,body,headers:{'x-dentweb-provisional':'1'}},{writeHead:s=>result.status=s,end:b=>result.body=JSON.parse(b)});
     return result;
   }
   const body={name:'Test',phone:'01000000000',date:'2030-01-07',time:'12:30',durationMinutes:60};

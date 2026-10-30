@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { queueLinkedReschedule, assertRescheduleCallback } from '../lib/linked-reschedule.mjs';
+import { provisionalConflict } from '../lib/dentweb-provisional.mjs';
 const source=await readFile(new URL('../server.mjs',import.meta.url),'utf8');
 const input={operationId:'fictional-http-operation',expected:{reservationId:42,patientId:17,name:'Fixture',phone:'010-1111-2222',date:'2030-01-02',time:'15:00',state:0,durationMinutes:30,memoSha256:'a'.repeat(64)},target:{date:'2030-01-03',time:'16:00'}};
 const initial={id:'fixture',source:'dentweb',dentwebReservationId:42,date:'2030-01-02',time:'15:00',name:'Fixture',phone:'010-1111-2222',dentwebSyncStatus:'completed'};
@@ -33,7 +34,8 @@ function harness() {
       Object.assign(row,update.$set); return structuredClone(row);
     },
   };
-  const context=vm.createContext({process:{env},console:{error(){}},queueLinkedReschedule,assertRescheduleCallback,
+  const context=vm.createContext({process:{env},console:{error(){}},queueLinkedReschedule,assertRescheduleCallback,provisionalConflict,
+    readInbox:async()=>[structuredClone(row)],
     getJsonBody:async r=>r.body,getInboxCollection:async()=>mongo?collection:null,
     requestAuth:r=>{r.writeHead(401);r.end('{}');}});
   function handler(start,end) {
@@ -50,7 +52,7 @@ function harness() {
     async call(kind,body,headers={},authorized=true){
       const result={};
       const path=kind==='claim'?'/api/admin/dentweb/jobs/next':`/api/admin/reservations/fixture/${kind==='reschedule'?'linked-reschedule':'dentweb-sync'}`;
-      await routes[kind](path,{method:kind==='claim'?'GET':'POST',body,headers},{writeHead:s=>result.status=s,end:b=>result.body=JSON.parse(b)},authorized);
+      await routes[kind](path,{method:kind==='claim'?'GET':'POST',body,headers:{'x-dentweb-provisional':'1',...headers}},{writeHead:s=>result.status=s,end:b=>result.body=JSON.parse(b)},authorized);
       return result;
     }};
 }

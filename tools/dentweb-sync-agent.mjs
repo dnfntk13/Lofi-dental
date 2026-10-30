@@ -6,7 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import readline from "node:readline/promises";
 import { reservationDuration } from "../lib/reservation-duration.mjs";
-import { assertDentwebJobIdentity } from "../lib/dentweb-job-identity.mjs";
+import { assertDentwebJobIdentity, prepareDentwebIdentity } from "../lib/dentweb-job-identity.mjs";
+import { provisionalResolveSql, provisionalUpgradeSql } from "../lib/dentweb-provisional.mjs";
 import { validateRescheduleRequest } from "../lib/linked-reschedule.mjs";
 import { linkedRescheduleScript } from "../lib/linked-reschedule-script.mjs";
 
@@ -108,7 +109,7 @@ async function updateDentwebJob(id, status, details = {}) {
 
 async function claimDentwebJob() {
   const response = await fetch(`${serverUrl}/api/admin/dentweb/jobs/next`, {
-    headers: { Authorization: adminAuthHeader(), Accept: "application/json", "X-Dentweb-Cancellation": "1",
+    headers: { Authorization: adminAuthHeader(), Accept: "application/json", "X-Dentweb-Cancellation": "1", "X-Dentweb-Provisional": "1",
       ...(process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED === "1" ? { "X-Dentweb-Linked-Reschedule": "1" } : {}),
     },
   });
@@ -119,6 +120,7 @@ async function claimDentwebJob() {
 
 async function createDentwebReservation(job) {
   assertDentwebJobIdentity(job);
+  job = prepareDentwebIdentity(job);
   if (job.action === "linked-reschedule") {
     if (process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED !== "1") throw new Error("Linked rescheduling is disabled on this agent");
     const reschedule = validateRescheduleRequest(job.reschedule);
@@ -154,7 +156,7 @@ $appointmentAt = ($date -replace '-', '') + ($time -replace ':', '')
 $name = ([string]$job.name).Trim()
 $phoneDigits = ([string]$job.phone) -replace '[^0-9]', ''
 if ($phoneDigits -match '^82(1[016789]\\d{7,8})$') { $phoneDigits = '0' + $matches[1] }
-if (-not $name -or -not $phoneDigits) { throw 'Dentweb requires both patient name and phone number' }
+if (-not $name -or (-not $phoneDigits -and -not $job.provisional)) { throw 'Dentweb requires identity or a verified web provisional key' }
 if ($name.Length -gt 40) { $name = $name.Substring(0, 40) }
 if ($phoneDigits -match '^(01[016789])(\\d{3,4})(\\d{4})$') { $phone = "$($matches[1])-$($matches[2])-$($matches[3])" } else { $phone = $phoneDigits }
 $memo = ([string]$job.concerns).Trim()
@@ -168,6 +170,7 @@ try {
   $command.Transaction = $transaction
   $command.CommandText = @'
 SET NOCOUNT ON;
+${provisionalResolveSql}
 IF @cancel = 1
 BEGIN
   IF @linkedReservationId < 1
@@ -193,10 +196,10 @@ IF @requestedDuration IS NOT NULL AND (@requestedDuration < 1 OR @requestedDurat
 DECLARE @phoneKey varchar(30) = REPLACE(REPLACE(REPLACE(@phone, '-', ''), ' ', ''), '+', '');
 DECLARE @patientId int, @phoneMatches int, @identityMatches int;
 SELECT @phoneMatches = COUNT(*) FROM dbo.TB_환자정보 WITH (UPDLOCK, HOLDLOCK)
-WHERE n환자ID > 0 AND REPLACE(REPLACE(REPLACE(sz휴대폰번호, '-', ''), ' ', ''), '+', '') = @phoneKey;
+WHERE @provisional=0 AND n환자ID > 0 AND REPLACE(REPLACE(REPLACE(sz휴대폰번호, '-', ''), ' ', ''), '+', '') = @phoneKey;
 SELECT @identityMatches = COUNT(*), @patientId = MIN(p.n환자ID)
 FROM dbo.TB_환자정보 p WITH (UPDLOCK, HOLDLOCK)
-WHERE p.n환자ID > 0
+WHERE @provisional=0 AND p.n환자ID > 0
   AND REPLACE(REPLACE(REPLACE(p.sz휴대폰번호, '-', ''), ' ', ''), '+', '') = @phoneKey
   AND (LTRIM(RTRIM(p.sz이름)) = @name OR EXISTS (
     SELECT 1 FROM dbo.TB_예약목록 a WITH (UPDLOCK, HOLDLOCK)
@@ -206,6 +209,7 @@ WHERE p.n환자ID > 0
 IF @identityMatches > 1 OR (@phoneMatches > 0 AND @identityMatches <> 1)
   THROW 51001, 'Existing patient identity is ambiguous or does not match the supplied name and phone.', 1;
 
+${provisionalUpgradeSql}
 DECLARE @linkedPatientId int, @linkedStatus tinyint, @linkedName nvarchar(40), @linkedPhone varchar(30);
 IF @linkedReservationId > 0
 BEGIN
@@ -213,6 +217,9 @@ BEGIN
   FROM dbo.TB_예약목록 WITH (UPDLOCK, HOLDLOCK) WHERE nID = @linkedReservationId;
   IF @linkedPatientId IS NULL OR @linkedPatientId = 0 OR ISNULL(@linkedStatus, 255) <> 0
     THROW 51002, 'Linked reservation is missing or is no longer active; refusing to replace it.', 1;
+  IF @provisional=1 AND NOT EXISTS(SELECT 1 FROM dbo.TB_예약목록 WHERE nID=@linkedReservationId
+    AND n환자ID<0 AND CHARINDEX(@identityMarker,ISNULL(sz메모,''))>0)
+    THROW 51010,'Provisional booking identity marker mismatch.',1;
   IF (@linkedPatientId > 0 AND (@patientId IS NULL OR @patientId <> @linkedPatientId))
     OR (@linkedPatientId < 0 AND (@patientId IS NOT NULL OR LTRIM(RTRIM(ISNULL(@linkedName, ''))) <> @name
       OR REPLACE(REPLACE(REPLACE(ISNULL(@linkedPhone, ''), '-', ''), ' ', ''), '+', '') <> @phoneKey))
@@ -240,7 +247,7 @@ SELECT @existingId = MIN(nID), @existingCount = COUNT(*), @existingStatus = MIN(
 FROM dbo.TB_예약목록 WITH (UPDLOCK, HOLDLOCK)
 WHERE sz예약시각 = @appointmentAt AND
   ((@patientId IS NOT NULL AND n환자ID = @patientId) OR
-   (LTRIM(RTRIM(sz이름)) = @name AND REPLACE(REPLACE(REPLACE(sz전화, '-', ''), ' ', ''), '+', '') = @phoneKey));
+   (@provisional=0 AND LTRIM(RTRIM(sz이름)) = @name AND REPLACE(REPLACE(REPLACE(sz전화, '-', ''), ' ', ''), '+', '') = @phoneKey));
 IF @existingCount > 1 OR (@existingId IS NOT NULL AND (ISNULL(@existingStatus, 255) <> 0
   OR (@patientId IS NOT NULL AND @existingPatientId <> @patientId)
   OR (@patientId IS NULL AND @existingPatientId >= 0)))
@@ -295,6 +302,10 @@ SELECT @reservationId AS reservationId, CAST(0 AS bit) AS duplicate;
   [void]$command.Parameters.Add('@linkedReservationId', [Data.SqlDbType]::Int)
   [void]$command.Parameters.Add('@requestedDuration', [Data.SqlDbType]::Int)
   [void]$command.Parameters.Add('@cancel', [Data.SqlDbType]::Bit)
+  [void]$command.Parameters.Add('@provisional', [Data.SqlDbType]::Bit)
+  [void]$command.Parameters.Add('@identityMarker', [Data.SqlDbType]::NVarChar, 100)
+  $command.Parameters['@provisional'].Value = [bool]$job.provisional
+  $command.Parameters['@identityMarker'].Value = [string]$job.identityMarker
   $command.Parameters['@cancel'].Value = ($job.action -eq 'cancel')
   $command.Parameters['@requestedDuration'].Value = if ($null -eq $job.durationMinutes) { [DBNull]::Value } else { [int]$job.durationMinutes }
   $command.Parameters['@name'].Value = $name
@@ -1192,7 +1203,8 @@ async function startDaemon() {
         syncInProgress,
         sqlConfigured: Boolean(String(process.env.DENTWEB_SQL_CONNECTION_STRING || "").trim()),
         durationMinutesSupported: true,
-        identityReadinessVersion: 1,
+        identityReadinessVersion: 2,
+        provisionalBookingSupported: true,
         cancellationSupported: true,
         linkedRescheduleSupported: process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED === "1",
         windowPattern,

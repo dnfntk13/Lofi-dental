@@ -29,6 +29,7 @@ import { selectConversation, searchAdminRecords } from "./lib/admin-ai-context.m
 import { instagramBookingRules, validatedInstagramExtraction, currentKoreanClock } from "./lib/instagram-booking-rules.mjs";
 import { autoQueueDentweb } from "./lib/dentweb-auto-queue.mjs";
 import { assertDentwebJobIdentity } from "./lib/dentweb-job-identity.mjs";
+import { provisionalConflict } from "./lib/dentweb-provisional.mjs";
 import { queueCancellation, isCancelledReservation } from "./lib/reservation-cancellation.mjs";
 import { queueLinkedReschedule, assertRescheduleCallback } from "./lib/linked-reschedule.mjs";
 import { reservationDuration } from "./lib/reservation-duration.mjs";
@@ -1303,14 +1304,18 @@ async function upsertInboxRecord(record) {
       id: record.id,
       createdAt: existing?.createdAt || record.createdAt,
     };
-    Object.assign(merged, autoQueueDentweb(merged, { date: normalizeReservationDate(merged.date), time: normalizeReservationTime(merged.time) }));
-    const result = await collection.replaceOne({ id: record.id, dentwebReschedule: null }, merged, { upsert: !existing });
+    if (existing?.dentwebSyncStatus === 'processing') throw new Error('Reservation sync in progress; please retry shortly');
+    Object.assign(merged, autoQueueDentweb(merged, { previous: existing, date: normalizeReservationDate(merged.date), time: normalizeReservationTime(merged.time) }));
+    const result = await collection.replaceOne({ id: record.id, dentwebReschedule: null,
+      ...(existing ? { dentwebSyncStatus: existing.dentwebSyncStatus ?? null } : {}) }, merged, { upsert: !existing });
     if (existing && !result.matchedCount) throw new Error("Reservation changed during update");
     return merged;
   }
 
   const messages = await readInbox();
   const index = messages.findIndex((message) => message.id === record.id);
+  const previous = index >= 0 ? messages[index] : undefined;
+  if (previous?.dentwebSyncStatus === 'processing') throw new Error('Reservation sync in progress; please retry shortly');
   if (index >= 0) {
     if (messages[index].dentwebReschedule) throw new Error("Explicit linked reschedule records require review");
     messages[index] = {
@@ -1323,7 +1328,7 @@ async function upsertInboxRecord(record) {
     messages.unshift(record);
   }
   const saved = index >= 0 ? messages[index] : record;
-  Object.assign(saved, autoQueueDentweb(saved, { date: normalizeReservationDate(saved.date), time: normalizeReservationTime(saved.time) }));
+  Object.assign(saved, autoQueueDentweb(saved, { previous, date: normalizeReservationDate(saved.date), time: normalizeReservationTime(saved.time) }));
   await mkdir(dataDir, { recursive: true });
   await writeFile(inboxPath, JSON.stringify(messages, null, 2), "utf-8");
   return saved;
@@ -5056,6 +5061,9 @@ createServer(async (request, response) => {
         savedRecord = await upsertInboxRecord(record);
       } catch (err) {
         console.error("Failed to save inbox", err);
+        response.writeHead(409, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "Your reservation is being updated. Please try saving your details again shortly." }));
+        return;
       }
 
       try {
@@ -5930,8 +5938,21 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname === "/api/admin/dentweb/capabilities" && request.method === "GET") {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    response.end(JSON.stringify({ identityReadinessVersion: 2, provisionalBookingSupported: true }));
+    return;
+  }
+
   if (pathname === "/api/admin/dentweb/jobs/next" && request.method === "GET") {
     if (!adminAuthorized) { requestAuth(response); return; }
+    // Older agents must not consume email-only jobs as fabricated identities.
+    if (request.headers["x-dentweb-provisional"] !== "1") {
+      response.writeHead(409, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: "Update clinic agent: provisional identity protocol required" }));
+      return;
+    }
 
     try {
       const now = new Date();
@@ -5977,6 +5998,18 @@ createServer(async (request, response) => {
         }
       }
 
+      if (record && provisionalConflict(record, await readInbox())) {
+        const error = "DUPLICATE_EMAIL_DATE: Multiple web requests for this email and date require review.";
+        if (collection) await collection.updateOne({ id: record.id, dentwebProcessingAt: now.toISOString() },
+          { $set: { dentwebSyncStatus: "failed", dentwebSyncError: error, dentwebSyncUpdatedAt: now.toISOString() } });
+        else {
+          const inbox = await readInbox();
+          const item = inbox.find(item => item.id === record.id && item.dentwebProcessingAt === now.toISOString());
+          if (item) Object.assign(item, { dentwebSyncStatus: "failed", dentwebSyncError: error });
+          await writeFile(inboxPath, JSON.stringify(inbox, null, 2), "utf-8");
+        }
+        record = null;
+      }
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({
         ok: true,
@@ -5984,6 +6017,8 @@ createServer(async (request, response) => {
           id: record.id,
           date: record.date,
           time: record.time,
+          email: record.email,
+          source: record.source,
           name: String(record.name || "").trim(),
           phone: String(record.phone || "").trim(),
           concerns: record.concerns,

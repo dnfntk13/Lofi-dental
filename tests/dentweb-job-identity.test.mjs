@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { autoQueueDentweb } from '../lib/dentweb-auto-queue.mjs';
-import { assertDentwebJobIdentity, dentwebIdentityReady } from '../lib/dentweb-job-identity.mjs';
+import { assertDentwebJobIdentity, dentwebIdentityReady, prepareDentwebIdentity } from '../lib/dentweb-job-identity.mjs';
+import { provisionalConflict } from '../lib/dentweb-provisional.mjs';
 
 test('identity readiness rejects missing and legacy placeholders, accepts international contacts', () => {
   for (const record of [ {}, {name:'Case Patient'}, {name:'person@example.com',phone:'+12025550123'},
@@ -23,13 +24,13 @@ test('failed records are not retried by later identity edits or unrelated update
   assert.equal(autoQueueDentweb(record,{date:'2030-01-07',time:'11:00'}),record);
 });
 
-test('public request waits for details, then queues the same web ID exactly once without placeholder handoff', async () => {
+test('public request queues email provisional then upgrades the same linked reservation without placeholders', async () => {
   const source=await readFile(new URL('../server.mjs',import.meta.url),'utf8');
   let saved;
-  const collection={findOne:async()=>saved, replaceOne:async (_,record)=>{saved=record;return {matchedCount:1};},
+  const collection={findOne:async()=>structuredClone(saved), replaceOne:async (_,record)=>{saved=record;return {matchedCount:1};},
     findOneAndUpdate:async()=>saved};
-  const context=vm.createContext({console,process:{env:{}},autoQueueDentweb,assertDentwebJobIdentity,
-    getJsonBody:async r=>r.body, readInbox:async()=>saved?[saved]:[], getInboxCollection:async()=>collection,
+  const context=vm.createContext({console,process:{env:{}},autoQueueDentweb,assertDentwebJobIdentity,provisionalConflict,
+    getJsonBody:async r=>r.body, readInbox:async()=>saved?[structuredClone(saved)]:[], getInboxCollection:async()=>collection,
     addInboxRecord:async r=>{Object.assign(r,autoQueueDentweb(r,{date:r.date,time:r.time}));saved={...r};},
     normalizeReservationDate:x=>x,normalizeReservationTime:x=>x,
     isValidEmail:()=>true,hasMailExchange:async()=>true,isEmailVerified:()=>true,
@@ -49,20 +50,20 @@ test('public request waits for details, then queues the same web ID exactly once
   const job=handler('  if (pathname === "/api/admin/dentweb/jobs/next"','  if (pathname.startsWith("/api/admin/reservations/") && request.method === "PUT")');
   const retry=handler('  const dentwebSyncMatch =','  if (pathname === "/api/admin/dentweb/jobs/next"');
   async function call(route,path,body,method='POST') {
-    const result={};await route(path,{method,body,headers:{}},{writeHead:s=>result.status=s,end:b=>result.body=JSON.parse(b)});return result;
+    const result={};await route(path,{method,body,headers:{'x-dentweb-provisional':'1'}},{writeHead:s=>result.status=s,end:b=>result.body=JSON.parse(b)});return result;
   }
   assert.equal((await call(create,'/api/reservations',{date:'2030-01-07',time:'11:00 AM',email:'person@example.com',concerns:'Consultation'})).status,201);
   const id=saved.id;
   assert.equal(saved.name,'');assert.equal(saved.phone,'');
-  assert.equal(saved.dentwebSyncStatus,'waiting_identity');
-  assert.equal(saved.dentwebQueuedAt,undefined);
-  const blocked=await call(retry,`/api/admin/reservations/${id}/dentweb-sync`,{status:'pending'});
-  assert.equal(blocked.status,400);
-  assert.match(blocked.body.message,/DENTWEB_IDENTITY_REQUIRED/);
-  assert.equal(saved.dentwebSyncStatus,'waiting_identity');
+  assert.equal(saved.dentwebSyncStatus,'pending');
+  const initial=await call(job,'/api/admin/dentweb/jobs/next',{},'GET');
+  const prepared=prepareDentwebIdentity(initial.body.job);
+  assert.equal(prepared.provisional,true);assert.equal(prepared.phone,'');
+  saved={...saved,dentwebSyncStatus:'completed',dentwebReservationId:123};
   // The same public reply path that previously left the premature failure stuck.
   assert.equal((await call(reply,'/api/patient-reply',{id,name:'Case Patient',phone:'+12025550123'})).status,200);
   assert.equal(saved.id,id);assert.equal(saved.dentwebSyncStatus,'pending');
+  assert.equal(saved.dentwebReservationId,123);
   const queuedAt=saved.dentwebQueuedAt;
   await call(reply,'/api/patient-reply',{id,name:'Case Patient',phone:'+12025550123'});
   assert.equal(saved.dentwebQueuedAt,queuedAt);
@@ -71,7 +72,8 @@ test('public request waits for details, then queues the same web ID exactly once
   saved={...saved,name:'',phone:''};
   const empty=await call(job,'/api/admin/dentweb/jobs/next',{},'GET');
   assert.equal(empty.body.job.name,'');assert.equal(empty.body.job.phone,'');
-  assert.throws(()=>assertDentwebJobIdentity(empty.body.job),/DENTWEB_IDENTITY_REQUIRED/);
+  assert.equal(prepareDentwebIdentity(empty.body.job).phone,'');
+  assert.equal(prepareDentwebIdentity(empty.body.job).identityMarker,prepared.identityMarker);
 });
 
 test('agent rejects an old queued placeholder before invoking any SQL process', async () => {
