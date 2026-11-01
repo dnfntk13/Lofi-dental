@@ -5781,7 +5781,7 @@ createServer(async (request, response) => {
   if (pathname === '/api/admin/dentweb/reservation-operation-capabilities' && request.method === 'GET') {
     if (!adminAuthorized) { requestAuth(response); return; }
     response.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    response.end(JSON.stringify({ reservationOperationsVersion: 1, actions: ['reschedule','cancel'], requiresWebLink: false, reverseCalendarImport: false }));
+    response.end(JSON.stringify({ reservationOperationsVersion: 2, actions: ['reschedule','cancel','amend-content'], requiresWebLink: false, reverseCalendarImport: false }));
     return;
   }
   if (await handleReservationOperations({ pathname, request, response, authorized: adminAuthorized,
@@ -6014,8 +6014,8 @@ createServer(async (request, response) => {
     }
 
     try {
-      if (request.headers['x-dentweb-reservation-operations'] === '1') {
-        const nativeJob = await reservationOperations.claim();
+      if (['1', '2'].includes(request.headers['x-dentweb-reservation-operations'])) {
+        const nativeJob = await reservationOperations.claim(Number(request.headers['x-dentweb-reservation-operations']));
         if (nativeJob) {
           response.writeHead(200, { 'Content-Type': 'application/json' });
           response.end(JSON.stringify({ ok: true, job: nativeJob }));

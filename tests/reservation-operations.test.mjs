@@ -1,14 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createReservationOperations } from '../lib/reservation-operations.mjs';
+import { createReservationOperations, validateOperation } from '../lib/reservation-operations.mjs';
 import { handleReservationOperations } from '../lib/reservation-operations-http.mjs';
 import { createResultOutbox } from '../lib/dentweb-result-outbox.mjs';
 const copy=v=>structuredClone(v), at=(v,k)=>k.split('.').reduce((a,b)=>a?.[b],v);
 function set(o,k,v){const p=k.split('.'),last=p.pop();for(const s of p)o=o[s]??={};o[last]=v;}
-function match(row,f){return Object.entries(f).every(([k,v])=>k==='$or'?v.some(x=>match(row,x)):v&&typeof v==='object'&&'$lt'in v?at(row,k)<v.$lt:JSON.stringify(at(row,k)??null)===JSON.stringify(v??null));}
+function match(row,f){return Object.entries(f).every(([k,v])=>k==='$or'?v.some(x=>match(row,x)):v&&typeof v==='object'&&'$in'in v?v.$in.includes(at(row,k)):v&&typeof v==='object'&&'$lt'in v?at(row,k)<v.$lt:JSON.stringify(at(row,k)??null)===JSON.stringify(v??null));}
 function collection(rows=[]){return {rows,
  async findOne(f){return copy(rows.find(r=>match(r,f))??null)},
  find(f){return {toArray:async()=>copy(rows.filter(r=>match(r,f))) }},
@@ -18,6 +19,21 @@ function collection(rows=[]){return {rows,
 const input={operationId:'test-reservation-op-0001',action:'reschedule',expected:{reservationId:42,patientId:17,name:'Fixture',phone:'010-1111-2222',state:0,date:'2030-01-02',time:'15:00',durationMinutes:30,memoSha256:'a'.repeat(64),contentSha256:'b'.repeat(64)},target:{date:'2030-01-03',time:'16:00'}};
 function harness(linked=[]){const c=collection(),inbox=collection(linked);const service=createReservationOperations({getCollection:async()=>c,getInboxCollection:async()=>inbox});return {service,c,inbox};}
 function result(job){return {status:'completed',leaseToken:job.leaseToken,verification:{...job.nativeOperation.expected,appointmentAt:job.nativeOperation.action==='cancel'?'203001031600':'203001031600',state:job.nativeOperation.action==='cancel'?2:0}};}
+test('content amendment requires a new agent; verifies content and preserves calendar identity and schedule',async()=>{
+ const before={id:'web42',dentwebReservationId:42,dentwebSyncStatus:'completed',updatedAt:'before',date:'2030-01-02',time:'15:00',concerns:'old'};
+ const {service:s,inbox}=harness([before]);
+ const amend={...input,action:'amend-content',target:{content:'큐렛 (미백 취소)'}};
+ await s.queue(42,amend);assert.equal(await s.claim(1),null);
+ const job=await s.claim(2), verification={...amend.expected,appointmentAt:'203001021500',contentSha256:createHash('sha256').update(amend.target.content).digest('hex')};
+ await assert.rejects(s.complete(42,amend.operationId,{status:'completed',leaseToken:job.leaseToken,verification:{...verification,contentSha256:amend.expected.contentSha256}}),/readback/);
+ await s.complete(42,amend.operationId,{status:'completed',leaseToken:job.leaseToken,verification});
+ assert.equal(inbox.rows[0].concerns,amend.target.content);assert.equal(inbox.rows[0].date,before.date);assert.equal(inbox.rows[0].time,before.time);
+ assert.equal(inbox.rows.length,1);assert.equal((await s.get(42)).current.webVerified,true);
+});
+test('content amendment rejects schedule edits, empty, oversized, controls and unchanged content',()=>{
+ const content='큐렛';const expected={...input.expected,contentSha256:createHash('sha256').update(content).digest('hex')};
+ for(const target of [{content,time:'16:00'},{content:''},{content:'a'.repeat(201)},{content:'a\nb'},{content}]) assert.throws(()=>validateOperation({...input,expected,action:'amend-content',target},42));
+});
 test('unlinked request is idempotent and creates no calendar record; repeated change and cancel retain history',async()=>{
  const {service:s,c,inbox}=harness();await s.queue(42,input);await s.queue(42,input);assert.equal(c.rows.length,1);
  await assert.rejects(s.queue(42,{...input,target:{date:'2030-01-04',time:'16:00'}}),/different request/);

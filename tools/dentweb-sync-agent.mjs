@@ -125,7 +125,7 @@ async function updateDentwebJob(id, status, details = {}) {
 
 async function claimDentwebJob() {
   const response = await fetch(`${serverUrl}/api/admin/dentweb/jobs/next`, {
-    headers: { Authorization: adminAuthHeader(), Accept: "application/json", "X-Dentweb-Cancellation": "1", "X-Dentweb-Provisional": "1", "X-Dentweb-Reservation-Operations": "1",
+    headers: { Authorization: adminAuthHeader(), Accept: "application/json", "X-Dentweb-Cancellation": "1", "X-Dentweb-Provisional": "1", "X-Dentweb-Reservation-Operations": "2",
       ...(process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED === "1" ? { "X-Dentweb-Linked-Reschedule": "1" } : {}),
     },
   });
@@ -1257,7 +1257,7 @@ async function startDaemon() {
         syncInProgress,
         sqlConfigured: Boolean(String(process.env.DENTWEB_SQL_CONNECTION_STRING || "").trim()),
         durationMinutesSupported: true,
-        reservationOperationsVersion: 1,
+        reservationOperationsVersion: 2,
         durableResultOutbox: true,
         identityReadinessVersion: 2,
         provisionalBookingSupported: true,

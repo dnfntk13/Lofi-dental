@@ -10,7 +10,7 @@ const fixture = `
 CREATE TABLE #TB_환자정보(n환자ID int PRIMARY KEY,sz이름 nvarchar(40),sz휴대폰번호 varchar(30));
 CREATE TABLE #TB_신환예약자정보(nID int PRIMARY KEY,sz이름 nvarchar(40),sz휴대폰번호 varchar(30));
 CREATE TABLE #TB_덴트웹설정(t예약최종수정 datetime);
-CREATE TABLE #TB_예약목록(nID int PRIMARY KEY,n환자ID int,sz예약시각 varchar(12),n이행현황 int,n소요시간 int,sz메모 nvarchar(max),sz이름 nvarchar(40),sz전화 varchar(30),t최종수정 datetime,sz예약내용 nvarchar(max));
+CREATE TABLE #TB_예약목록(nID int PRIMARY KEY,n환자ID int,sz예약시각 varchar(12),n이행현황 int,n소요시간 int,sz메모 nvarchar(max),sz이름 nvarchar(40),sz전화 varchar(30),t최종수정 datetime,sz예약내용 varchar(1000));
 INSERT #TB_환자정보 VALUES(17,N'검증환자','010-1111-2222');
 INSERT #TB_신환예약자정보 VALUES(9,N'검증환자','010-1111-2222');
 INSERT #TB_덴트웹설정 VALUES('20290101');
@@ -26,11 +26,19 @@ $check.CommandText='SELECT sz예약시각 FROM #TB_예약목록 WHERE nID=42'
 $script:observedAt=[string]$check.ExecuteScalar()
 $check.CommandText='SELECT n이행현황 FROM #TB_예약목록 WHERE nID=42'
 $script:observedState=[int]$check.ExecuteScalar()
+$check.CommandText='SELECT sz예약내용 FROM #TB_예약목록 WHERE nID=42'
+$script:observedContent=[string]$check.ExecuteScalar()
 $check.CommandText="SELECT COUNT(*) FROM #TB_예약목록 WHERE nID=42 AND ISNULL(sz이름,'')='' AND ISNULL(sz전화,'')=''"
 $script:blankIdentity=[int]$check.ExecuteScalar()
 $check.Dispose(); $connection.Dispose()`);
 const expected={reservationId:42,patientId:17,state:0,name:'검증환자',phone:'010-1111-2222',durationMinutes:30,contentSha256:createHash('sha256').update('treatment').digest('hex'),memoSha256:createHash('sha256').update('직원 메모').digest('hex'),date:'2030-01-02',time:'15:00'};
 const cases=[
+ {name:'amend content preserves schedule and memo',action:'amend-content',ok:true,target:{content:'큐렛 (미백 취소)'}},
+ {name:'amend retry is a no-op',action:'amend-content',ok:true,duplicate:true,target:{content:'큐렛 (미백 취소)'},sql:"UPDATE #TB_예약목록 SET sz예약내용=N'큐렛 (미백 취소)'"},
+ {name:'amend detects concurrent content edit',action:'amend-content',target:{content:'큐렛 (미백 취소)'},sql:"UPDATE #TB_예약목록 SET sz예약내용=N'직원 수정'"},
+ {name:'amend detects concurrent memo edit',action:'amend-content',target:{content:'큐렛 (미백 취소)'},sql:"UPDATE #TB_예약목록 SET sz메모=N'직원 수정'"},
+ {name:'amend verify-only never writes',action:'amend-content',target:{content:'큐렛 (미백 취소)'},verifyOnly:true},
+ {name:'amend verify-only confirms target',action:'amend-content',target:{content:'큐렛 (미백 취소)'},verifyOnly:true,ok:true,duplicate:true,sql:"UPDATE #TB_예약목록 SET sz예약내용=N'큐렛 (미백 취소)'"},
  {name:'cancel active reservation',action:'cancel',ok:true},
  {name:'cancel retry already cancelled',action:'cancel',ok:true,duplicate:true,sql:'UPDATE #TB_예약목록 SET n이행현황=2'},
  {name:'verify-only recovery must not write',verifyOnly:true},
@@ -51,7 +59,7 @@ const cases=[
   {name:'adjacent appointment is allowed',ok:true,sql:"INSERT #TB_예약목록 VALUES(43,17,'203001031530',0,30,N'','','','20290101',N'treatment')"},
   {name:'cancelled overlap is allowed',ok:true,sql:"INSERT #TB_예약목록 VALUES(43,17,'203001031545',2,30,N'','','','20290101',N'treatment')"},
 ];
-const encoded = Buffer.from(JSON.stringify(cases.map(c=>({...c,fixture:fixture+(c.sql||''),job:{verifyOnly:Boolean(c.verifyOnly),nativeOperation:{action:c.action||'reschedule',operationId:'fixture-operation',expected:{...expected,...c.expected},target:{date:'2030-01-03',time:'16:00'}}}}))),'utf8').toString('base64');
+const encoded = Buffer.from(JSON.stringify(cases.map(c=>({...c,fixture:fixture+(c.sql||''),job:{verifyOnly:Boolean(c.verifyOnly),nativeOperation:{action:c.action||'reschedule',operationId:'fixture-operation',expected:{...expected,...c.expected},target:c.target||{date:'2030-01-03',time:'16:00'}}}}))),'utf8').toString('base64');
 const script=`
 $ErrorActionPreference='Stop'
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
@@ -70,10 +78,11 @@ foreach($case in $cases){
  try { $result=(& $block)|ConvertFrom-Json } catch { $failed=$true; $failure=$_.Exception.Message }
  if($case.ok -and $failed){throw ('Fixture '+$case.name+' failed: '+$failure)}
  if(-not $case.ok -and -not $failed){throw ('Fixture '+$case.name+' did not reject')}
- $expectedAt=if($case.action -eq 'cancel'){'203001021500'}elseif($case.ok){'203001031600'}elseif($case.original){[string]$case.original}else{'203001021500'}
+ $expectedAt=if($case.action -in @('cancel','amend-content')){'203001021500'}elseif($case.ok){'203001031600'}elseif($case.original){[string]$case.original}else{'203001021500'}
  if($script:observedAt -ne $expectedAt -or $script:blankIdentity -ne 1){throw ('Fixture '+$case.name+' changed unexpected fields')}
  if($case.ok -and ($result.verification.name -cne $case.job.nativeOperation.expected.name -or $result.verification.memoSha256 -ne $case.job.nativeOperation.expected.memoSha256 -or $result.verification.durationMinutes -ne 30 -or $result.reservationId -ne 42)){throw 'Fixture verification mismatch'}
  if($case.ok -and $case.action -eq 'cancel' -and $script:observedState -ne 2){throw 'Cancellation not saved'}
+ if($case.ok -and $case.action -eq 'amend-content' -and ($script:observedState -ne 0 -or $script:observedContent -cne $case.target.content)){throw 'Content amendment not saved'}
  if($case.duplicate -and -not $result.duplicate){throw 'Retry was not a no-op'}
  Write-Output ('PASS: '+$case.name+' 검증환자')
 }
