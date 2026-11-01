@@ -1,3 +1,6 @@
+import { validateOperation } from '../lib/reservation-operations.mjs';
+import { reservationOperationScript } from '../lib/reservation-operation-script.mjs';
+import { createResultOutbox } from '../lib/dentweb-result-outbox.mjs';
 import { execFile } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
@@ -10,6 +13,7 @@ import { assertDentwebJobIdentity, prepareDentwebIdentity } from "../lib/dentweb
 import { provisionalResolveSql, provisionalUpgradeSql } from "../lib/dentweb-provisional.mjs";
 import { validateRescheduleRequest } from "../lib/linked-reschedule.mjs";
 import { linkedRescheduleScript } from "../lib/linked-reschedule-script.mjs";
+import { cancellationGuardSql } from "../lib/dentweb-cancellation-guard.mjs";
 
 function loadLocalEnvFile() {
   try {
@@ -61,6 +65,7 @@ const screenshotDir = args.get("screenshot-dir") || process.env.DENTWEB_SCREENSH
 const screenshotDelayMs = Number(args.get("screenshot-delay-ms") || process.env.DENTWEB_SCREENSHOT_DELAY_MS || 1500);
 const saveWaitMs = Number(args.get("save-wait-ms") || process.env.DENTWEB_SAVE_WAIT_MS || 45000);
 const saveDialogPattern = args.get("save-dialog") || process.env.DENTWEB_SAVE_DIALOG_PATTERN || "Save Print Output As|다른 이름으로 저장|인쇄 출력|저장|PDF";
+const resultOutbox = createResultOutbox(process.env.DENTWEB_RESULT_OUTBOX_DIR || path.join(process.cwd(), '.data', 'dentweb-results'));
 let syncInProgress = false;
 let sqlConfigurationWarningShown = false;
 
@@ -96,6 +101,17 @@ function adminAuthHeader() {
   return `Basic ${Buffer.from(`${adminUser}:${adminPass}`, "utf-8").toString("base64")}`;
 }
 
+async function reportDentwebResult(job, status, details = {}) {
+  if (job.action !== 'reservation-operation') return updateDentwebJob(job.id, status, details);
+  const response = await fetch(serverUrl + '/api/admin/dentweb/reservations/' + job.dentwebReservationId + '/operations/' + job.nativeOperation.operationId + '/result', {
+    method: 'POST', headers: { Authorization: adminAuthHeader(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status, leaseToken: job.leaseToken, ...details }), signal: AbortSignal.timeout(30000),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw Error(data.message || 'Operation result delivery failed');
+  return data;
+}
+
 async function updateDentwebJob(id, status, details = {}) {
   const response = await fetch(`${serverUrl}/api/admin/reservations/${encodeURIComponent(id)}/dentweb-sync`, {
     method: "POST",
@@ -109,7 +125,7 @@ async function updateDentwebJob(id, status, details = {}) {
 
 async function claimDentwebJob() {
   const response = await fetch(`${serverUrl}/api/admin/dentweb/jobs/next`, {
-    headers: { Authorization: adminAuthHeader(), Accept: "application/json", "X-Dentweb-Cancellation": "1", "X-Dentweb-Provisional": "1",
+    headers: { Authorization: adminAuthHeader(), Accept: "application/json", "X-Dentweb-Cancellation": "1", "X-Dentweb-Provisional": "1", "X-Dentweb-Reservation-Operations": "1",
       ...(process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED === "1" ? { "X-Dentweb-Linked-Reschedule": "1" } : {}),
     },
   });
@@ -119,6 +135,14 @@ async function claimDentwebJob() {
 }
 
 async function createDentwebReservation(job) {
+  if (job.action === 'reservation-operation') {
+    const nativeOperation = validateOperation(job.nativeOperation, Number(job.dentwebReservationId));
+    if (!String(process.env.DENTWEB_SQL_CONNECTION_STRING || '').trim()) throw Error('Clinic SQL connection is not configured');
+    const output = await runPowerShell(reservationOperationScript, {
+      DENTWEB_JOB_BASE64: Buffer.from(JSON.stringify({ ...job, nativeOperation }), 'utf8').toString('base64'),
+    });
+    return JSON.parse(output);
+  }
   assertDentwebJobIdentity(job);
   job = prepareDentwebIdentity(job);
   if (job.action === "linked-reschedule") {
@@ -175,12 +199,13 @@ IF @cancel = 1
 BEGIN
   IF @linkedReservationId < 1
     THROW 51008, 'Cancellation requires an existing linked reservation.', 1;
-  DECLARE @cancelStatus int, @cancelAt varchar(12), @cancelName nvarchar(40), @cancelPhone varchar(30);
-  SELECT @cancelStatus=n이행현황, @cancelAt=sz예약시각, @cancelName=sz이름, @cancelPhone=sz전화
-  FROM dbo.TB_예약목록 WITH (UPDLOCK, HOLDLOCK) WHERE nID=@linkedReservationId;
-  IF @cancelStatus IS NULL OR @cancelStatus NOT IN (0,2) OR @cancelAt <> @appointmentAt
-    OR LTRIM(RTRIM(ISNULL(@cancelName,''))) <> @name
-    OR REPLACE(REPLACE(ISNULL(@cancelPhone,''),'-',''),' ','') <> REPLACE(REPLACE(@phone,'-',''),' ','')
+  DECLARE @cancelStatus int, @cancelVerified bit = 0;
+  SELECT @cancelStatus=a.n이행현황,
+    @cancelVerified=CASE WHEN ${cancellationGuardSql} THEN 1 ELSE 0 END
+  FROM dbo.TB_예약목록 a WITH (UPDLOCK, HOLDLOCK)
+  LEFT JOIN dbo.TB_환자정보 p WITH (UPDLOCK, HOLDLOCK) ON p.n환자ID=a.n환자ID AND a.n환자ID>0
+  WHERE a.nID=@linkedReservationId;
+  IF @cancelVerified <> 1
     THROW 51009, 'Cancellation identity, schedule or status changed; refusing overwrite.', 1;
   IF @cancelStatus=0
   BEGIN
@@ -270,6 +295,18 @@ FROM dbo.TB_예약목록
 WHERE (@patientId IS NOT NULL AND n환자ID = @patientId)
    OR (@patientId IS NULL AND n환자ID < 1 AND n이행현황 = 0)
 ORDER BY nID DESC;
+-- Registered patients may have all previous appointments moved to the archive.
+-- Reuse only that verified patient's defaults; never borrow another patient's.
+IF @appointmentType IS NULL AND @patientId IS NOT NULL
+BEGIN
+  SELECT TOP (1)
+    @duration = n소요시간, @appointmentType = n예약종류,
+    @doctor = n담당의사, @staff = n담당직원,
+    @textColor = n글자색, @backgroundColor = n배경색
+  FROM dbo.TB_예약목록보관
+  WHERE n환자ID = @patientId AND n이행현황 = 1
+  ORDER BY sz예약시각 DESC, nID DESC;
+END;
 IF @appointmentType IS NULL
   THROW 51000, 'No Dentweb reservation exists for this patient category to supply display defaults.', 1;
 SET @duration = COALESCE(@requestedDuration, @duration);
@@ -341,18 +378,27 @@ async function processDentwebJobs() {
     return;
   }
   syncInProgress = true;
-  let job = null;
   try {
-    job = await claimDentwebJob();
+    // Stop claiming new work until the previous durable result is acknowledged.
+    if (await resultOutbox.deliver(reportDentwebResult)) return;
+    const job = await claimDentwebJob();
     if (!job) return;
-    const result = await createDentwebReservation(job);
-    await updateDentwebJob(job.id, "completed", { dentwebReservationId: result.reservationId, action: job.action,
-      operationId: job.reschedule?.operationId, verification: result.verification });
-    console.log(`Dentweb reservation ${result.duplicate ? "already existed" : "created"}: ${result.reservationId}`);
+    let status, details;
+    try {
+      const result = await createDentwebReservation(job);
+      status = 'completed';
+      details = { dentwebReservationId: result.reservationId, action: job.action,
+        operationId: job.reschedule?.operationId, verification: result.verification };
+    } catch (error) {
+      status = 'failed';
+      details = { error: String(error.message || error).slice(0, 500), action: job.action,
+        operationId: job.reschedule?.operationId, dentwebReservationId: job.dentwebReservationId };
+    }
+    await resultOutbox.save({ job, status, details });
+    await resultOutbox.deliver(reportDentwebResult);
+    console.log('Dentweb job result acknowledged: ' + job.id + ' (' + status + ')');
   } catch (error) {
-    console.error(`Dentweb SQL job failed: ${error.message || error}`);
-    if (job?.id) await updateDentwebJob(job.id, "failed", { error: error.message || String(error),
-      action: job.action, operationId: job.reschedule?.operationId, dentwebReservationId: job.dentwebReservationId }).catch(() => {});
+    console.error('Dentweb result/queue pending: ' + (error.message || error));
   } finally {
     syncInProgress = false;
   }
@@ -1203,9 +1249,12 @@ async function startDaemon() {
         syncInProgress,
         sqlConfigured: Boolean(String(process.env.DENTWEB_SQL_CONNECTION_STRING || "").trim()),
         durationMinutesSupported: true,
+        reservationOperationsVersion: 1,
+        durableResultOutbox: true,
         identityReadinessVersion: 2,
         provisionalBookingSupported: true,
         cancellationSupported: true,
+        cancellationIdentityVersion: 2,
         linkedRescheduleSupported: process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED === "1",
         windowPattern,
         printButtonPattern,

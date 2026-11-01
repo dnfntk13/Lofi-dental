@@ -35,6 +35,7 @@ function harness() {
     },
   };
   const context=vm.createContext({process:{env},console:{error(){}},queueLinkedReschedule,assertRescheduleCallback,provisionalConflict,
+    reservationOperations:{assertIdle:async()=>{}},
     readInbox:async()=>[structuredClone(row)],
     getJsonBody:async r=>r.body,getInboxCollection:async()=>mongo?collection:null,
     requestAuth:r=>{r.writeHead(401);r.end('{}');}});

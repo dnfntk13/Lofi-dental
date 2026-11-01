@@ -1,3 +1,5 @@
+import { createReservationOperations } from './lib/reservation-operations.mjs';
+import { handleReservationOperations } from './lib/reservation-operations-http.mjs';
 import { sendStaticFile } from './lib/static-file-stream.mjs';
 import { createPublicLofiMcpHandler } from './lib/public-lofi-mcp.mjs';
 import { resolveInsightsRange, inInsightsRange } from './lib/insights-range.mjs';
@@ -294,6 +296,21 @@ async function getInboxCollection() {
 
   return inboxCollectionPromise;
 }
+
+let reservationOperationsPromise;
+async function getReservationOperationsCollection() {
+  if (!mongoUri) return null;
+  if (!reservationOperationsPromise) reservationOperationsPromise = (async () => {
+    const client = new MongoClient(mongoUri, { connectTimeoutMS: 8000, serverSelectionTimeoutMS: 8000 });
+    await client.connect();
+    const collection = client.db(mongoDatabaseName).collection('dentwebReservationOperations');
+    await collection.createIndex({ reservationId: 1 }, { unique: true });
+    await collection.createIndex({ 'current.status': 1, 'current.queuedAt': 1 });
+    return collection;
+  })().catch(error => { reservationOperationsPromise = undefined; throw error; });
+  return reservationOperationsPromise;
+}
+const reservationOperations = createReservationOperations({ getCollection: getReservationOperationsCollection, getInboxCollection });
 
 let campaignTitlesCollectionPromise;
 async function campaignTitlesCollection() {
@@ -5761,6 +5778,15 @@ createServer(async (request, response) => {
     return;
   }
 
+  if (pathname === '/api/admin/dentweb/reservation-operation-capabilities' && request.method === 'GET') {
+    if (!adminAuthorized) { requestAuth(response); return; }
+    response.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    response.end(JSON.stringify({ reservationOperationsVersion: 1, actions: ['reschedule','cancel'], requiresWebLink: false, reverseCalendarImport: false }));
+    return;
+  }
+  if (await handleReservationOperations({ pathname, request, response, authorized: adminAuthorized,
+    readBody: getJsonBody, service: reservationOperations })) return;
+
   const rescheduleMatch = pathname.match(/^\/api\/admin\/reservations\/([^/]+)\/linked-reschedule$/);
   if (rescheduleMatch && request.method === "POST") {
     if (!adminAuthorized) { requestAuth(response); return; }
@@ -5772,6 +5798,8 @@ createServer(async (request, response) => {
       const id = decodeURIComponent(rescheduleMatch[1]);
       const payload = await getJsonBody(request);
       const existing = await collection.findOne({ id }, { projection: { _id: 0 } });
+      await reservationOperations.assertIdle(Number(existing?.dentwebReservationId));
+      if (existing?.dentwebOperationId) throw new Error("Use the reservation operations endpoint for subsequent changes");
       const next = queueLinkedReschedule(existing, payload);
       if (next !== existing) {
         const result = await collection.replaceOne({ id,
@@ -5828,6 +5856,8 @@ createServer(async (request, response) => {
       let saved;
       if (collection) {
         const existing = await collection.findOne({ id }, { projection: { _id: 0 } });
+        await reservationOperations.assertIdle(Number(existing?.dentwebReservationId));
+        if (existing?.dentwebOperationId) throw new Error("Use the reservation operations endpoint for cancellation");
         const next = queueCancellation(existing, payload.dentwebReservationId);
         if (next === existing) saved = existing;
         else {
@@ -5913,8 +5943,11 @@ createServer(async (request, response) => {
       if (collection) {
         const existing = await collection.findOne({ id }, { projection: { _id: 0 } });
         assertRescheduleCallback(existing, { ...payload, status });
+        await reservationOperations.assertIdle(Number(existing?.dentwebReservationId));
+        if (existing?.dentwebOperationId) throw new Error("Use the reservation operation result endpoint");
         // Every callback is fenced against an operation created after the read.
         completionFilter.dentwebReschedule = existing?.dentwebReschedule ?? null;
+        completionFilter.dentwebOperationId = null;
         completionFilter.$and = [{ dentwebAction: existing?.dentwebAction ?? null }];
         if (existing?.dentwebAction === "linked-reschedule") {
           completionFilter.dentwebSyncStatus = existing.dentwebSyncStatus;
@@ -5981,6 +6014,14 @@ createServer(async (request, response) => {
     }
 
     try {
+      if (request.headers['x-dentweb-reservation-operations'] === '1') {
+        const nativeJob = await reservationOperations.claim();
+        if (nativeJob) {
+          response.writeHead(200, { 'Content-Type': 'application/json' });
+          response.end(JSON.stringify({ ok: true, job: nativeJob }));
+          return;
+        }
+      }
       const now = new Date();
       const staleBefore = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
       let record = null;
@@ -6119,7 +6160,8 @@ createServer(async (request, response) => {
       const collection = await getInboxCollection();
       if (collection) {
         const existing = await collection.findOne({ id }, { projection: { _id: 0 } });
-        if (existing?.dentwebReschedule) throw new Error("Explicit linked reschedule records cannot be edited by the generic update route");
+        await reservationOperations.assertIdle(Number(existing?.dentwebReservationId));
+        if (existing?.dentwebReschedule || existing?.dentwebOperationId) throw new Error("Use explicit reservation operations for this linked reservation");
         let merged = {
           ...(existing || {}),
           ...nextRecord,
