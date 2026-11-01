@@ -83,7 +83,7 @@ function parseClickPoint(value) {
 
 function runPowerShell(script, extraEnv = {}) {
   return new Promise((resolve, reject) => {
-    execFile("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script], {
+    execFile("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false);\n" + script], {
       windowsHide: true,
       maxBuffer: 1024 * 1024,
       env: { ...process.env, ...extraEnv },
@@ -379,6 +379,14 @@ async function processDentwebJobs() {
   }
   syncInProgress = true;
   try {
+    const pending = await resultOutbox.load();
+    if (pending?.status === 'completed' && pending.job.action === 'reservation-operation' && pending.resultEncodingVersion !== 1) {
+      // Earlier Windows code-page output can corrupt a Korean name. Repair only
+      // by fresh read-only native verification; never alter or guess the result.
+      const verified = await createDentwebReservation({ ...pending.job, verifyOnly: true });
+      await resultOutbox.save({ ...pending, resultEncodingVersion: 1,
+        details: { ...pending.details, verification: verified.verification } });
+    }
     // Stop claiming new work until the previous durable result is acknowledged.
     if (await resultOutbox.deliver(reportDentwebResult)) return;
     const job = await claimDentwebJob();
@@ -394,7 +402,7 @@ async function processDentwebJobs() {
       details = { error: String(error.message || error).slice(0, 500), action: job.action,
         operationId: job.reschedule?.operationId, dentwebReservationId: job.dentwebReservationId };
     }
-    await resultOutbox.save({ job, status, details });
+    await resultOutbox.save({ job, status, details, resultEncodingVersion: 1 });
     await resultOutbox.deliver(reportDentwebResult);
     console.log('Dentweb job result acknowledged: ' + job.id + ' (' + status + ')');
   } catch (error) {

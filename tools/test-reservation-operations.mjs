@@ -11,8 +11,8 @@ CREATE TABLE #TB_환자정보(n환자ID int PRIMARY KEY,sz이름 nvarchar(40),sz
 CREATE TABLE #TB_신환예약자정보(nID int PRIMARY KEY,sz이름 nvarchar(40),sz휴대폰번호 varchar(30));
 CREATE TABLE #TB_덴트웹설정(t예약최종수정 datetime);
 CREATE TABLE #TB_예약목록(nID int PRIMARY KEY,n환자ID int,sz예약시각 varchar(12),n이행현황 int,n소요시간 int,sz메모 nvarchar(max),sz이름 nvarchar(40),sz전화 varchar(30),t최종수정 datetime,sz예약내용 nvarchar(max));
-INSERT #TB_환자정보 VALUES(17,N'Fixture','010-1111-2222');
-INSERT #TB_신환예약자정보 VALUES(9,N'Fixture','010-1111-2222');
+INSERT #TB_환자정보 VALUES(17,N'검증환자','010-1111-2222');
+INSERT #TB_신환예약자정보 VALUES(9,N'검증환자','010-1111-2222');
 INSERT #TB_덴트웹설정 VALUES('20290101');
 INSERT #TB_예약목록 VALUES(42,17,'203001021500',0,30,N'직원 메모','','','20290101',N'treatment');
 `;
@@ -29,7 +29,7 @@ $script:observedState=[int]$check.ExecuteScalar()
 $check.CommandText="SELECT COUNT(*) FROM #TB_예약목록 WHERE nID=42 AND ISNULL(sz이름,'')='' AND ISNULL(sz전화,'')=''"
 $script:blankIdentity=[int]$check.ExecuteScalar()
 $check.Dispose(); $connection.Dispose()`);
-const expected={reservationId:42,patientId:17,state:0,name:'Fixture',phone:'010-1111-2222',durationMinutes:30,contentSha256:createHash('sha256').update('treatment').digest('hex'),memoSha256:createHash('sha256').update('직원 메모').digest('hex'),date:'2030-01-02',time:'15:00'};
+const expected={reservationId:42,patientId:17,state:0,name:'검증환자',phone:'010-1111-2222',durationMinutes:30,contentSha256:createHash('sha256').update('treatment').digest('hex'),memoSha256:createHash('sha256').update('직원 메모').digest('hex'),date:'2030-01-02',time:'15:00'};
 const cases=[
  {name:'cancel active reservation',action:'cancel',ok:true},
  {name:'cancel retry already cancelled',action:'cancel',ok:true,duplicate:true,sql:'UPDATE #TB_예약목록 SET n이행현황=2'},
@@ -54,6 +54,7 @@ const cases=[
 const encoded = Buffer.from(JSON.stringify(cases.map(c=>({...c,fixture:fixture+(c.sql||''),job:{verifyOnly:Boolean(c.verifyOnly),nativeOperation:{action:c.action||'reschedule',operationId:'fixture-operation',expected:{...expected,...c.expected},target:{date:'2030-01-03',time:'16:00'}}}}))),'utf8').toString('base64');
 const script=`
 $ErrorActionPreference='Stop'
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 if (-not $env:DENTWEB_SQL_CONNECTION_STRING) { $env:DENTWEB_SQL_CONNECTION_STRING=[Environment]::GetEnvironmentVariable('DENTWEB_SQL_CONNECTION_STRING','User') }
 if (-not $env:DENTWEB_SQL_CONNECTION_STRING) { throw 'Existing clinic SQL connection unavailable; fixture tests not run' }
 $source=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${Buffer.from(isolated,'utf8').toString('base64')}'))
@@ -71,15 +72,17 @@ foreach($case in $cases){
  if(-not $case.ok -and -not $failed){throw ('Fixture '+$case.name+' did not reject')}
  $expectedAt=if($case.action -eq 'cancel'){'203001021500'}elseif($case.ok){'203001031600'}elseif($case.original){[string]$case.original}else{'203001021500'}
  if($script:observedAt -ne $expectedAt -or $script:blankIdentity -ne 1){throw ('Fixture '+$case.name+' changed unexpected fields')}
- if($case.ok -and ($result.verification.memoSha256 -ne $case.job.nativeOperation.expected.memoSha256 -or $result.verification.durationMinutes -ne 30 -or $result.reservationId -ne 42)){throw 'Fixture verification mismatch'}
+ if($case.ok -and ($result.verification.name -cne $case.job.nativeOperation.expected.name -or $result.verification.memoSha256 -ne $case.job.nativeOperation.expected.memoSha256 -or $result.verification.durationMinutes -ne 30 -or $result.reservationId -ne 42)){throw 'Fixture verification mismatch'}
  if($case.ok -and $case.action -eq 'cancel' -and $script:observedState -ne 2){throw 'Cancellation not saved'}
  if($case.duplicate -and -not $result.duplicate){throw 'Retry was not a no-op'}
- Write-Output ('PASS: '+$case.name)
+ Write-Output ('PASS: '+$case.name+' 검증환자')
 }
 `;
 const dir=mkdtempSync(path.join(tmpdir(),'lofi-reschedule-fixtures-'));
 const file=path.join(dir,'fixtures.ps1');
 try {
   writeFileSync(file,'\uFEFF'+script,'utf8');
-  process.stdout.write(execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',file],{encoding:'utf8',windowsHide:true,maxBuffer:1024*1024}));
+  const output = execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',file],{encoding:'utf8',windowsHide:true,maxBuffer:1024*1024});
+  if(!output.includes('검증환자'))throw Error('Unicode JSON output corrupted');
+  process.stdout.write(output);
 } finally { unlinkSync(file); rmdirSync(dir); }
