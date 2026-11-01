@@ -4444,6 +4444,18 @@ createServer(async (request, response) => {
   const requestUrl = new URL(request.url || "/", `http://${request.headers.host || `localhost:${port}`}`);
   const pathname = requestUrl.pathname;
 
+  if (pathname === '/.well-known/openai-apps-challenge' && ['GET', 'HEAD'].includes(request.method)) {
+    try {
+      const challenge = await readFile(path.join(rootDir, '.well-known/openai-apps-challenge'), 'utf8');
+      response.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+      response.end(request.method === 'HEAD' ? undefined : challenge);
+    } catch {
+      response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      response.end('Not found');
+    }
+    return;
+  }
+
   if (pathname === '/mcp') {
     await handlePublicLofiMcp(request, response);
     return;
