@@ -14,4 +14,6 @@ The agent stores results in `.data/dentweb-results/pending-result.json` before r
 
 Legacy routes remain for untouched legacy reservations. Once an operation journal command updates a linked row, further mutations use the operation endpoint. Late legacy callbacks cannot replace its result. The local legacy cancellation identity/archive-default fixes are retained.
 
+For a failed legacy linked-reschedule callback whose native change already succeeded, use `POST .../operations/recover-legacy` with `{operationId,webId,legacyOperationId,verified}`. `verified` contains a fresh native snapshot in the expected-field format, at the original requested target. The server derives the target from the stored legacy request, requires the same patient/identity/duration/state, preserves both the original request and fresh content digests, and queues the clinic agent in mandatory read-only mode. Changed targets, ambiguous links and in-flight jobs reject. Staff memo edits remain intact. Only the original requested web date/time and completion metadata are reconciled after native verification; no calendar row is created and no native change is retried.
+
 Validation: `node --test tests/reservation-*.test.mjs tests/dentweb-*.test.mjs tests/linked-reschedule*.test.mjs` and `node tools/test-reservation-operations.mjs` (clinic connection, temporary tables only).

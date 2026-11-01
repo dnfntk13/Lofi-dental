@@ -39,5 +39,42 @@ test('existing linked row follows only explicit target; conflict keeps verified 
 });
 test('failed operation only recovers in verify-only mode; no blind write',async()=>{const {service:s}=harness();await s.queue(42,input);const j=await s.claim();await s.complete(42,input.operationId,{status:'failed',leaseToken:j.leaseToken,error:'connection lost'});await s.recover(42,input.operationId);assert.equal((await s.claim()).verifyOnly,true);});
 test('ambiguous web links and pending legacy writes are rejected',async()=>{for(const rows of [[{dentwebReservationId:42},{dentwebReservationId:42}],[{dentwebReservationId:42,dentwebSyncStatus:'processing'}]]){const {service:s}=harness(rows);await assert.rejects(s.queue(42,input));}});
+function legacyFixture(){
+ const old={operationId:'old-legacy-reschedule-0001',expected:{...input.expected},target:{...input.target}};
+ const row={id:'legacy42',dentwebReservationId:42,dentwebAction:'linked-reschedule',dentwebSyncStatus:'failed',dentwebSyncError:'callback failed',dentwebReschedule:old,date:input.expected.date,time:input.expected.time,updatedAt:'before',concerns:'preserve'};
+ const recovery={operationId:'recover-legacy-test-0001',webId:row.id,legacyOperationId:old.operationId,verified:{...input.expected,...input.target,memoSha256:'c'.repeat(64)}};
+ return {row,recovery};
+}
+test('legacy callback recovery is verify-only, derives old target, preserves staff edits and is idempotent',async()=>{
+ const {row,recovery}=legacyFixture(),{service:s,c,inbox}=harness([row]);
+ await s.recoverLegacy(42,recovery);const j=await s.claim();assert.equal(j.verifyOnly,true);
+ assert.equal(j.nativeOperation.expected.memoSha256,'c'.repeat(64));assert.deepEqual(j.nativeOperation.target,row.dentwebReschedule.target);
+ await assert.rejects(s.complete(42,recovery.operationId,{...result(j),verification:{...result(j).verification,appointmentAt:'203001021500'}}),/readback/);
+ assert.equal(inbox.rows[0].dentwebSyncStatus,'failed');
+ await s.complete(42,recovery.operationId,result(j));await s.recoverLegacy(42,recovery);
+ assert.equal(c.rows.length,1);assert.equal(c.rows[0].current.attempts,1);assert.equal(inbox.rows.length,1);
+ assert.equal(inbox.rows[0].date,'2030-01-03');assert.equal(inbox.rows[0].concerns,'preserve');
+ assert.deepEqual(inbox.rows[0].dentwebReschedule,row.dentwebReschedule);
+ assert.equal(c.rows[0].current.linkedBefore[0].dentwebSyncError,'callback failed');
+});
+test('legacy recovery rejects identity/target changes, wrong source, in-flight and ambiguous links',async()=>{
+ for(const change of [{verified:{patientId:18}},{verified:{date:'2030-01-04'}},{legacyOperationId:'wrong'},{webId:'unknown'},{verified:{memoSha256:'invalid'}}]){
+  const {row,recovery}=legacyFixture(),{service:s}=harness([row]);
+  const request={...recovery,...change,verified:{...recovery.verified,...change.verified}};await assert.rejects(s.recoverLegacy(42,request));
+ }
+ for(const status of ['pending','processing','completed']){const {row,recovery}=legacyFixture();row.dentwebSyncStatus=status;await assert.rejects(harness([row]).service.recoverLegacy(42,recovery));}
+ const {row,recovery}=legacyFixture();await assert.rejects(harness([row,{...row,id:'duplicate'}]).service.recoverLegacy(42,recovery),/Multiple/);
+});
+test('legacy recovery request cannot disable verify-only; mismatch failure retries only reads',async()=>{
+ const {row,recovery}=legacyFixture(),{service:s}=harness([row]);await s.recoverLegacy(42,{...recovery,verifyOnly:false});
+ const j=await s.claim();assert.equal(j.verifyOnly,true);await s.complete(42,recovery.operationId,{status:'failed',leaseToken:j.leaseToken,error:'Target changed'});
+ await s.recover(42,recovery.operationId);assert.equal((await s.claim()).verifyOnly,true);
+});
+test('legacy recovery HTTP requires authentication and dispatches to dedicated recovery method',async()=>{
+ let calls=0;const response={writeHead(s){this.status=s},end(b){this.body=JSON.parse(b)}};
+ const args={pathname:'/api/admin/dentweb/reservations/42/operations/recover-legacy',request:{method:'POST'},response,readBody:async()=>({webId:'legacy42'}),service:{recoverLegacy:async(id,p)=>{calls++;assert.equal(id,42);assert.equal(p.webId,'legacy42');return {status:'pending',verifyOnly:true}}}};
+ await handleReservationOperations({...args,authorized:false});assert.equal(response.status,401);assert.equal(calls,0);
+ await handleReservationOperations({...args,authorized:true});assert.equal(response.status,200);assert.equal(calls,1);
+});
 test('HTTP requires authentication before parsing or calling mutation',async()=>{let called=false;const response={writeHead(s){this.status=s},end(b){this.body=JSON.parse(b)}};await handleReservationOperations({pathname:'/api/admin/dentweb/reservations/42/operations',request:{method:'POST'},response,authorized:false,readBody:async()=>{called=true},service:{queue:()=>{called=true}}});assert.equal(response.status,401);assert.equal(called,false);});
 test('outbox survives process recreation and failed callbacks, deletes only after acknowledgement',async()=>{const dir=await mkdtemp(join(tmpdir(),'dentweb-outbox-test-'));try{const payload={job:{id:'42'},status:'completed',details:{verification:'saved'}};await createResultOutbox(dir).save(payload);const outbox=createResultOutbox(dir);await assert.rejects(outbox.deliver(async()=>{throw Error('network')}));assert.deepEqual(await outbox.load(),payload);let seen;await outbox.deliver(async(...v)=>{seen=v});assert.deepEqual(seen,[payload.job,payload.status,payload.details]);assert.equal(await outbox.load(),null);}finally{await rm(dir,{recursive:true,force:true});}});
