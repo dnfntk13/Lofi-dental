@@ -17,6 +17,24 @@ function collection(rows=[]){return {rows,
  async updateOne(f,u){const r=rows.find(x=>match(x,f));if(!r)return {matchedCount:0};for(const [k,v]of Object.entries(u.$set||{}))set(r,k,copy(v));for(const [k,v]of Object.entries(u.$inc||{}))set(r,k,(at(r,k)||0)+v);for(const[k,v]of Object.entries(u.$push||{}))at(r,k).push(copy(v));return {matchedCount:1};},
  async findOneAndUpdate(f,u){const r=rows.find(x=>match(x,f));if(!r)return null;await this.updateOne(f,u);return copy(r)} } }
 const input={operationId:'test-reservation-op-0001',action:'reschedule',expected:{reservationId:42,patientId:17,name:'Fixture',phone:'010-1111-2222',state:0,date:'2030-01-02',time:'15:00',durationMinutes:30,memoSha256:'a'.repeat(64),contentSha256:'b'.repeat(64)},target:{date:'2030-01-03',time:'16:00'}};
+const sha = text => createHash('sha256').update(text).digest('hex');
+const annotation = () => ({...input,action:'annotate-cancellation',expected:{...input.expected,state:2,contentSha256:sha('검진\noriginal clinical history')},target:{note:'추후 본인 연락',originalContent:'검진\noriginal clinical history'}});
+test('cancelled annotation fences older agents, preserves cancellation and all original content, and is idempotent',async()=>{
+ const before={id:'web42',dentwebReservationId:42,dentwebSyncStatus:'completed',updatedAt:'before',date:'2030-01-02',time:'15:00',status:'cancelled',cancelledAt:'before',concerns:'old'};
+ const {service:s,inbox}=harness([before]);const request=annotation();
+ const normalized=validateOperation(request,42);assert.deepEqual(validateOperation(normalized,42),normalized);
+ await s.queue(42,request);await s.queue(42,request);assert.equal(await s.claim(1),null);assert.equal(await s.claim(2),null);assert.equal(await s.claim(NaN),null);
+ const job=await s.claim(3);const verification={...request.expected,appointmentAt:'203001021500',contentSha256:sha(normalized.target.content)};
+ await assert.rejects(s.complete(42,request.operationId,{status:'completed',leaseToken:job.leaseToken,verification:{...verification,state:0}}),/readback/);
+ await s.complete(42,request.operationId,{status:'completed',leaseToken:job.leaseToken,verification});
+ assert.equal(inbox.rows.length,1);assert.equal(inbox.rows[0].status,'cancelled');assert.equal(inbox.rows[0].cancelledAt,'before');assert.equal(inbox.rows[0].date,before.date);assert.equal(inbox.rows[0].time,before.time);
+ assert.equal(inbox.rows[0].concerns,'[취소: 추후 본인 연락] 검진\noriginal clinical history');
+});
+test('cancelled annotation rejects active/attended state, altered original, arbitrary replacement, oversize and repeated prefix',()=>{
+ for(const state of [0,1,3])assert.throws(()=>validateOperation({...annotation(),expected:{...annotation().expected,state}},42));
+ for(const target of [{...annotation().target,originalContent:'other'},{...annotation().target,content:'overwrite'},{...annotation().target,time:'16:00'},{...annotation().target,note:'a\nb'},{...annotation().target,note:'a'.repeat(121)}])assert.throws(()=>validateOperation({...annotation(),target},42));
+ for(const originalContent of ['[취소: 기존] 검진','a'.repeat(1000)])assert.throws(()=>validateOperation({...annotation(),expected:{...annotation().expected,contentSha256:sha(originalContent)},target:{note:'추후 연락',originalContent}},42));
+});
 function harness(linked=[]){const c=collection(),inbox=collection(linked);const service=createReservationOperations({getCollection:async()=>c,getInboxCollection:async()=>inbox});return {service,c,inbox};}
 function result(job){return {status:'completed',leaseToken:job.leaseToken,verification:{...job.nativeOperation.expected,appointmentAt:job.nativeOperation.action==='cancel'?'203001031600':'203001031600',state:job.nativeOperation.action==='cancel'?2:0}};}
 test('content amendment requires a new agent; verifies content and preserves calendar identity and schedule',async()=>{

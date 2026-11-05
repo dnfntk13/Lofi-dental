@@ -33,6 +33,12 @@ $script:blankIdentity=[int]$check.ExecuteScalar()
 $check.Dispose(); $connection.Dispose()`);
 const expected={reservationId:42,patientId:17,state:0,name:'검증환자',phone:'010-1111-2222',durationMinutes:30,contentSha256:createHash('sha256').update('treatment').digest('hex'),memoSha256:createHash('sha256').update('직원 메모').digest('hex'),date:'2030-01-02',time:'15:00'};
 const cases=[
+ {name:'cancelled annotation preserves cancelled state and multiline content',action:'annotate-cancellation',expected:{state:2},ok:true,target:{content:'[취소: 추후 연락] treatment\nclinical history'},sql:'UPDATE #TB_예약목록 SET n이행현황=2'},
+ {name:'cancelled annotation rejects reactivated reservation',action:'annotate-cancellation',expected:{state:2},target:{content:'[취소: 추후 연락] treatment'}},
+ {name:'cancelled annotation rejects attended reservation',action:'annotate-cancellation',expected:{state:2},target:{content:'[취소: 추후 연락] treatment'},sql:'UPDATE #TB_예약목록 SET n이행현황=1'},
+ {name:'cancelled annotation preserves concurrent memo',action:'annotate-cancellation',expected:{state:2},target:{content:'[취소: 추후 연락] treatment'},sql:"UPDATE #TB_예약목록 SET n이행현황=2,sz메모=N'새 직원 메모'"},
+ {name:'cancelled annotation retry has no duplicate prefix',action:'annotate-cancellation',expected:{state:2},ok:true,duplicate:true,target:{content:'[취소: 추후 연락] treatment'},sql:"UPDATE #TB_예약목록 SET n이행현황=2,sz예약내용=N'[취소: 추후 연락] treatment'"},
+ {name:'cancelled annotation read-only recovery never writes',action:'annotate-cancellation',expected:{state:2},verifyOnly:true,target:{content:'[취소: 추후 연락] treatment'},sql:'UPDATE #TB_예약목록 SET n이행현황=2'},
  {name:'amend content preserves schedule and memo',action:'amend-content',ok:true,target:{content:'큐렛 (미백 취소)'}},
  {name:'amend retry is a no-op',action:'amend-content',ok:true,duplicate:true,target:{content:'큐렛 (미백 취소)'},sql:"UPDATE #TB_예약목록 SET sz예약내용=N'큐렛 (미백 취소)'"},
  {name:'amend detects concurrent content edit',action:'amend-content',target:{content:'큐렛 (미백 취소)'},sql:"UPDATE #TB_예약목록 SET sz예약내용=N'직원 수정'"},
@@ -78,11 +84,12 @@ foreach($case in $cases){
  try { $result=(& $block)|ConvertFrom-Json } catch { $failed=$true; $failure=$_.Exception.Message }
  if($case.ok -and $failed){throw ('Fixture '+$case.name+' failed: '+$failure)}
  if(-not $case.ok -and -not $failed){throw ('Fixture '+$case.name+' did not reject')}
- $expectedAt=if($case.action -in @('cancel','amend-content')){'203001021500'}elseif($case.ok){'203001031600'}elseif($case.original){[string]$case.original}else{'203001021500'}
+ $expectedAt=if($case.action -in @('cancel','amend-content','annotate-cancellation')){'203001021500'}elseif($case.ok){'203001031600'}elseif($case.original){[string]$case.original}else{'203001021500'}
  if($script:observedAt -ne $expectedAt -or $script:blankIdentity -ne 1){throw ('Fixture '+$case.name+' changed unexpected fields')}
  if($case.ok -and ($result.verification.name -cne $case.job.nativeOperation.expected.name -or $result.verification.memoSha256 -ne $case.job.nativeOperation.expected.memoSha256 -or $result.verification.durationMinutes -ne 30 -or $result.reservationId -ne 42)){throw 'Fixture verification mismatch'}
  if($case.ok -and $case.action -eq 'cancel' -and $script:observedState -ne 2){throw 'Cancellation not saved'}
  if($case.ok -and $case.action -eq 'amend-content' -and ($script:observedState -ne 0 -or $script:observedContent -cne $case.target.content)){throw 'Content amendment not saved'}
+ if($case.ok -and $case.action -eq 'annotate-cancellation' -and ($script:observedState -ne 2 -or $script:observedContent -cne $case.target.content)){throw 'Cancelled annotation not preserved'}
  if($case.duplicate -and -not $result.duplicate){throw 'Retry was not a no-op'}
  Write-Output ('PASS: '+$case.name+' 검증환자')
 }
