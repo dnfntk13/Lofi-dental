@@ -43,6 +43,18 @@ test('cancelled annotation rejects active/attended state, altered original, arbi
  for(const target of [{...annotation().target,originalContent:'other'},{...annotation().target,content:'overwrite'},{...annotation().target,time:'16:00'},{...annotation().target,note:'a\nb'},{...annotation().target,note:'a'.repeat(121)}])assert.throws(()=>validateOperation({...annotation(),target},42));
  for(const originalContent of ['[취소: 기존] 검진','a'.repeat(1000)])assert.throws(()=>validateOperation({...annotation(),expected:{...annotation().expected,contentSha256:sha(originalContent)},target:{note:'추후 연락',originalContent}},42));
 });
+test('completed annotation recovery restores only old web-only details without any native job, and is repeatable',async()=>{
+ const before={id:'web42',dentwebReservationId:42,dentwebSyncStatus:'completed',updatedAt:'before',date:'2030-01-02',time:'15:00',status:'cancelled',cancelledAt:'before',concerns:'web-only source details'};
+ const {service:s,inbox,c}=harness([before]);const request=annotation();await s.queue(42,request);const job=await s.claim(3);
+ await s.complete(42,request.operationId,{status:'completed',leaseToken:job.leaseToken,verification:{...request.expected,appointmentAt:'203001021500',contentSha256:sha(job.nativeOperation.target.content)}});
+ inbox.rows[0].concerns=job.nativeOperation.target.content;
+ const attempts=c.rows[0].current.attempts;
+ await s.recover(42,request.operationId);await s.recover(42,request.operationId);
+ assert.equal(inbox.rows[0].concerns,'[취소: 추후 본인 연락] web-only source details');
+ assert.equal(c.rows[0].current.attempts,attempts);assert.equal(await s.claim(3),null);assert.equal(c.rows[0].current.webAnnotationRepair.length,1);
+ inbox.rows[0].concerns='staff edit';await assert.rejects(s.recover(42,request.operationId),/preserve concurrent/);
+ inbox.rows[0].concerns=job.nativeOperation.target.content;inbox.rows[0].dentwebOperationId='newer';await assert.rejects(s.recover(42,request.operationId),/operation changed/);
+});
 function harness(linked=[]){const c=collection(),inbox=collection(linked);const service=createReservationOperations({getCollection:async()=>c,getInboxCollection:async()=>inbox});return {service,c,inbox};}
 function result(job){return {status:'completed',leaseToken:job.leaseToken,verification:{...job.nativeOperation.expected,appointmentAt:job.nativeOperation.action==='cancel'?'203001031600':'203001031600',state:job.nativeOperation.action==='cancel'?2:0}};}
 test('content amendment requires a new agent; verifies content and preserves calendar identity and schedule',async()=>{
