@@ -35,7 +35,8 @@ test('cancelled annotation fences older agents, preserves cancellation and all o
  await assert.rejects(s.complete(42,request.operationId,{status:'completed',leaseToken:job.leaseToken,verification:{...verification,state:0}}),/readback/);
  await s.complete(42,request.operationId,{status:'completed',leaseToken:job.leaseToken,verification});
  assert.equal(inbox.rows.length,1);assert.equal(inbox.rows[0].status,'cancelled');assert.equal(inbox.rows[0].cancelledAt,'before');assert.equal(inbox.rows[0].date,before.date);assert.equal(inbox.rows[0].time,before.time);
- assert.equal(inbox.rows[0].concerns,'[취소: 추후 본인 연락] 검진\noriginal clinical history');
+ assert.equal(inbox.rows[0].concerns,'[취소: 추후 본인 연락] old');
+ assert.equal(job.nativeOperation.target.content,'[취소: 추후 본인 연락] 검진\noriginal clinical history');
 });
 test('cancelled annotation rejects active/attended state, altered original, arbitrary replacement, oversize and repeated prefix',()=>{
  for(const state of [0,1,3])assert.throws(()=>validateOperation({...annotation(),expected:{...annotation().expected,state}},42));
