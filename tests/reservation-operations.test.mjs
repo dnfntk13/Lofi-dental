@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createReservationOperations, validateOperation } from '../lib/reservation-operations.mjs';
@@ -19,6 +19,13 @@ function collection(rows=[]){return {rows,
 const input={operationId:'test-reservation-op-0001',action:'reschedule',expected:{reservationId:42,patientId:17,name:'Fixture',phone:'010-1111-2222',state:0,date:'2030-01-02',time:'15:00',durationMinutes:30,memoSha256:'a'.repeat(64),contentSha256:'b'.repeat(64)},target:{date:'2030-01-03',time:'16:00'}};
 const sha = text => createHash('sha256').update(text).digest('hex');
 const annotation = () => ({...input,action:'annotate-cancellation',expected:{...input.expected,state:2,contentSha256:sha('검진\noriginal clinical history')},target:{note:'추후 본인 연락',originalContent:'검진\noriginal clinical history'}});
+test('HTTP queue dispatch accepts the running agent protocol version',async()=>{
+ const server=await readFile(new URL('../server.mjs',import.meta.url),'utf8');
+ const agent=await readFile(new URL('../tools/dentweb-sync-agent.mjs',import.meta.url),'utf8');
+ const version=agent.match(/"X-Dentweb-Reservation-Operations": "(\d+)"/)[1];
+ const accepted=server.match(/if \(\[([^\]]+)\]\.includes\(request.headers\['x-dentweb-reservation-operations'\]\)\)/)[1].match(/\d+/g);
+ assert.ok(accepted.includes(version),'HTTP route must dispatch the agent version to the operation journal');
+});
 test('cancelled annotation fences older agents, preserves cancellation and all original content, and is idempotent',async()=>{
  const before={id:'web42',dentwebReservationId:42,dentwebSyncStatus:'completed',updatedAt:'before',date:'2030-01-02',time:'15:00',status:'cancelled',cancelledAt:'before',concerns:'old'};
  const {service:s,inbox}=harness([before]);const request=annotation();

@@ -6026,7 +6026,7 @@ createServer(async (request, response) => {
     }
 
     try {
-      if (['1', '2'].includes(request.headers['x-dentweb-reservation-operations'])) {
+      if (['1', '2', '3'].includes(request.headers['x-dentweb-reservation-operations'])) {
         const nativeJob = await reservationOperations.claim(Number(request.headers['x-dentweb-reservation-operations']));
         if (nativeJob) {
           response.writeHead(200, { 'Content-Type': 'application/json' });
