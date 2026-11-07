@@ -283,6 +283,12 @@
         </div>
       </div>
 
+      <section class="panel" style="margin-top:14px">
+        <h2 class="panel-title">Instagram organic · Post and profile links</h2>
+        <p class="panel-note">Dedicated organic links only. Views are page requests, not link clicks or patients. Profile traffic cannot be assigned to an individual feed post. Untagged older visits are not reassigned. Validation visits are excluded from performance totals.</p>
+        <div id="organicInstagram"></div>
+        <details><summary>Tracking validation · Excluded from performance</summary><div id="organicValidation"></div></details>
+      </section>
       <section class="triple" style="margin-top:14px">
         <div class="panel">
           <div class="panel-head">
@@ -501,6 +507,17 @@
         renderChart(Array.isArray(data.daily) ? data.daily : []);
         renderRows("topPages", Array.isArray(data.topPages) ? data.topPages : []);
         renderRows("externalSites", Array.isArray(data.externalSites) ? data.externalSites : []);
+        for (const [id, rows] of [['organicInstagram',data.instagramOrganic?.rows],['organicValidation',data.instagramOrganic?.checks]]) {
+          const target = document.getElementById(id);
+          target.replaceChildren();
+          if (!rows?.length) { target.textContent = data.instagramOrganic ? 'No recorded links in the selected period.' : 'Dedicated tracking report unavailable.'; continue; }
+          for (const row of rows) {
+            const item = document.createElement('p');
+            item.style.overflowWrap = 'anywhere';
+            item.textContent = row.campaign + ' · ' + row.views + ' views · ' + row.visitors + ' recorded browser visitors · ' + row.days.join(', ') + ' · Last received ' + row.lastReceivedAt;
+            target.appendChild(item);
+          }
+        }
         renderRows("acquisitionPaths", Array.isArray(data.acquisitionPaths) ? data.acquisitionPaths : Array.isArray(data.referrers) ? data.referrers : []);
         renderRows("devices", Array.isArray(data.devices) ? data.devices : []);
         renderRows("browsers", Array.isArray(data.browsers) ? data.browsers : []);
