@@ -8,6 +8,7 @@ import { isPublicPricingQuestion, publicConsultContactReply, removePublicPricing
 import { deliverReminders } from './lib/reservation-reminders.mjs';
 import { funnelSteps, funnelSession, summarizeFunnel } from './lib/booking-funnel.mjs';
 import { campaignLabel } from './lib/instagram-campaign-insights.mjs';
+import { organicEventKind, summarizeInstagramOrganic } from './lib/instagram-organic.mjs';
 import { validateCampaignAudit, summarizeCampaignAudit } from './lib/instagram-campaign-audit.mjs';
 import { createServer } from "node:http";
 import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
@@ -1203,6 +1204,8 @@ function getReferrerUrl(referrer) {
 }
 
 function getAcquisitionPath(event, titles = {}) {
+  if (organicEventKind(event) === "organic") return `Instagram organic / ${event.campaign.name}`;
+  if (organicEventKind(event) === "qa") return `Tracking validation / ${event.campaign.name}`;
   const campaign = event.campaign || {};
   const source = String(campaign.source || "").trim();
   const medium = String(campaign.medium || "").trim();
@@ -1219,6 +1222,8 @@ function getAcquisitionPath(event, titles = {}) {
 function summarizeTraffic(events, titles = {}, range = resolveInsightsRange()) {
   events = events.filter(event => event.kind !== "booking_funnel");
   events = events.filter(event => inInsightsRange(event, range));
+  const instagramOrganic = summarizeInstagramOrganic(events);
+  events = events.filter(event => organicEventKind(event) !== "qa");
   const today = getKoreanDay();
   const yesterday = addDaysToDay(today, -1);
   const sevenDayStart = addDaysToDay(today, -6);
@@ -1278,6 +1283,7 @@ function summarizeTraffic(events, titles = {}, range = resolveInsightsRange()) {
 
   return {
     generatedAt: new Date().toISOString(),
+    instagramOrganic,
     range: { today, sevenDayStart, thirtyDayStart, ...range },
     totals: {
       selectedViews: events.length,
