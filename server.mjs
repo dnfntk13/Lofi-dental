@@ -36,6 +36,7 @@ import { provisionalConflict, supersedeProvisional } from "./lib/dentweb-provisi
 import { queueCancellation, isCancelledReservation } from "./lib/reservation-cancellation.mjs";
 import { queueLinkedReschedule, assertRescheduleCallback } from "./lib/linked-reschedule.mjs";
 import { reservationDuration } from "./lib/reservation-duration.mjs";
+import { assertReservationWindowAllowed, blockedReservationTimes, protectedReservationWindows } from './lib/reservation-windows.mjs';
 import { dentwebReservationId, sameDentwebReservation } from "./lib/dentweb-import-identity.mjs";
 import { normalizeBookingAttribution, summarizeBookingAttribution } from "./lib/booking-attribution.mjs";
 
@@ -1674,6 +1675,7 @@ async function generateScheduleAiAssist({ date, reservations }) {
           role: "system",
           content: "You are an operations assistant for lofi esthetic dentistry. Summarize one admin calendar day for staff. Return only JSON with keys: summary, scheduleRisks, prepNotes, followUps, patientMessages, needsHumanReview. Do not diagnose, prescribe, or promise treatment outcomes. Focus on reservation logistics, patient preparation, missing contact details, language/visitor context, and follow-up tasks. Keep patientMessages as short optional draft snippets staff can review before sending.",
         },
+        { role: "system", content: `Never suggest new or moved appointments overlapping these Asia/Seoul intervals (default duration 30 minutes). Preserve existing appointments: ${JSON.stringify(protectedReservationWindows)}` },
         { role: "user", content: JSON.stringify({ date, reservations: dayReservations }) },
       ],
     }),
@@ -2098,6 +2100,8 @@ async function buildAdminAiConsoleContext(query = "") {
   return {
     today,
     currentClock,
+    protectedReservationWindows,
+    reservationWindowRule: 'Asia/Seoul. Do not suggest new or moved appointments overlapping protectedReservationWindows, including appointments starting earlier and ending inside. Default duration 30 minutes. Preserve existing appointments.',
     counts: {
       upcomingReservations: datedReservations.length,
       messageThreads: threads.length,
@@ -2199,7 +2203,7 @@ async function executeAdminAiAction(operation, rawPayload) {
       const record = await createAdminAiReservation(payload);
       return { ok: true, operation, record };
     } catch (error) {
-      throw Object.assign(error instanceof Error ? error : new Error("Failed to create reservation"), { statusCode: 400 });
+      throw Object.assign(error instanceof Error ? error : new Error("Failed to create reservation"), { statusCode: error.statusCode || 400 });
     }
   }
 
@@ -2210,7 +2214,7 @@ async function executeAdminAiAction(operation, rawPayload) {
       const record = await updateAdminAiReservation(id, payload);
       return { ok: true, operation, record };
     } catch (error) {
-      const statusCode = /not found/i.test(String(error?.message || "")) ? 404 : 400;
+      const statusCode = error.statusCode || (/not found/i.test(String(error?.message || "")) ? 404 : 400);
       throw Object.assign(error instanceof Error ? error : new Error("Failed to update reservation"), { statusCode });
     }
   }
@@ -4733,16 +4737,21 @@ createServer(async (request, response) => {
         response.end(JSON.stringify({ message: "A valid date is required" }));
         return;
       }
-      const reservedTimes = getReservedTimesForDate(await readInbox(), date);
+      let durationMinutes;
+      try { durationMinutes = reservationDuration(requestUrl.searchParams.get('durationMinutes') ?? undefined) ?? 30; }
+      catch (error) { throw Object.assign(error, { statusCode: 400 }); }
+      const reservedTimes = [...new Set([...getReservedTimesForDate(await readInbox(), date),
+        ...blockedReservationTimes(date, durationMinutes)])].sort();
+      const blockedIntervals = protectedReservationWindows.filter(window => window.date === date);
       response.writeHead(200, {
         "Content-Type": "application/json; charset=utf-8",
         "Cache-Control": "no-store",
         ...reservationCorsHeaders,
       });
-      response.end(JSON.stringify({ date, reservedTimes }));
+      response.end(JSON.stringify({ date, durationMinutes, reservedTimes, blockedIntervals, timezone: 'Asia/Seoul' }));
     } catch (error) {
       console.error("Failed to load reservation availability", error);
-      response.writeHead(500, {
+      response.writeHead(error.statusCode || 500, {
         "Content-Type": "application/json; charset=utf-8",
         ...reservationCorsHeaders,
       });
@@ -4759,6 +4768,8 @@ createServer(async (request, response) => {
       const email = String(payload.email || "").trim().toLowerCase();
       const emailCode = String(payload.emailCode || "").trim();
       const concerns = String(payload.concerns || "").trim();
+
+      assertReservationWindowAllowed({ date, time });
 
       if (!date || !time || !email || !concerns) {
         response.writeHead(400, {
@@ -4887,11 +4898,11 @@ createServer(async (request, response) => {
     } catch (error) {
       console.error("Failed to save reservation", error);
       const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
-      response.writeHead(isPayloadError ? 400 : 500, {
+      response.writeHead(isPayloadError ? 400 : error.statusCode || 500, {
         "Content-Type": "application/json; charset=utf-8",
         ...reservationCorsHeaders,
       });
-      response.end(JSON.stringify({ message: "Failed to save reservation" }));
+      response.end(JSON.stringify({ message: error.statusCode ? error.message : "Failed to save reservation", code: error.code }));
       return;
     }
   }
@@ -5715,6 +5726,8 @@ createServer(async (request, response) => {
       const phone = String(payload.phone || "").trim();
       const visitingFrom = String(payload.visitingFrom || "").trim();
 
+      assertReservationWindowAllowed({ date, time, durationMinutes });
+
       if (!date || !time || !name) {
         response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
         response.end(JSON.stringify({ message: "date, time, and name are required" }));
@@ -5790,8 +5803,8 @@ createServer(async (request, response) => {
     } catch (error) {
       console.error("Failed to create reservation", error);
       const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
-      response.writeHead(isPayloadError ? 400 : 500, { "Content-Type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify({ message: "Failed to create reservation" }));
+      response.writeHead(isPayloadError ? 400 : error.statusCode || 500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: error.statusCode ? error.message : "Failed to create reservation", code: error.code }));
     }
     return;
   }
@@ -6264,8 +6277,8 @@ createServer(async (request, response) => {
     } catch (error) {
       console.error("Failed to update reservation", error);
       const isPayloadError = error instanceof Error && ["Invalid JSON", "Payload too large"].includes(error.message);
-      response.writeHead(isPayloadError ? 400 : 500, { "Content-Type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify({ message: "Failed to update reservation" }));
+      response.writeHead(isPayloadError ? 400 : error.statusCode || 500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: error.statusCode ? error.message : "Failed to update reservation", code: error.code }));
     }
     return;
   }

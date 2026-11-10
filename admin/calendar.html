@@ -1119,6 +1119,7 @@
     <div class="edit-overlay" id="editOverlay" role="dialog" aria-modal="true" aria-labelledby="editTitle">
       <div class="edit-panel">
         <h3 class="edit-title" id="editTitle">Edit Reservation</h3>
+        <p id="editWindowNotice" role="status"></p>
         <div class="edit-field">
           <label class="edit-label" for="editName">Name</label>
           <input class="edit-input" id="editName" type="text" placeholder="Patient name" />
@@ -1145,6 +1146,7 @@
     <div class="edit-overlay" id="createOverlay" role="dialog" aria-modal="true" aria-labelledby="createTitle">
       <div class="edit-panel">
         <h3 class="edit-title" id="createTitle">Add Reservation</h3>
+        <p id="createWindowNotice" role="status"></p>
         <div class="edit-field">
           <label class="edit-label" for="createDate">Date (required)</label>
           <input class="edit-input" id="createDate" type="date" required />
@@ -1881,10 +1883,10 @@
           },
           body: JSON.stringify(record),
         });
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          throw new Error("Failed to save reservation");
+          throw new Error(data.message || "Failed to save reservation");
         }
-        const data = await res.json();
         return data.record || record;
       }
 
@@ -1963,8 +1965,27 @@
         emptyCellMenu.style.top = `${Math.max(padding, top)}px`;
       }
 
+      async function showReservationWindow(date, elementId) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        element.dataset.date = date;
+        element.textContent = '';
+        if (!date) return;
+        try {
+          const response = await fetch(`/api/reservation-availability?date=${encodeURIComponent(date)}`, { cache: 'no-store' });
+          if (!response.ok) throw new Error('Availability unavailable');
+          const data = await response.json();
+          if (element.dataset.date !== date) return;
+          element.textContent = (data.blockedIntervals || []).map(w => `예약 차단: ${w.date} ${w.start}–${w.end} (한국 시간). 겹치는 신규·시간 변경 불가, 기존 예약 유지.`).join(' ');
+        } catch {
+          if (element.dataset.date === date) element.textContent = '예약 가능 시간 조회 실패. 저장 시 다시 확인됩니다.';
+        }
+      }
+      createDate.addEventListener('change', () => showReservationWindow(createDate.value, 'createWindowNotice'));
+
       function openCreateModal(dateKey) {
         createDate.value = normalizeDate(dateKey) || "";
+        showReservationWindow(createDate.value, 'createWindowNotice');
         createTime.value = "";
         createDuration.value = "";
         createEmail.value = "";
@@ -2296,6 +2317,7 @@
         editPhone.value = extractPhoneFromRecord(reservation);
         editTime.value = String(reservation.time || "");
         editDuration.value = reservation.durationMinutes ?? "";
+        showReservationWindow(normalizeDate(reservation.date), "editWindowNotice");
         editOverlay.classList.add("open");
         editName.focus();
       }
@@ -2355,8 +2377,8 @@
           if (detailOverlay.classList.contains("open") && currentDetailDateKey) {
             renderDetailList(currentDetailDateKey);
           }
-        } catch {
-          alert("Failed to update reservation.");
+        } catch (error) {
+          alert(error.message || "Failed to update reservation.");
         }
       }
 

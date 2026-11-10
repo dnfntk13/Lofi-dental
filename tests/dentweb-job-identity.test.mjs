@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { autoQueueDentweb } from '../lib/dentweb-auto-queue.mjs';
+import { assertReservationWindowAllowed } from '../lib/reservation-windows.mjs';
 import { assertDentwebJobIdentity, dentwebIdentityReady, prepareDentwebIdentity } from '../lib/dentweb-job-identity.mjs';
 import { provisionalConflict } from '../lib/dentweb-provisional.mjs';
 
@@ -29,7 +30,7 @@ test('public request queues email provisional then upgrades the same linked rese
   let saved;
   const collection={findOne:async()=>structuredClone(saved), replaceOne:async (_,record)=>{saved=record;return {matchedCount:1};},
     findOneAndUpdate:async()=>saved};
-  const context=vm.createContext({console,process:{env:{}},autoQueueDentweb,assertDentwebJobIdentity,provisionalConflict,
+  const context=vm.createContext({assertReservationWindowAllowed,console,process:{env:{}},autoQueueDentweb,assertDentwebJobIdentity,provisionalConflict,
     getJsonBody:async r=>r.body, readInbox:async()=>saved?[structuredClone(saved)]:[], getInboxCollection:async()=>collection,
     addInboxRecord:async r=>{Object.assign(r,autoQueueDentweb(r,{date:r.date,time:r.time}));saved={...r};},
     normalizeReservationDate:x=>x,normalizeReservationTime:x=>x,
