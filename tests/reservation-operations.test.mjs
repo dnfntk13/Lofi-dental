@@ -18,6 +18,19 @@ function collection(rows=[]){return {rows,
  async findOneAndUpdate(f,u){const r=rows.find(x=>match(x,f));if(!r)return null;await this.updateOne(f,u);return copy(r)} } }
 const input={operationId:'test-reservation-op-0001',action:'reschedule',expected:{reservationId:42,patientId:17,name:'Fixture',phone:'010-1111-2222',state:0,date:'2030-01-02',time:'15:00',durationMinutes:30,memoSha256:'a'.repeat(64),contentSha256:'b'.repeat(64)},target:{date:'2030-01-03',time:'16:00'}};
 const sha = text => createHash('sha256').update(text).digest('hex');
+test('protected interval rejects new commands before journaling, allows idempotency and read-only recovery',async()=>{
+ const request={...input,expected:{...input.expected,durationMinutes:60},target:{date:'2026-11-12',time:'13:30'}};
+ const {service:s,c}=harness();
+ await assert.rejects(s.queue(42,request),{statusCode:409});assert.equal(c.rows.length,0);
+ const prior={request:validateOperation(request,42),status:'completed'};
+ c.rows.push({reservationId:42,revision:1,current:prior,history:[]});
+ assert.deepEqual(await s.queue(42,request),prior);
+ const {row,recovery}=legacyFixture();
+ row.dentwebReschedule.target={date:'2026-11-12',time:'14:30'};
+ Object.assign(recovery.verified,row.dentwebReschedule.target);
+ const h=harness([row]);await h.service.recoverLegacy(42,recovery);
+ assert.equal(h.c.rows[0].current.verifyOnly,true);
+});
 const annotation = () => ({...input,action:'annotate-cancellation',expected:{...input.expected,state:2,contentSha256:sha('검진\noriginal clinical history')},target:{note:'추후 본인 연락',originalContent:'검진\noriginal clinical history'}});
 test('HTTP queue dispatch accepts the running agent protocol version',async()=>{
  const server=await readFile(new URL('../server.mjs',import.meta.url),'utf8');

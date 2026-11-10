@@ -5,6 +5,7 @@ import { autoQueueDentweb } from '../lib/dentweb-auto-queue.mjs';
 import { provisionalConflict } from '../lib/dentweb-provisional.mjs';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
+import { assertReservationWindowAllowed } from '../lib/reservation-windows.mjs';
 
 test('optional minutes accept integer DB range and reject coercion and overflow', () => {
   assert.equal(reservationDuration(undefined), undefined);
@@ -22,7 +23,7 @@ test('HTTP create/update and job handoff retain minutes, omission and linked ID'
     replaceOne: async (_, record) => { saved = record; return { matchedCount: 1 }; },
     findOneAndUpdate: async () => saved,
   };
-  const context = vm.createContext({reservationOperations:{assertIdle:async()=>{}}, reservationDuration, autoQueueDentweb, provisionalConflict, readInbox:async()=>[saved], console, process: { env: {} },
+  const context = vm.createContext({assertReservationWindowAllowed, reservationOperations:{assertIdle:async()=>{}}, reservationDuration, autoQueueDentweb, provisionalConflict, readInbox:async()=>[saved], console, process: { env: {} },
     getJsonBody: async r => r.body, getInboxCollection: async () => collection,
     addInboxRecord: async r => { saved = {...r}; }, getPatientThreadEmail: () => 'test',
     saveOrUpdateEmailThread: async () => {}, saveOrUpdatePatient: async () => {},
