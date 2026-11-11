@@ -82,6 +82,7 @@ test('HTTP queue dispatch accepts the running agent protocol version',async()=>{
  const version=agent.match(/"X-Dentweb-Reservation-Operations": "(\d+)"/)[1];
  const accepted=server.match(/if \(\[([^\]]+)\]\.includes\(request.headers\['x-dentweb-reservation-operations'\]\)\)/)[1].match(/\d+/g);
  assert.ok(accepted.includes(version),'HTTP route must dispatch the agent version to the operation journal');
+ assert.match(server,new RegExp('reservationOperationsVersion: '+version+', unchangedRejectionSupported: true'));
 });
 test('cancelled annotation fences older agents, preserves cancellation and all original content, and is idempotent',async()=>{
  const before={id:'web42',dentwebReservationId:42,dentwebSyncStatus:'completed',updatedAt:'before',date:'2030-01-02',time:'15:00',status:'cancelled',cancelledAt:'before',concerns:'old'};
