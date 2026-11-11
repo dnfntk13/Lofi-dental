@@ -1,4 +1,4 @@
-import { validateOperation } from '../lib/reservation-operations.mjs';
+import { validateOperation, validateUnchangedRejection } from '../lib/reservation-operations.mjs';
 import { reservationOperationScript } from '../lib/reservation-operation-script.mjs';
 import { createResultOutbox } from '../lib/dentweb-result-outbox.mjs';
 import { execFile } from "node:child_process";
@@ -125,7 +125,7 @@ async function updateDentwebJob(id, status, details = {}) {
 
 async function claimDentwebJob() {
   const response = await fetch(`${serverUrl}/api/admin/dentweb/jobs/next`, {
-    headers: { Authorization: adminAuthHeader(), Accept: "application/json", "X-Dentweb-Cancellation": "1", "X-Dentweb-Provisional": "1", "X-Dentweb-Reservation-Operations": "3", "X-Dentweb-Shared-Phone": "1",
+    headers: { Authorization: adminAuthHeader(), Accept: "application/json", "X-Dentweb-Cancellation": "1", "X-Dentweb-Provisional": "1", "X-Dentweb-Reservation-Operations": "4", "X-Dentweb-Shared-Phone": "1",
       ...(process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED === "1" ? { "X-Dentweb-Linked-Reschedule": "1" } : {}),
     },
   });
@@ -137,6 +137,11 @@ async function claimDentwebJob() {
 async function createDentwebReservation(job) {
   if (job.action === 'reservation-operation') {
     const nativeOperation = validateOperation(job.nativeOperation, Number(job.dentwebReservationId));
+    if (job.rejection) {
+      if (!job.verifyOnly) throw Error('Unchanged verification must be read-only');
+      const rejection = validateUnchangedRejection(nativeOperation,job.rejection);
+      if (JSON.stringify(rejection)!==JSON.stringify(job.rejection)) throw Error('Invalid unchanged verification request');
+    }
     if (!String(process.env.DENTWEB_SQL_CONNECTION_STRING || '').trim()) throw Error('Clinic SQL connection is not configured');
     const output = await runPowerShell(reservationOperationScript, {
       DENTWEB_JOB_BASE64: Buffer.from(JSON.stringify({ ...job, nativeOperation }), 'utf8').toString('base64'),
@@ -411,7 +416,8 @@ async function processDentwebJobs() {
     let status, details;
     try {
       const result = await createDentwebReservation(job);
-      status = 'completed';
+      status = job.rejection ? 'rejected' : 'completed';
+      if (job.rejection && result.status !== 'rejected') throw Error('Unchanged verification did not return rejection proof');
       details = { dentwebReservationId: result.reservationId, action: job.action,
         operationId: job.reschedule?.operationId, verification: result.verification };
     } catch (error) {
@@ -1275,7 +1281,7 @@ async function startDaemon() {
         sqlConfigured: Boolean(String(process.env.DENTWEB_SQL_CONNECTION_STRING || "").trim()),
         durationMinutesSupported: true,
         sharedPhoneIdentityVersion: 1,
-        reservationOperationsVersion: 3,
+        reservationOperationsVersion: 4,
         durableResultOutbox: true,
         identityReadinessVersion: 2,
         provisionalBookingSupported: true,

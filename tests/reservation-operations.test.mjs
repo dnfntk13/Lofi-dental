@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createReservationOperations, validateOperation } from '../lib/reservation-operations.mjs';
+import { createReservationOperations, validateOperation, validateUnchangedRejection } from '../lib/reservation-operations.mjs';
 import { handleReservationOperations } from '../lib/reservation-operations-http.mjs';
 import { createResultOutbox } from '../lib/dentweb-result-outbox.mjs';
 const copy=v=>structuredClone(v), at=(v,k)=>k.split('.').reduce((a,b)=>a?.[b],v);
@@ -18,6 +18,50 @@ function collection(rows=[]){return {rows,
  async findOneAndUpdate(f,u){const r=rows.find(x=>match(x,f));if(!r)return null;await this.updateOne(f,u);return copy(r)} } }
 const input={operationId:'test-reservation-op-0001',action:'reschedule',expected:{reservationId:42,patientId:17,name:'Fixture',phone:'010-1111-2222',state:0,date:'2030-01-02',time:'15:00',durationMinutes:30,memoSha256:'a'.repeat(64),contentSha256:'b'.repeat(64)},target:{date:'2030-01-03',time:'16:00'}};
 const sha = text => createHash('sha256').update(text).digest('hex');
+const rejectionRequest=()=>({expected:{...input.expected,phone:'01011112222'}});
+const unchangedProof=()=>({...rejectionRequest().expected,appointmentAt:'203001021500'});
+async function failedFixture(){const h=harness([{id:'web42',dentwebReservationId:42,dentwebSyncStatus:'completed',concerns:'keep'}]);await h.service.queue(42,input);const job=await h.service.claim(4);await h.service.complete(42,input.operationId,{status:'failed',leaseToken:job.leaseToken,error:'prewrite mismatch'});return {...h,job};}
+
+test('unchanged rejection preserves failed request/history and web, blocks older agents and unlocks only after exact proof',async()=>{
+ const {service:s,c,inbox,job:old}=await failedFixture(),original=await s.get(42,input.operationId),web=copy(inbox.rows);
+ await s.rejectUnchanged(42,input.operationId,rejectionRequest());await s.rejectUnchanged(42,input.operationId,rejectionRequest());
+ assert.deepEqual(c.rows[0].current.request,original.request);assert.deepEqual(c.rows[0].current.failureBeforeRejection,original);
+ for(const version of [1,2,3,NaN])assert.equal(await s.claim(version),null);
+ await assert.rejects(s.queue(42,{...input,operationId:'next-operation-0002'}),/Previous/);
+ await assert.rejects(s.complete(42,input.operationId,{...result(old)}),/cannot complete/);
+ const job=await s.claim(4);assert.equal(job.verifyOnly,true);assert.notEqual(job.leaseToken,old.leaseToken);
+ await assert.rejects(s.complete(42,input.operationId,{status:'rejected',leaseToken:old.leaseToken,verification:unchangedProof()}),/active claim/);
+ for(const change of [{patientId:99},{state:2},{name:'other'},{phone:input.expected.phone},{durationMinutes:60},{memoSha256:'e'.repeat(64)},{contentSha256:'f'.repeat(64)},{appointmentAt:'203001031600'}])await assert.rejects(s.complete(42,input.operationId,{status:'rejected',leaseToken:job.leaseToken,verification:{...unchangedProof(),...change}}),/unchanged reservation/);
+ const payload={status:'rejected',leaseToken:job.leaseToken,verification:unchangedProof()};
+ await s.complete(42,input.operationId,payload);await s.complete(42,input.operationId,payload);
+ assert.equal(c.rows[0].current.status,'rejected');assert.equal(c.rows[0].current.nativeVerified,false);assert.equal(c.rows[0].current.webVerified,false);assert.equal(c.rows[0].current.error,'prewrite mismatch');assert.deepEqual(inbox.rows,web);
+ await s.queue(42,{...input,expected:rejectionRequest().expected,operationId:'next-operation-0002'});
+ assert.equal(c.rows[0].history[0].status,'rejected');assert.deepEqual(c.rows[0].history[0].failureBeforeRejection,original);
+ await assert.rejects(s.complete(42,input.operationId,{status:'failed',leaseToken:old.leaseToken,error:'late failure'}));
+ assert.equal(c.rows[0].current.status,'pending');
+});
+test('rejection refuses actual identity edits, arbitrary failures, wrong operation and in-flight work',async()=>{
+ for(const change of [{phone:'01099992222'},{phone:input.expected.phone},{phone:'+821011112222'},{name:'Other'},{patientId:18},{date:'2030-01-04'},{state:2},{memoSha256:'e'.repeat(64)},{contentSha256:'e'.repeat(64)}])assert.throws(()=>validateUnchangedRejection(input,{expected:{...rejectionRequest().expected,...change}}));
+ for(const status of ['pending','processing','verifying','completed']){const {service:s,c}=await failedFixture();c.rows[0].current.status=status;await assert.rejects(s.rejectUnchanged(42,input.operationId,rejectionRequest()),/unverified failed/);}
+ for(const flag of ['nativeVerified','verifyOnly','legacyRecovery']){const {service:s,c}=await failedFixture();c.rows[0].current[flag]=true;await assert.rejects(s.rejectUnchanged(42,input.operationId,rejectionRequest()),/unverified failed/);}
+ const {service:s}=await failedFixture();await assert.rejects(s.rejectUnchanged(42,'wrong-operation',rejectionRequest()),/current failed/);
+});
+test('rejection CAS refuses concurrent claim/results; failed verification retries only reads under a new lease',async()=>{
+ const {service:s,c}=await failedFixture(),update=c.updateOne.bind(c);let race=true;
+ c.updateOne=async(f,u)=>{if(race&&u.$set?.['current.rejection']){race=false;c.rows[0].current.leaseToken='concurrent';}return update(f,u)};
+ await assert.rejects(s.rejectUnchanged(42,input.operationId,rejectionRequest()),/Concurrent/);assert.equal(c.rows[0].current.rejection,undefined);
+ await s.rejectUnchanged(42,input.operationId,rejectionRequest());const j=await s.claim(4);
+ await s.complete(42,input.operationId,{status:'failed',leaseToken:j.leaseToken,error:'staff edited memo'});
+ assert.equal(c.rows[0].current.status,'failed');await assert.rejects(s.queue(42,{...input,operationId:'next-operation-0002'}),/Previous/);
+ await s.recover(42,input.operationId);const next=await s.claim(4);assert.equal(next.verifyOnly,true);assert.deepEqual(next.rejection,j.rejection);assert.notEqual(next.leaseToken,j.leaseToken);
+ await assert.rejects(s.complete(42,input.operationId,{status:'rejected',leaseToken:j.leaseToken,verification:unchangedProof()}),/active claim/);
+});
+test('unchanged rejection HTTP authenticates before accepting proof',async()=>{
+ let calls=0;const response={writeHead(s){this.status=s},end(b){this.body=JSON.parse(b)}};
+ const args={pathname:'/api/admin/dentweb/reservations/42/operations/test-reservation-op-0001/reject-unchanged',request:{method:'POST'},response,readBody:async()=>rejectionRequest(),service:{rejectUnchanged:async(id,op,p)=>{calls++;assert.equal(id,42);assert.equal(op,input.operationId);assert.deepEqual(p,rejectionRequest());return {status:'pending',verifyOnly:true}}}};
+ await handleReservationOperations({...args,authorized:false});assert.equal(response.status,401);assert.equal(calls,0);
+ await handleReservationOperations({...args,authorized:true});assert.equal(response.status,200);assert.equal(calls,1);
+});
 test('protected interval rejects new commands before journaling, allows idempotency and read-only recovery',async()=>{
  const request={...input,expected:{...input.expected,durationMinutes:60},target:{date:'2026-11-12',time:'13:30'}};
  const {service:s,c}=harness();
