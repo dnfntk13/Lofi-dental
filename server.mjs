@@ -5816,7 +5816,7 @@ createServer(async (request, response) => {
   if (pathname === '/api/admin/dentweb/reservation-operation-capabilities' && request.method === 'GET') {
     if (!adminAuthorized) { requestAuth(response); return; }
     response.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    response.end(JSON.stringify({ reservationOperationsVersion: 3, actions: ['reschedule','cancel','amend-content','annotate-cancellation'], requiresWebLink: false, reverseCalendarImport: false }));
+    response.end(JSON.stringify({ reservationOperationsVersion: 4, unchangedRejectionSupported: true, actions: ['reschedule','cancel','amend-content','annotate-cancellation'], requiresWebLink: false, reverseCalendarImport: false }));
     return;
   }
   if (await handleReservationOperations({ pathname, request, response, authorized: adminAuthorized,
