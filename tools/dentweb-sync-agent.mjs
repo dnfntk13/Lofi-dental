@@ -125,7 +125,7 @@ async function updateDentwebJob(id, status, details = {}) {
 
 async function claimDentwebJob() {
   const response = await fetch(`${serverUrl}/api/admin/dentweb/jobs/next`, {
-    headers: { Authorization: adminAuthHeader(), Accept: "application/json", "X-Dentweb-Cancellation": "1", "X-Dentweb-Provisional": "1", "X-Dentweb-Reservation-Operations": "3",
+    headers: { Authorization: adminAuthHeader(), Accept: "application/json", "X-Dentweb-Cancellation": "1", "X-Dentweb-Provisional": "1", "X-Dentweb-Reservation-Operations": "3", "X-Dentweb-Shared-Phone": "1",
       ...(process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED === "1" ? { "X-Dentweb-Linked-Reschedule": "1" } : {}),
     },
   });
@@ -231,7 +231,20 @@ WHERE @provisional=0 AND p.n환자ID > 0
     WHERE a.n환자ID = p.n환자ID AND LTRIM(RTRIM(a.sz이름)) = @name
       AND REPLACE(REPLACE(REPLACE(a.sz전화, '-', ''), ' ', ''), '+', '') = @phoneKey
   ));
-IF @identityMatches > 1 OR (@phoneMatches > 0 AND @identityMatches <> 1)
+IF @sharedPhoneCount > 0
+BEGIN
+  -- Explicit distinct family member: never select any registered family patient.
+  -- Reject stale family sets, a now-known patient/alias, or provisional identity.
+  IF @provisional <> 0 OR @identityMatches <> 0 OR @phoneMatches <> @sharedPhoneCount
+    OR EXISTS (SELECT 1 FROM dbo.TB_환자정보 WITH (UPDLOCK, HOLDLOCK)
+      WHERE n환자ID>0 AND REPLACE(REPLACE(REPLACE(sz휴대폰번호,'-',''),' ',''),'+','')=@phoneKey
+        AND CHARINDEX(','+CONVERT(varchar(12),n환자ID)+',',','+@sharedPhonePatientIds+',')=0)
+    OR EXISTS (SELECT 1 FROM dbo.TB_환자정보 WITH (UPDLOCK, HOLDLOCK) WHERE n환자ID>0 AND LTRIM(RTRIM(sz이름))=@name)
+    OR EXISTS (SELECT 1 FROM dbo.TB_예약목록 WITH (UPDLOCK, HOLDLOCK) WHERE n환자ID>0 AND LTRIM(RTRIM(sz이름))=@name)
+    OR EXISTS (SELECT 1 FROM dbo.TB_예약목록보관 WITH (UPDLOCK, HOLDLOCK) WHERE n환자ID>0 AND LTRIM(RTRIM(sz이름))=@name)
+    THROW 51011, 'Distinct shared-phone identity evidence no longer matches current patients or aliases.', 1;
+END;
+IF @identityMatches > 1 OR (@sharedPhoneCount=0 AND @phoneMatches > 0 AND @identityMatches <> 1)
   THROW 51001, 'Existing patient identity is ambiguous or does not match the supplied name and phone.', 1;
 
 ${provisionalUpgradeSql}
@@ -341,6 +354,10 @@ SELECT @reservationId AS reservationId, CAST(0 AS bit) AS duplicate;
   [void]$command.Parameters.Add('@cancel', [Data.SqlDbType]::Bit)
   [void]$command.Parameters.Add('@provisional', [Data.SqlDbType]::Bit)
   [void]$command.Parameters.Add('@identityMarker', [Data.SqlDbType]::NVarChar, 100)
+  [void]$command.Parameters.Add('@sharedPhoneCount', [Data.SqlDbType]::Int)
+  [void]$command.Parameters.Add('@sharedPhonePatientIds', [Data.SqlDbType]::VarChar, 250)
+  $command.Parameters['@sharedPhoneCount'].Value = @($job.sharedPhoneIdentity.expectedPatientIds | Where-Object { $null -ne $_ }).Count
+  $command.Parameters['@sharedPhonePatientIds'].Value = ($job.sharedPhoneIdentity.expectedPatientIds -join ',')
   $command.Parameters['@provisional'].Value = [bool]$job.provisional
   $command.Parameters['@identityMarker'].Value = [string]$job.identityMarker
   $command.Parameters['@cancel'].Value = ($job.action -eq 'cancel')
@@ -1257,6 +1274,7 @@ async function startDaemon() {
         syncInProgress,
         sqlConfigured: Boolean(String(process.env.DENTWEB_SQL_CONNECTION_STRING || "").trim()),
         durationMinutesSupported: true,
+        sharedPhoneIdentityVersion: 1,
         reservationOperationsVersion: 3,
         durableResultOutbox: true,
         identityReadinessVersion: 2,
