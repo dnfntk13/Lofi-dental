@@ -32,6 +32,7 @@ import { selectConversation, searchAdminRecords } from "./lib/admin-ai-context.m
 import { instagramBookingRules, validatedInstagramExtraction, currentKoreanClock } from "./lib/instagram-booking-rules.mjs";
 import { autoQueueDentweb } from "./lib/dentweb-auto-queue.mjs";
 import { assertDentwebJobIdentity } from "./lib/dentweb-job-identity.mjs";
+import { validateSharedPhoneIdentity } from './lib/dentweb-shared-phone.mjs';
 import { provisionalConflict, supersedeProvisional } from "./lib/dentweb-provisional.mjs";
 import { queueCancellation, isCancelledReservation } from "./lib/reservation-cancellation.mjs";
 import { queueLinkedReschedule, assertRescheduleCallback } from "./lib/linked-reschedule.mjs";
@@ -5754,6 +5755,9 @@ createServer(async (request, response) => {
       if (visitingFrom) record.visitingFrom = visitingFrom;
       if (durationMinutes !== undefined) record.durationMinutes = durationMinutes;
 
+      try { if (payload.sharedPhoneIdentity !== undefined) record.sharedPhoneIdentity = validateSharedPhoneIdentity(payload.sharedPhoneIdentity, record); }
+      catch (error) { response.writeHead(400, { 'Content-Type': 'application/json' }); response.end(JSON.stringify({message:error.message})); return; }
+
       await addInboxRecord(record);
 
       // Keep thread/patient data in sync for every admin-created schedule entry.
@@ -6031,7 +6035,7 @@ createServer(async (request, response) => {
   if (pathname === "/api/admin/dentweb/capabilities" && request.method === "GET") {
     if (!adminAuthorized) { requestAuth(response); return; }
     response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
-    response.end(JSON.stringify({ identityReadinessVersion: 2, provisionalBookingSupported: true, provisionalDuplicateResolution: true }));
+    response.end(JSON.stringify({ identityReadinessVersion: 2, provisionalBookingSupported: true, provisionalDuplicateResolution: true, sharedPhoneIdentityVersion: 1 }));
     return;
   }
 
@@ -6061,6 +6065,7 @@ createServer(async (request, response) => {
         record = await collection.findOneAndUpdate(
           {
             $and: [
+              ...(request.headers['x-dentweb-shared-phone'] === '1' ? [] : [{ sharedPhoneIdentity: { $exists: false } }]),
               { $or: [{ source: { $ne: "dentweb" } }, { dentwebAction: "cancel" }, { dentwebAction: "linked-reschedule" }] },
               ...(process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED === "1" && request.headers["x-dentweb-linked-reschedule"] === "1"
                 ? [] : [{ dentwebAction: { $ne: "linked-reschedule" } }]),
@@ -6077,6 +6082,7 @@ createServer(async (request, response) => {
       } else {
         const inbox = await readInbox();
         const index = inbox.findIndex((item) => (item.source !== "dentweb" || item.dentwebAction === "cancel")
+          && (!item.sharedPhoneIdentity || request.headers['x-dentweb-shared-phone'] === '1')
           && item.dentwebAction !== "linked-reschedule"
           && (item.dentwebAction !== "cancel" || request.headers["x-dentweb-cancellation"] === "1") && (
           item.dentwebSyncStatus === "pending"
@@ -6122,6 +6128,7 @@ createServer(async (request, response) => {
           concerns: record.concerns,
           dentwebReservationId: record.dentwebReservationId,
           durationMinutes: record.durationMinutes,
+          sharedPhoneIdentity: record.sharedPhoneIdentity,
           action: record.dentwebAction || "upsert",
           reschedule: record.dentwebReschedule,
         } : null,
