@@ -1,0 +1,60 @@
+.clinical-photo-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.clinical-photo { min-width: 0; }
+
+.clinical-photo-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 10px 5px;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.clinical-photo-label time { font-size: 0.68rem; opacity: 0.75; }
+
+.clinical-photo a {
+  display: flex;
+  align-items: center;
+  aspect-ratio: 3 / 2;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #100e13;
+}
+
+.clinical-photo a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+.case-card .clinical-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.clinical-case { scroll-margin-top: 24px; }
+.clinical-case .case-caption { border-top: 0; gap: 4px; }
+.clinical-case-title { margin: 0; font-size: 1.1rem; line-height: 1.5; color: var(--accent); }
+.clinical-case-note { margin: 0; font-weight: 500; }
+.clinical-photo-notice {
+  width: min(90%, 900px);
+  margin: 24px auto 0;
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: rgba(31, 45, 102, 0.72);
+}
+.clinical-case-jump { margin: -8px auto 26px; text-align: center; font-size: 0.88rem; }
+.clinical-case-jump a { color: var(--accent); text-underline-offset: 4px; }
+
+@media (max-width: 600px) {
+  .clinical-photo-pair { gap: 6px; }
+  .clinical-photo-label { display: grid; gap: 2px; padding: 8px 3px; }
+  .clinical-photo a { border-radius: 7px; }
+  .clinical-case-title { font-size: 1rem; }
+}
