@@ -1436,6 +1436,7 @@
         </svg>
       </a>
       <section class="board" aria-label="Date selection window">
+        <p style="margin:0;padding:14px 18px;text-align:center;border-bottom:1px solid #e4def8"><a id="manageReservationLink" href="/reservation/manage.html" style="color:#675286">Already booked? Change your appointment</a></p>
         <div class="board-head">
           <div>
             <p class="board-label" id="dateLabel">Date</p>
@@ -1497,6 +1498,11 @@
     </script>
     <script>
       const selectedDayText = document.getElementById("selectedDayText");
+      const manageReservationLink = document.getElementById('manageReservationLink');
+      if (new URLSearchParams(location.search).get('lang') === 'ko') {
+        manageReservationLink.textContent = '이미 예약하셨나요? 예약 일정 변경';
+        manageReservationLink.href = '/reservation/manage.html?lang=ko';
+      }
       const cursorTooltip = document.getElementById("cursorTooltip");
 
 

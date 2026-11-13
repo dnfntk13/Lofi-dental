@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>Change your appointment | lofi esthetic dentistry</title>
+  <link rel="stylesheet" href="/assets/reservation-management.css">
+  <script src="/assets/reservation-management.js" defer></script>
+</head>
+<body>
+  <header><a class="brand" href="/">lofi<span>esthetic dentistry</span></a><nav aria-label="Language"><a href="?lang=en" lang="en">EN</a><span>/</span><a href="?lang=ko" lang="ko">한국어</a></nav></header>
+  <main>
+    <p class="eyebrow" data-text="eyebrow">YOUR APPOINTMENT</p>
+    <h1 data-text="title">A new time,<br>the same care.</h1>
+    <p class="intro" data-text="intro">Change your appointment using the email address you booked with. All dates and times are in Korea time.</p>
+    <div id="notice" class="notice" role="status" aria-live="polite"></div>
+    <section id="auth" class="card">
+      <h2 data-text="verifyTitle">Find your appointment</h2>
+      <form id="emailForm">
+        <label for="email" data-text="email">Booking email address</label>
+        <input id="email" name="email" type="email" autocomplete="email" maxlength="254" required>
+        <button type="submit" data-text="sendCode">Send verification code</button>
+      </form>
+      <form id="codeForm" hidden>
+        <p class="muted" data-text="codeHint">Enter the 6-digit code sent to your email. It expires in 10 minutes.</p>
+        <label for="code" data-text="code">Verification code</label>
+        <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+        <button type="submit" data-text="verify">View my appointments</button>
+        <button type="button" class="secondary" id="differentEmail" data-text="differentEmail">Use another email / resend code</button>
+      </form>
+    </section>
+    <section id="appointments" class="card" hidden>
+      <div class="section-head"><h2 data-text="appointments">Your upcoming appointments</h2><button class="text-button" id="logout" data-text="logout">Sign out</button></div>
+      <div id="list"></div>
+    </section>
+    <section id="editor" class="card" hidden>
+      <h2 data-text="chooseTitle">Choose a new time</h2>
+      <p id="current"></p>
+      <form id="dateForm"><label for="date" data-text="date">New date</label><input type="date" id="date" required><button type="submit" data-text="checkTimes">Check available times</button></form>
+      <div id="times" class="times" role="group" aria-label="Available times"></div>
+      <form id="changeForm" hidden><p id="review" class="review"></p><button type="submit" data-text="confirmChange">Confirm appointment change</button></form>
+    </section>
+    <p class="help"><span data-text="help">Need help, or booked with a different contact method?</span><br><a href="https://www.instagram.com/lofi_esthetic_dentistry/" rel="noreferrer" data-text="contact">Contact the clinic on Instagram</a></p>
+    <a class="back" href="/reservation/" id="bookingLink" data-text="back">Back to booking</a>
+  </main>
+</body>
+</html>

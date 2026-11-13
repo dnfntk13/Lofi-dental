@@ -1,3 +1,4 @@
+import { patientRescheduleReadScript } from '../lib/patient-reschedule-read-script.mjs';
 import { validateOperation, validateUnchangedRejection } from '../lib/reservation-operations.mjs';
 import { reservationOperationScript } from '../lib/reservation-operation-script.mjs';
 import { createResultOutbox } from '../lib/dentweb-result-outbox.mjs';
@@ -102,6 +103,15 @@ function adminAuthHeader() {
 }
 
 async function reportDentwebResult(job, status, details = {}) {
+  if (job.action === 'patient-reschedule-read') {
+    const response = await fetch(serverUrl + '/api/admin/dentweb/patient-reschedule/reads/' + encodeURIComponent(job.id) + '/result', {
+      method: 'POST', headers: { Authorization: adminAuthHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, leaseToken: job.leaseToken, ...details }), signal: AbortSignal.timeout(30000),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw Error(data.message || 'Patient reschedule read result delivery failed');
+    return data;
+  }
   if (job.action !== 'reservation-operation') return updateDentwebJob(job.id, status, details);
   const response = await fetch(serverUrl + '/api/admin/dentweb/reservations/' + job.dentwebReservationId + '/operations/' + job.nativeOperation.operationId + '/result', {
     method: 'POST', headers: { Authorization: adminAuthHeader(), 'Content-Type': 'application/json' },
@@ -125,7 +135,7 @@ async function updateDentwebJob(id, status, details = {}) {
 
 async function claimDentwebJob() {
   const response = await fetch(`${serverUrl}/api/admin/dentweb/jobs/next`, {
-    headers: { Authorization: adminAuthHeader(), Accept: "application/json", "X-Dentweb-Cancellation": "1", "X-Dentweb-Provisional": "1", "X-Dentweb-Reservation-Operations": "4", "X-Dentweb-Shared-Phone": "1",
+    headers: { Authorization: adminAuthHeader(), Accept: "application/json", "X-Dentweb-Cancellation": "1", "X-Dentweb-Provisional": "1", "X-Dentweb-Reservation-Operations": "4", "X-Dentweb-Shared-Phone": "1", "X-Dentweb-Patient-Reschedule": "1",
       ...(process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED === "1" ? { "X-Dentweb-Linked-Reschedule": "1" } : {}),
     },
   });
@@ -135,6 +145,13 @@ async function claimDentwebJob() {
 }
 
 async function createDentwebReservation(job) {
+  if (job.action === 'patient-reschedule-read') {
+    if (!String(process.env.DENTWEB_SQL_CONNECTION_STRING || '').trim()) throw Error('Clinic SQL connection is not configured');
+    const output = await runPowerShell(patientRescheduleReadScript, {
+      DENTWEB_JOB_BASE64: Buffer.from(JSON.stringify(job), 'utf8').toString('base64'),
+    });
+    return JSON.parse(output);
+  }
   if (job.action === 'reservation-operation') {
     const nativeOperation = validateOperation(job.nativeOperation, Number(job.dentwebReservationId));
     if (job.rejection) {
@@ -419,7 +436,8 @@ async function processDentwebJobs() {
       status = job.rejection ? 'rejected' : 'completed';
       if (job.rejection && result.status !== 'rejected') throw Error('Unchanged verification did not return rejection proof');
       details = { dentwebReservationId: result.reservationId, action: job.action,
-        operationId: job.reschedule?.operationId, verification: result.verification };
+        operationId: job.reschedule?.operationId, verification: result.verification,
+        ...(job.action === 'patient-reschedule-read' ? { busyIntervals: result.busyIntervals } : {}) };
     } catch (error) {
       status = 'failed';
       details = { error: String(error.message || error).slice(0, 500), action: job.action,
@@ -1282,6 +1300,7 @@ async function startDaemon() {
         durationMinutesSupported: true,
         sharedPhoneIdentityVersion: 1,
         reservationOperationsVersion: 4,
+        patientRescheduleVersion: 1,
         durableResultOutbox: true,
         identityReadinessVersion: 2,
         provisionalBookingSupported: true,

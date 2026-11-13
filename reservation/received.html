@@ -205,6 +205,7 @@
       </a>
       <section class="board" aria-label="Reservation received">
         <h1 class="title" id="pageTitle">Your reservation was received</h1>
+        <p><a id="manageReservationLink" href="/reservation/manage.html" style="color:#675286">Manage your appointment</a></p>
         <p class="message" id="pageMessage">We will confirm your appointment ASAP.<br />(Usually takes 1~2 hours for us to confirm.)</p>
 
         <div class="meta">
@@ -219,6 +220,10 @@
       const date = params.get("date") || "-";
       const time = params.get("time") || "-";
       const isKorean = params.get("lang") === "ko";
+      if (isKorean) {
+        document.getElementById('manageReservationLink').textContent = '예약 확인·일정 변경';
+        document.getElementById('manageReservationLink').href = '/reservation/manage.html?lang=ko';
+      }
       document.documentElement.lang = isKorean ? "ko" : "en";
       document.title = isKorean ? "예약 신청 완료 | lofi esthetic dentistry" : "Reservation Received | lofi esthetic dentistry";
       document.getElementById("homeLink").href = isKorean ? "/korean" : "/english";

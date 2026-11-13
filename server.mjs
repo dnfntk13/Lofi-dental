@@ -1,4 +1,6 @@
 import { createReservationOperations } from './lib/reservation-operations.mjs';
+import { createPatientReschedule } from './lib/patient-reschedule.mjs';
+import { handlePatientReschedule } from './lib/patient-reschedule-http.mjs';
 import { handleReservationOperations } from './lib/reservation-operations-http.mjs';
 import { sendStaticFile } from './lib/static-file-stream.mjs';
 import { createPublicLofiMcpHandler } from './lib/public-lofi-mcp.mjs';
@@ -314,6 +316,22 @@ async function getReservationOperationsCollection() {
   return reservationOperationsPromise;
 }
 const reservationOperations = createReservationOperations({ getCollection: getReservationOperationsCollection, getInboxCollection });
+
+let patientRescheduleCollectionPromise;
+async function getPatientRescheduleCollection() {
+  if (!mongoUri) return null;
+  if (!patientRescheduleCollectionPromise) patientRescheduleCollectionPromise = (async () => {
+    const client = new MongoClient(mongoUri, {connectTimeoutMS:8000,serverSelectionTimeoutMS:8000});
+    await client.connect();
+    const c = client.db(mongoDatabaseName).collection('patientReservationManagement');
+    await c.createIndex({expiresAt:1},{expireAfterSeconds:0});
+    await c.createIndex({kind:1,status:1,createdAt:1});
+    return c;
+  })().catch(error=>{patientRescheduleCollectionPromise=undefined;throw error;});
+  return patientRescheduleCollectionPromise;
+}
+const patientReschedule = createPatientReschedule({getCollection:getPatientRescheduleCollection,getInboxCollection,
+  operations:reservationOperations,sendCode:sendEmailVerificationCode,mailReady:hasAnyMailConfig,normalizeTime:normalizeReservationTime});
 
 let campaignTitlesCollectionPromise;
 async function campaignTitlesCollection() {
@@ -4002,6 +4020,9 @@ Your reservation for ${appointmentKst} has been confirmed.
 Please complete your registration here:
 ${replyFormUrl}
 
+Need a different appointment time? Verify your booking email to change it here:
+https://lofiesthetic.com/reservation/manage.html
+
 See you soon!
 
 lofi esthetic dentistry
@@ -4029,6 +4050,7 @@ WhatsApp: https://whatsapp.com/channel/0029VbDaNE5It5roZdu5et3g`,
                   <span style="display:block;margin-bottom:18px;font-size:14px;line-height:1.5;color:#7968bb;">Share your name, where you are visiting from, and phone number.</span>
                   <span style="display:inline-block;padding:12px 20px;border-radius:8px;background:#6f5cc4;color:#ffffff;font-size:14px;font-weight:700;">Open registration →</span>
                 </a>
+                <p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#7968bb;"><a href="https://lofiesthetic.com/reservation/manage.html" style="color:#6f5cc4;">Change your appointment date or time</a> using your booking email.</p>
                 <p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#7968bb;">See you soon!</p>
                 <p style="margin:20px 0 0;font-size:12px;line-height:1.7;color:#9689c0;">lofi esthetic dentistry<br />Instagram: www.instagram.com/lofi_esthetic_dentistry<br /><a href="https://whatsapp.com/channel/0029VbDaNE5It5roZdu5et3g" style="color:#7968bb;text-decoration:underline;">WhatsApp channel</a></p>
               </td>
@@ -4634,6 +4656,8 @@ createServer(async (request, response) => {
     }
     return;
   }
+
+  if (await handlePatientReschedule({pathname,request,response,readBody:getJsonBody,authorized:adminAuthorized,service:patientReschedule})) return;
 
   if (pathname === "/api/reservation-email-code" && request.method === "POST") {
     try {
@@ -6050,12 +6074,18 @@ createServer(async (request, response) => {
 
     try {
       if (['1', '2', '3', '4'].includes(request.headers['x-dentweb-reservation-operations'])) {
-        const nativeJob = await reservationOperations.claim(Number(request.headers['x-dentweb-reservation-operations']));
+        const supportsPatientReschedule = request.headers['x-dentweb-patient-reschedule'] === '1';
+        if (supportsPatientReschedule) await patientReschedule.heartbeat();
+        const nativeJob = await reservationOperations.claim(Number(request.headers['x-dentweb-reservation-operations']),supportsPatientReschedule);
         if (nativeJob) {
           response.writeHead(200, { 'Content-Type': 'application/json' });
           response.end(JSON.stringify({ ok: true, job: nativeJob }));
           return;
         }
+      }
+      if (request.headers['x-dentweb-patient-reschedule'] === '1') {
+        const readJob = await patientReschedule.claimRead();
+        if (readJob) { response.writeHead(200,{'Content-Type':'application/json'});response.end(JSON.stringify({ok:true,job:readJob}));return; }
       }
       const now = new Date();
       const staleBefore = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
