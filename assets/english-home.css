@@ -1,0 +1,98 @@
+/* Type and spacing refinements for the English homepage. */
+[data-home-preserved] {
+  --editorial-muted: #685e71;
+  --home-action-radius: 6px;
+}
+
+[data-home-preserved] .doctors-nav {
+  align-items: center;
+  column-gap: clamp(12px, 2vw, 28px);
+}
+
+[data-home-preserved] .doctors-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  font-size: 14px;
+}
+
+[data-home-preserved] .opening-banner strong,
+[data-home-preserved] .opening-banner span,
+[data-home-preserved] .contact-address,
+[data-home-preserved] .contact-phone,
+[data-home-preserved] .map-link {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+[data-home-preserved] .hero-main h1 {
+  font-size: clamp(42px, 5.1vw, 72px);
+  line-height: 1.06;
+  letter-spacing: -.05em;
+}
+
+[data-home-preserved] .hero-main .hero-eyebrow,
+[data-home-preserved] .main-treatments h2,
+[data-home-preserved] .section-label,
+[data-home-preserved] .doctor-role {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .11em;
+  color: #705781;
+}
+
+[data-home-preserved] .main-treatments h2 { margin-bottom: 12px; }
+[data-home-preserved] .treatment-name { font-size: 16px; line-height: 1.35; }
+[data-home-preserved] .treatment-detail { font-size: 14px; line-height: 1.5; margin-top: 5px; }
+
+[data-home-preserved] .hero-actions .btn,
+body[data-home-preserved].lofi-floating-ctas .sticky-appointment,
+body[data-home-preserved].lofi-floating-ctas .consult-chat-launch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--home-action-radius);
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+
+[data-home-preserved] .hero-actions .btn { padding: 12px 20px; }
+[data-home-preserved] .hero-main .btn-before-after { border-color: #9e8da9; }
+[data-home-preserved] :is(a, button, summary):focus-visible { outline: 2px solid #684a7c; outline-offset: 3px; }
+
+[data-home-preserved] .results-heading h2 { font-size: clamp(23px, 2.4vw, 32px); line-height: 1.15; }
+[data-home-preserved] .results-heading span,
+[data-home-preserved] .hero-result figcaption { font-size: 11px; letter-spacing: .08em; }
+[data-home-preserved] .results-footer p,
+[data-home-preserved] .results-footer a,
+[data-home-preserved] .journal-text-link { font-size: 14px; }
+
+[data-home-preserved] .doctors-intro,
+[data-home-preserved] .journal-home-intro,
+[data-home-preserved] .treatment-guides-intro,
+[data-home-preserved] .doctor-summary,
+[data-home-preserved] .treatment-article-copy p,
+[data-home-preserved] .journal-card-body > p:not(.journal-kicker) {
+  font-size: 16px;
+  line-height: 1.7;
+  max-width: 65ch;
+}
+
+@media (max-width: 760px) {
+  [data-home-preserved] .page { width: 92%; }
+  [data-home-preserved] .topbar { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; padding-bottom: 12px; }
+  [data-home-preserved] .doctors-nav { flex-wrap: wrap; justify-content: flex-end; gap: 0 12px; max-width: none; }
+  [data-home-preserved] .doctors-nav a { min-height: 40px; font-size: 13px; }
+  [data-home-preserved] .hero { margin: 26px 0 38px; }
+  [data-home-preserved] .hero-main .hero-eyebrow { margin-bottom: 14px; }
+  [data-home-preserved] .hero-main h1 { font-size: clamp(38px, 10vw, 58px); margin-bottom: 0; }
+  [data-home-preserved] .main-treatments { padding-top: 22px; }
+  [data-home-preserved] .treatment-list li { padding: 10px 0; }
+  [data-home-preserved] .treatment-list { column-gap: 16px; }
+  [data-home-preserved] .hero-actions { gap: 8px; }
+  [data-home-preserved] .hero-actions .btn { padding: 10px 12px; }
+  [data-home-preserved] .hero-results { margin-inline: 0; }
+}
