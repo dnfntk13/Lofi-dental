@@ -408,6 +408,16 @@
         font-weight: 700;
       }
 
+      .app-download {
+        margin: 12px 0 0;
+        font-size: 0.9rem;
+      }
+      .app-download a {
+        color: var(--ink);
+        text-decoration: underline;
+        text-underline-offset: 0.18em;
+      }
+
       .usage-list {
         margin: 0;
         padding-left: 18px;
@@ -1476,7 +1486,9 @@
             <li id="usageStepDetails">Enter your details on the next page to finish the request.</li>
             <li id="usageStepClosed">If today is closed, the next available day is selected automatically.</li>
           </ol>
-
+          <p id="concourseDownload" class="app-download">
+            <a href="https://www.concourse.to/en/download" target="_blank" rel="noopener">Download the free Concourse app for iPhone or Android</a>
+          </p>
         </div>
       </section>
     </div>
@@ -1500,6 +1512,7 @@
       const selectedDayText = document.getElementById("selectedDayText");
       const manageReservationLink = document.getElementById('manageReservationLink');
       if (new URLSearchParams(location.search).get('lang') === 'ko') {
+        document.getElementById("concourseDownload").hidden = true;
         manageReservationLink.textContent = '이미 예약하셨나요? 예약 일정 변경';
         manageReservationLink.href = '/reservation/manage.html?lang=ko';
       }
