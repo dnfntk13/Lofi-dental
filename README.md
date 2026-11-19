@@ -155,36 +155,20 @@ Allowed actions are limited to `click`, `type`, `key`, `wait`, and `done`. The a
 
 ### AI Assist
 
-#### Admin AI management authority
-
-The Admin AI page exposes all implemented management operations: reservation creation/update/deletion, patient name updates/deletion, thread replies/deletion/read status, website source reading/editing, and production deployment/status checks. Every write now requires a server-created preview and an explicit staff confirmation. Preview tokens expire after ten minutes and are consumed before execution to prevent replay. A server restart invalidates outstanding previews. Model-generated confirmation flags cannot bypass review. Screenshots retain their separate reviewed reservation form.
-
-Website changes use an exact, unique before/after replacement in existing HTML, CSS, JS or MJS files in `dnfntk13/Lofi-dental` on `main`. Hidden files, secrets, dependency folders, tests and tooling are excluded. GitHub file SHA checks reject stale edits. Staff see the code changes before committing; code changes should be tested before approving. Committing to `main` can trigger any configured automatic deployment. Explicit Render deployment pins the commit displayed in the preview; a queued deployment is not reported as complete.
-
-Set these **server environment variables** to enable the external operations (never paste keys into Admin AI chat or commit them):
-
-- `ADMIN_AI_GITHUB_TOKEN`: a dedicated fine-grained GitHub token limited to `dnfntk13/Lofi-dental`, with repository Contents read/write. The assistant's desktop GitHub login is not reused or copied.
-- `RENDER_API_KEY`: the existing server-side Render API key, with access to the site's service.
-- `RENDER_SERVICE_ID`: the site's service ID; defaults to `srv-d8l6hspkh4rs73fqrtqg`.
-
-The permissions panel reports missing connections. There is no arbitrary shell execution, secret retrieval, credential management, billing access or cross-repository access. `readWebsiteFile` uses public repository reads when no GitHub token is configured. API request headers and credentials never enter model context. Run `node --test tests/*.test.mjs` to verify action confirmation, replay protection, missing integrations, source conflicts, and pinned deployments with mocked providers.
-
 #### Instagram screenshot reservations
 
-On `/admin/ai`, use **인스타 대화 사진으로 예약 추가** to attach or paste up to four PNG/JPEG/WebP screenshots of one patient's conversation (4 MB each, 12 MB total). Add clarification such as the conversation year or timezone, then analyze. Review the transcript and warnings, edit the reservation fields, and check the confirmation box before saving. Dates and times are in Asia/Seoul. Missing or ambiguous required information must be entered by staff.
+On `/admin/instagram-settings`, use **인스타 대화 사진으로 예약 추가** to attach or paste up to four PNG/JPEG/WebP screenshots of one patient's conversation (4 MB each, 12 MB total). Add clarification such as the conversation year or timezone, then analyze. Review the transcript and warnings, edit the reservation fields, and check the confirmation box before saving. Dates and times are in Asia/Seoul. Missing or ambiguous required information must be entered by staff.
 
-Admin AI conversation, screenshot analysis, and the DM checker use `gpt-5.4` by default with the existing `OPENAI_API_KEY`. Set `ADMIN_AI_MODEL` to override this independently of the public chat's `OPENAI_MODEL`. GPT-5.4 uses high reasoning effort and a 24,000 completion-token cap (including reasoning); other GPT-5 overrides retain low reasoning and an 8,000-token cap and omit sampling parameters for compatibility. Incomplete responses show an error rather than empty results. Images are sent to OpenAI for analysis without being written to local files or the database. Analysis only returns a draft. Confirmed saves use the existing reservation/patient workflow; an existing same-name/date/time record is returned without inserting another. Screenshot saves are serialized within one server process to protect against double-clicks and retries.
+Instagram screenshot analysis and the DM checker use `gpt-5.4` by default with the existing `OPENAI_API_KEY`. Set `ADMIN_AI_MODEL` to override this independently of the public chat's `OPENAI_MODEL`. GPT-5.4 uses high reasoning effort and a 24,000 completion-token cap (including reasoning); other GPT-5 overrides retain low reasoning and an 8,000-token cap and omit sampling parameters for compatibility. Incomplete responses show an error rather than empty results. Images are sent to OpenAI for analysis without being written to local files or the database. Analysis only returns a draft. Confirmed saves use the existing reservation/patient workflow; an existing same-name/date/time record is returned without inserting another. Screenshot saves are serialized within one server process to protect against double-clicks and retries.
 
 Deploy the updated source and restart the server to activate the default, or explicitly set `ADMIN_AI_MODEL=gpt-5.4`. Keeping `OPENAI_MODEL=gpt-4o-mini` does not override Admin AI. Real model access and recognition quality must be verified with the deployment's API key.
 
 Validation: `node --test tests/instagram-screenshot.test.mjs`. Tests use mocked AI responses and storage; a configured deployment is required to verify real screenshot recognition.
 
-The public chat widget and admin tools can generate AI-assisted information, summaries, and drafts:
+Web inquiries are saved in Patients → Web. The assigned staff member replies in the original thread; the visitor sees the reply in the same chat. New inquiries do not generate automatic replies or web drafts.
 
-- Public website AI assistant: answers visitor questions from site content, explains reservation/contact flow, and saves the conversation to Patients for staff review.
-- Patient message threads: summary, patient info extraction, and suggested reply drafts for Web, Instagram DM, and Email channels.
-- Admin AI Assistant: conversationally reads recent schedules plus Web, Email, and Instagram DM threads, then suggests follow-ups and staff-reviewed reply drafts.
-- Instagram DM import without webhook: paste DM conversation text into Admin AI Assistant, or use the local Chrome importer; saved DMs appear in Patients and can be checked one by one by AI.
+- Email and Instagram threads support staff-reviewed drafts.
+- Instagram Settings contains the screenshot reservation form and tools for importing and checking DMs.
 - Calendar day detail: schedule summary, operational risks, prep notes, follow-ups, and short patient message draft snippets.
 - Website insights: traffic summary, notable changes, acquisition notes, content opportunities, and recommended actions.
 
@@ -195,7 +179,7 @@ OPENAI_API_KEY=your_openai_api_key
 OPENAI_MODEL=gpt-4o-mini
 ```
 
-`OPENAI_MODEL` is optional and defaults to `gpt-4o-mini`. AI output is generated for visitor information and staff review; the assistant is instructed not to diagnose, prescribe, evaluate clinical photos, or promise treatment outcomes.
+`OPENAI_MODEL` is optional and defaults to `gpt-4o-mini`. AI output is generated for staff review; the assistant is instructed not to diagnose, prescribe, evaluate clinical photos, or promise treatment outcomes.
 
 For local testing, the server also reads a local `.env` file in the repository root:
 

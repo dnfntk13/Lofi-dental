@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { addAdminAiToPage } from '../lib/admin-ai-page.mjs';
 
 function setup(playlist) {
   let time = 0, id = 0;
@@ -97,14 +96,6 @@ test('stalled playback advances, and destroy cancels recovery work', () => {
   s.player.destroy(); const plays=b.plays; s.tick(60000);
   assert.equal(b.plays,plays); assert.equal(s.timers.size,0);
 });
-test('authenticated signage stays free of admin chat while ordinary pages still get it', () => {
-  const html=fs.readFileSync(new URL('../display/index.html',import.meta.url),'utf8');
-  assert.equal(addAdminAiToPage(html,true),html);
-  const career=fs.readFileSync(new URL('../play/index.html',import.meta.url),'utf8');
-  assert.equal(addAdminAiToPage(career,true),career);
-  assert.match(addAdminAiToPage('<body>Clinic</body>',true),/ai-widget/);
-});
-
 test('blob decoding failure retries the same original clip before skipping', () => {
   const s=setup([{src:'blob:a',fallbackSrc:'a.mp4'},{src:'b.mp4'}]);
   s.videos[0].onerror(); s.tick(250);

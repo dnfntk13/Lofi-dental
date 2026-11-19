@@ -211,6 +211,7 @@
         border-bottom: 1px solid var(--line); background: #fbfcff;
       }
 
+      .ai-assist-panel[hidden] { display: none; }
       .ai-assist-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 
       .ai-assist-title { margin: 0; font-size: 0.9rem; font-weight: 900; color: var(--accent); }
@@ -371,7 +372,7 @@
           <button class="btn channel-tab" type="button" data-channel="instagram">Instagram DM</button>
           <button class="btn channel-tab" type="button" data-channel="email">Email</button>
         </div>
-        <div class="ai-assist-panel">
+        <div class="ai-assist-panel" id="channelDraftPanel" hidden>
           <div class="ai-assist-head">
             <p class="ai-assist-title">AI Assist</p>
             <button class="btn" id="aiAssistBtn" type="button">Generate draft</button>
@@ -547,6 +548,7 @@
       }
 
       function renderThreadChannel() {
+        document.getElementById("channelDraftPanel").hidden = currentChannel === "web" || currentThreadEmail.endsWith("@chat.lofi.internal");
         const content = document.getElementById("threadContent");
         const replyForm = document.getElementById("threadReplyForm");
         const replyStatus = document.getElementById("threadReplyStatus");
@@ -1038,6 +1040,5 @@
       load();
       startPatientPolling();
     </script>
-  <script src="/admin/ai-widget.js" defer></script>
   </body>
 </html>

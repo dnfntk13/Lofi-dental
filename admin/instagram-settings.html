@@ -215,6 +215,11 @@
 
       .status.ok { color: #166534; }
       .status.error { color: #b42318; }
+      .instagram-tools { margin: 24px 0; }
+      .instagram-tools summary { cursor: pointer; }
+      .instagram-tools section { padding: 18px 0; }
+      .instagram-tools form, .instagram-tools label { display: grid; gap: 8px; }
+      .instagram-tools button { cursor: pointer; }
     </style>
   </head>
   <body>
@@ -294,6 +299,60 @@
 
           <div class="status" id="status">Loading current settings...</div>
         </form>
+        <details class="instagram-tools">
+          <summary>Instagram DM tools</summary>
+      <section class="panel info-panel" id="screenshotPanel" aria-labelledby="screenshotTitle" style="margin-bottom:18px">
+        <h2 class="panel-title" id="screenshotTitle">인스타 대화 사진으로 예약 추가</h2>
+        <p class="panel-note">한 환자의 대화 캡처를 순서대로 첨부하거나 이 영역에 붙여넣으세요. 사진은 AI 분석에 전송되며 서버에 파일로 저장하지 않습니다.</p>
+        <form id="screenshotForm" class="import-form" style="margin-top:12px">
+          <label>대화 사진 (최대 4장 · 장당 4MB · 전체 12MB)
+            <input id="screenshotFiles" class="import-input" type="file" accept="image/png,image/jpeg,image/webp" multiple />
+          </label>
+          <div id="screenshotPreviews" style="display:flex;gap:12px;flex-wrap:wrap"></div>
+          <label>추가 설명 (선택)
+            <textarea id="screenshotNote" class="import-input" maxlength="2000" placeholder="예: 대화는 2026년 9월에 나눴고, 시간은 한국 시간입니다."></textarea>
+          </label>
+          <button id="screenshotAnalyze" class="import-btn" type="submit">사진 읽고 예약 초안 만들기</button>
+        </form>
+        <p id="screenshotStatus" class="import-status" role="status" aria-live="polite"></p>
+        <div id="screenshotDraft" hidden>
+          <p id="screenshotSummary" style="white-space:pre-wrap"></p>
+          <ul id="screenshotWarnings"></ul>
+          <details><summary>사진에서 읽은 대화 확인</summary><p id="screenshotTranscript" style="white-space:pre-wrap;overflow-wrap:anywhere"></p></details>
+          <form id="screenshotReservation" class="import-form" style="margin-top:14px">
+            <p class="panel-note">예약 날짜와 시간은 한국 시간(Asia/Seoul)입니다. 사진과 비교해 수정한 뒤 저장하세요.</p>
+            <label>환자 이름 *<input class="import-input" name="name" required maxlength="120" /></label>
+            <label>예약 날짜 *<input class="import-input" name="date" type="date" required /></label>
+            <label>예약 시간 *<input class="import-input" name="time" type="time" required /></label>
+            <label>전화번호<input class="import-input" name="phone" type="tel" maxlength="80" /></label>
+            <label>이메일<input class="import-input" name="email" type="email" maxlength="140" /></label>
+            <label>방문 국가<input class="import-input" name="visitingFrom" maxlength="140" /></label>
+            <label>문의·요청 사항<textarea class="import-input" name="concerns" maxlength="900"></textarea></label>
+            <label><input id="screenshotConfirmed" type="checkbox" required /> 사진과 예약 정보를 확인했습니다.</label>
+            <button id="screenshotSave" class="import-btn" type="submit">확인한 예약 추가</button>
+          </form>
+          <p id="screenshotSaveStatus" class="import-status" role="status" aria-live="polite"></p>
+          <a id="screenshotCalendar" class="small-link" href="/admin/calendar" hidden>Calendar에서 확인</a>
+        </div>
+      </section>
+          <section class="panel info-panel">
+            <div class="dm-check-head">
+              <span class="section-title">Instagram DM checker</span>
+              <button class="import-btn" id="instagramCheckBtn" type="button">Check reader DMs</button>
+            </div>
+            <p class="import-status" id="instagramCheckStatus">Checks Instagram DMs collected by the local reader and separates reply-needed threads.</p>
+            <div class="dm-check-list" id="instagramCheckResults"></div>
+          </section>
+          <section class="panel info-panel">
+            <span class="section-title">Paste Instagram DM</span>
+            <form class="import-form" id="instagramPasteForm">
+              <input class="import-input" id="instagramSenderInput" type="text" placeholder="Sender or thread name" />
+              <textarea class="import-textarea" id="instagramPasteInput" placeholder="Paste Instagram DM conversation text here"></textarea>
+              <button class="import-btn" id="instagramPasteBtn" type="submit">Save pasted DM</button>
+              <p class="import-status" id="instagramPasteStatus">Saved pasted DMs appear in Patients and can be checked by AI.</p>
+            </form>
+          </section>
+        </details>
       </main>
     </div>
 
@@ -381,6 +440,7 @@
 
       loadSettings();
     </script>
-  <script src="/admin/ai-widget.js" defer></script>
+    <script src="/admin/instagram-dm-tools.js" defer></script>
+    <script src="/admin/ai-screenshot.js" defer></script>
   </body>
 </html>
