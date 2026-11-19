@@ -16,7 +16,7 @@ import { createServer } from "node:http";
 import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { Resolver } from "node:dns/promises";
 import { readFileSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -215,7 +215,7 @@ function resolvePath(urlPath) {
   }
 
   if (["/admin/reply", "/admin/reply/"].includes(pathname)) {
-    return "/admin/reply.html";
+    return "/admin/patients.html";
   }
 
   if (["/patient-reply", "/patient-reply/"].includes(pathname)) {
@@ -1404,6 +1404,13 @@ async function readEmailThreads() {
   } catch { return []; }
 }
 
+async function readEmailThread(email) {
+  const key = normalizePatientEmail(email);
+  const collection = await getEmailThreadsCollection();
+  if (collection) return collection.findOne({ email: key }, { projection: { _id: 0 }, sort: { updatedAt: -1 }, collation: { locale: "en", strength: 2 } });
+  return (await readEmailThreads()).find(item => normalizePatientEmail(item.email) === key);
+}
+
 async function deleteEmailThread(email) {
   const normalizedEmail = String(email || "").trim().toLowerCase();
   if (!normalizedEmail) return false;
@@ -1432,8 +1439,13 @@ async function deleteEmailThreadMessage(email, messageIndex) {
     const messages = Array.isArray(thread?.messages) ? thread.messages : [];
     if (!thread || index >= messages.length) return { deleted: false, thread: messages };
     const nextMessages = messages.filter((_, currentIndex) => currentIndex !== index);
-    if (nextMessages.length) await collection.updateOne({ email: normalizedEmail }, { $set: { messages: nextMessages, updatedAt: new Date().toISOString() } });
-    else await collection.deleteOne({ email: normalizedEmail });
+    const expected = { email: normalizedEmail, messages };
+    const result = nextMessages.length
+      ? await collection.updateOne(expected, { $set: { messages: nextMessages, updatedAt: new Date().toISOString() } })
+      : await collection.deleteOne(expected);
+    if (!(result.matchedCount || result.deletedCount)) {
+      throw Object.assign(new Error("Conversation changed. Refresh before deleting."), { statusCode: 409 });
+    }
     return { deleted: true, thread: nextMessages };
   }
 
@@ -2118,7 +2130,10 @@ async function markEmailThreadMessagesRead(email, channel = "web") {
       }
       return message;
     }) : [];
-    if (changed) await collection.updateOne({ email: normalizedEmail }, { $set: { messages } });
+    if (changed) {
+      const result = await collection.updateOne({ email: normalizedEmail, messages: thread.messages }, { $set: { messages } });
+      if (!result.matchedCount) return { thread: (await readEmailThread(normalizedEmail))?.messages || [], changed: false };
+    }
     return { thread: messages, changed };
   }
 
@@ -2196,19 +2211,8 @@ function getPatientEmailKeys(patient) {
   return keys;
 }
 
-function findMatchingPatientIndexes(patients, { email, realEmail, phone }) {
-  const targetEmails = [email, realEmail].map(normalizePatientEmail).filter(Boolean);
-  const targetPhone = normalizePatientPhone(phone);
-  const matches = [];
-
-  patients.forEach((patient, index) => {
-    const emailKeys = getPatientEmailKeys(patient);
-    const emailMatches = targetEmails.some((value) => emailKeys.has(value));
-    const phoneMatches = targetPhone && normalizePatientPhone(patient?.phone) === targetPhone;
-    if (emailMatches || phoneMatches) matches.push(index);
-  });
-
-  return matches;
+function patientEmailQuery(email) {
+  return { $or: ["email", "realEmail", "threadEmails", "latestReservation.email", "reservations.email"].map(key => ({ [key]: email })) };
 }
 
 function mergeUniqueById(items) {
@@ -2227,23 +2231,23 @@ function mergePatientRecords(records) {
   const merged = validRecords.reduce((result, patient) => {
     const firstSeenTime = new Date(patient.firstSeen || result.firstSeen || now).getTime();
     const resultFirstSeenTime = new Date(result.firstSeen || now).getTime();
-    const reservations = mergeUniqueById([...(result.reservations || []), ...(patient.reservations || [])]);
+    const reservations = mergeUniqueById([...(patient.reservations || []), ...(result.reservations || [])]);
     const reservationIds = [...new Set([...(result.reservationIds || []), ...(patient.reservationIds || [])].filter(Boolean))];
     const threadEmails = [...new Set([...(result.threadEmails || []), ...Array.from(getPatientEmailKeys(patient))].filter(Boolean))];
-    const latestReservation = [result.latestReservation, patient.latestReservation, ...reservations]
+    const latestReservation = [patient.latestReservation, ...reservations, result.latestReservation]
       .filter(Boolean)
       .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0))[0] || null;
 
     return {
       ...result,
       ...patient,
-      id: result.id || patient.id || `patient-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: result.id || patient.id,
       email: result.email || patient.email,
       realEmail: result.realEmail || patient.realEmail || null,
-      name: patient.name || result.name || null,
+      name: result.nameEditedAt ? result.name : patient.name || result.name || null,
       phone: patient.phone || result.phone || null,
       firstSeen: firstSeenTime < resultFirstSeenTime ? patient.firstSeen : (result.firstSeen || patient.firstSeen || now),
-      updatedAt: new Date(Math.max(new Date(result.updatedAt || 0).getTime(), new Date(patient.updatedAt || 0).getTime(), Date.now())).toISOString(),
+      updatedAt: new Date(Math.max(new Date(result.updatedAt || 0).getTime(), new Date(patient.updatedAt || 0).getTime())).toISOString(),
       latestReservation,
       reservationIds,
       reservations,
@@ -2291,8 +2295,7 @@ async function findConsultChatRecord({ sessionId, deviceId, clientIp }) {
 
 async function getConsultThread(record) {
   if (!record?.email) return [];
-  const threads = await readEmailThreads();
-  const thread = threads.find((item) => item.email && item.email.toLowerCase() === record.email.toLowerCase());
+  const thread = await readEmailThread(record.email);
   return Array.isArray(thread?.messages) ? thread.messages : [];
 }
 
@@ -2323,27 +2326,43 @@ async function readPatients() {
   } catch { return []; }
 }
 
-async function writePatients(patients) {
-  const collection = await getPatientsCollection();
-  if (collection) {
-    await collection.deleteMany({});
-    if (patients.length) await collection.insertMany(patients);
-    return;
-  }
-  await mkdir(dataDir, { recursive: true });
-  await writeFile(patientsPath, JSON.stringify(patients, null, 2), "utf-8");
+let patientFileQueue = Promise.resolve();
+function changePatientFile(change) {
+  const result = patientFileQueue.then(async () => {
+    const patients = await readPatients();
+    const value = change(patients);
+    if (value) {
+      await mkdir(dataDir, { recursive: true });
+      const temp = patientsPath + ".tmp";
+      await writeFile(temp, JSON.stringify(patients, null, 2), "utf-8");
+      await rename(temp, patientsPath);
+    }
+    return value;
+  });
+  patientFileQueue = result.catch(() => {});
+  return result;
 }
 
 async function updatePatientName(email, name) {
-  const normalizedEmail = normalizePatientEmail(email);
+  const key = normalizePatientEmail(email);
   const nextName = String(name || "").trim().slice(0, 80);
-  if (!normalizedEmail || !nextName) return null;
-  const patients = await readPatients();
-  const index = patients.findIndex((patient) => getPatientEmailKeys(patient).has(normalizedEmail));
-  if (index < 0) return null;
-  patients[index] = { ...patients[index], name: nextName, updatedAt: new Date().toISOString() };
-  await writePatients(patients);
-  return patients[index];
+  if (!key || !nextName) return null;
+  const now = new Date().toISOString();
+  const fields = { name: nextName, nameEditedAt: now, updatedAt: now };
+  const collection = await getPatientsCollection();
+  const update = () => collection
+    ? collection.findOneAndUpdate(patientEmailQuery(key), { $set: fields, $inc: { directoryRevision: 1 } }, { returnDocument: "after", projection: { _id: 0 } })
+    : changePatientFile(patients => {
+      const patient = patients.find(item => getPatientEmailKeys(item).has(key));
+      return patient ? Object.assign(patient, fields) : null;
+    });
+  const existing = await update();
+  if (existing) return existing;
+  // A legacy, inbox-only card becomes a stored patient on its first edit.
+  const record = (await readInbox()).find(item => getPatientThreadEmail(item) === key);
+  if (!record) return null;
+  await saveOrUpdatePatient(record, extractPatientInfo(record.concerns || ""));
+  return update();
 }
 
 async function deletePatientRecord(email) {
@@ -2367,14 +2386,12 @@ async function deletePatientRecord(email) {
     const result = await collection.deleteMany(query);
     deleted = result.deletedCount > 0;
   } else {
-    const patients = await readPatients();
-    matchedPatients = patients.filter((item) => getPatientEmailKeys(item).has(normalizedEmail));
-    if (matchedPatients.length) {
-      const remainingPatients = patients.filter((item) => !getPatientEmailKeys(item).has(normalizedEmail));
-      await mkdir(dataDir, { recursive: true });
-      await writeFile(patientsPath, JSON.stringify(remainingPatients, null, 2), "utf-8");
-      deleted = true;
-    }
+    matchedPatients = await changePatientFile(patients => {
+      const matches = patients.filter(item => getPatientEmailKeys(item).has(normalizedEmail));
+      for (const item of matches) patients.splice(patients.indexOf(item), 1);
+      return matches.length ? matches : null;
+    }) || [];
+    deleted = matchedPatients.length > 0;
   }
 
   const patientEmailKeys = new Set([normalizedEmail]);
@@ -2431,7 +2448,7 @@ function extractPatientInfo(text) {
   return result;
 }
 
-async function saveOrUpdatePatient(record, patientInfo) {
+function patientFromReservation(record, patientInfo) {
   const realEmail = record.email && !String(record.email).endsWith(".lofi.internal") ? record.email : null;
   if (!patientInfo.name && !patientInfo.phone && !record.name && !record.phone && !realEmail) return;
   const now = new Date().toISOString();
@@ -2449,45 +2466,79 @@ async function saveOrUpdatePatient(record, patientInfo) {
     visitingFrom: record.visitingFrom || null,
     concerns: record.concerns || null,
     source: record.source || "reservation",
+    status: record.cancelledAt ? "cancelled" : record.status || null,
     createdAt: record.createdAt || now,
   };
   const latestReservation = {
     ...reservation,
     updatedAt: recordTime,
   };
-  const patients = await readPatients();
-  const incoming = {
-    id: `patient-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  return {
+    id: `patient-${record.id}`,
     email,
     realEmail,
     name,
     phone,
-    firstSeen: now,
+    firstSeen: record.createdAt || recordTime,
     updatedAt: recordTime,
     latestReservation,
     reservationIds: [record.id],
-    reservations: [reservation],
+    reservations: [latestReservation],
     threadEmails: [email, realEmail].filter(Boolean).map(normalizePatientEmail),
   };
-  const matchedIndexes = findMatchingPatientIndexes(patients, { email, realEmail, phone });
-  const matchedPatients = matchedIndexes.map((index) => patients[index]);
-  const merged = mergePatientRecords([...matchedPatients, incoming]);
-  const filtered = patients.filter((_, index) => !matchedIndexes.includes(index));
-  filtered.unshift(merged);
-  await writePatients(filtered);
 }
 
-async function syncInboxReservationsToPatients() {
-  const inbox = await readInbox();
-
-  for (const record of inbox) {
-    try {
-      const patientInfo = extractPatientInfo(record.concerns || "");
-      await saveOrUpdatePatient(record, patientInfo);
-    } catch (error) {
-      console.error("Failed to sync reservation to patients", { id: record?.id, error });
+async function saveOrUpdatePatient(record, patientInfo) {
+  const incoming = patientFromReservation(record, patientInfo);
+  if (!incoming) return;
+  const collection = await getPatientsCollection();
+  if (!collection) {
+    return changePatientFile(patients => {
+      const index = patients.findIndex(item => getPatientEmailKeys(item).has(incoming.email) || item.reservationIds?.includes(record.id));
+      const merged = mergePatientRecords([patients[index], incoming]);
+      if (index < 0) patients.unshift(merged);
+      else patients[index] = merged;
+      return merged;
+    });
+  }
+  const query = patientEmailQuery(incoming.email);
+  query.$or.push({ reservationIds: record.id });
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const existing = await collection.findOne(query);
+    const merged = mergePatientRecords([existing, incoming]);
+    if (existing) {
+      const result = await collection.replaceOne(
+        { _id: existing._id, directoryRevision: existing.directoryRevision ?? null },
+        { ...merged, directoryRevision: (existing.directoryRevision || 0) + 1 }
+      );
+      if (result.matchedCount) return;
+    } else {
+      try { await collection.insertOne({ ...merged, directoryRevision: 1 }); return; }
+      catch (error) { if (error.code !== 11000) throw error; }
     }
   }
+  throw new Error("Patient changed concurrently; please retry");
+}
+
+async function readPatientDirectory() {
+  const [patients, inbox] = await Promise.all([readPatients(), readInbox()]);
+  const byEmail = new Map();
+  const byReservation = new Map();
+  function indexPatient(patient, index) {
+    for (const key of getPatientEmailKeys(patient)) byEmail.set(key, index);
+    for (const id of patient.reservationIds || []) byReservation.set(id, index);
+  }
+  patients.forEach(indexPatient);
+  for (const record of inbox) {
+    const incoming = patientFromReservation(record, extractPatientInfo(record.concerns || ""));
+    if (!incoming) continue;
+    const index = byReservation.get(record.id) ?? byEmail.get(incoming.email) ?? patients.length;
+    const existing = patients[index];
+    patients[index] = mergePatientRecords([existing, incoming]);
+    if (existing?.name) patients[index].name = existing.name;
+    indexPatient(patients[index], index);
+  }
+  return sortPatientsByLatestInput(patients);
 }
 
 function normalizeInstagramReservationInfo(value) {
@@ -5711,8 +5762,7 @@ createServer(async (request, response) => {
         response.end(JSON.stringify({ message: "Web consultations use staff replies." }));
         return;
       }
-      const threads = await readEmailThreads();
-      const threadRecord = threads.find((thread) => String(thread.email || "").toLowerCase() === email);
+      const threadRecord = await readEmailThread(email);
       const thread = Array.isArray(threadRecord?.messages) ? threadRecord.messages : [];
       const patients = await readPatients();
       const patient = patients.find((item) => getPatientEmailKeys(item).has(email)) || null;
@@ -5746,8 +5796,13 @@ createServer(async (request, response) => {
       const payload = await getJsonBody(request);
       const content = String(payload.content || "").trim();
       const subject = String(payload.subject || "").trim() || "Reply from lofi esthetic dentistry";
-      const channel = String(payload.channel || "email").trim().toLowerCase();
-      const isWebReply = channel === "web" || email.endsWith("@chat.lofi.internal");
+      const channel = String(payload.channel || (email.endsWith("@chat.lofi.internal") ? "web" : "email")).trim().toLowerCase();
+      if (channel === "email" && email.endsWith(".lofi.internal")) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ message: "Choose a verified email address to send email." }));
+        return;
+      }
+      const isWebReply = channel === "web";
 
       if (!content) {
         response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
@@ -5882,8 +5937,8 @@ createServer(async (request, response) => {
       response.end(JSON.stringify(result.deleted ? { ok: true, thread: result.thread } : { message: "Message not found", thread: result.thread }));
     } catch (error) {
       console.error("Failed to delete email thread message", error);
-      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify({ message: "Failed to delete message" }));
+      response.writeHead(error.statusCode || 500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ message: error.statusCode === 409 ? error.message : "Failed to delete message" }));
     }
     return;
   }
@@ -5897,12 +5952,13 @@ createServer(async (request, response) => {
       return;
     }
     try {
-      const emailThreads = await readEmailThreads();
-      const threadData = emailThreads.find((t) => t.email && t.email.toLowerCase() === email.toLowerCase());
+      const threadData = await readEmailThread(email);
       const thread = threadData?.messages || [];
-      const inbox = await readInbox();
-      const fallbackRecord = inbox.find((r) => String(r.email || "").toLowerCase() === email.toLowerCase());
-      const reservationId = threadData?.reservationId || fallbackRecord?.id || null;
+      let reservationId = threadData?.reservationId || null;
+      if (!reservationId) {
+        const inbox = await readInbox();
+        reservationId = inbox.find(r => normalizePatientEmail(r.email) === normalizePatientEmail(email))?.id || null;
+      }
       
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ email, reservationId, thread }));
@@ -5954,8 +6010,7 @@ createServer(async (request, response) => {
   if (pathname === "/api/admin/patients" && request.method === "GET") {
     if (!adminAuthorized) { requestAuth(response); return; }
     try {
-      await syncInboxReservationsToPatients();
-      const patients = sortPatientsByLatestInput(await readPatients());
+      const patients = await readPatientDirectory();
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ patients }));
     } catch (error) {
@@ -6278,7 +6333,16 @@ createServer(async (request, response) => {
     <p class="login-note">${isInstagramLoginConfigured() ? "" : "Instagram login requires server configuration."}</p>
   </div>
   <script>
-    const dest = new URLSearchParams(location.search).get("next") || "/admin";
+    const requested = new URL(location.href).searchParams.get("next");
+    const next = new URL(location.href);
+    if (requested) {
+      try {
+        const target = new URL(requested, location.origin);
+        if (target.origin === location.origin && (target.pathname === "/admin" || target.pathname.startsWith("/admin/"))) next.href = target.href;
+      } catch { /* Continue on the requested admin page. */ }
+    }
+    next.searchParams.delete("next");
+    const dest = next.href;
     document.getElementById("loginForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const btn = e.target.querySelector("button");
@@ -6322,12 +6386,21 @@ createServer(async (request, response) => {
     }
   }
 
-  const safeRelativePath = resolvePath(request.url);
+  let safeRelativePath;
+  try { safeRelativePath = resolvePath(requestUrl.pathname); }
+  catch { response.writeHead(400); response.end("Invalid path"); return; }
   const safeAbsolutePath = path.normalize(path.join(rootDir, safeRelativePath));
 
-  if (!safeAbsolutePath.startsWith(rootDir)) {
-    response.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
-    response.end("Forbidden");
+  const publicPath = path.relative(rootDir, safeAbsolutePath).split(path.sep).join("/");
+  const publicDirectory = /^(?:assets|display|admin|articles|english|instagram|play|reservation|whatsapp|plugins|chrome-extension)\//;
+  const publicExtension = /\.(?:html|css|js|jpg|jpeg|png|webp|svg|ico|woff2?|mp4)$/i;
+  const publicFile = ((!publicPath.includes("/") || publicDirectory.test(publicPath)) && publicExtension.test(publicPath))
+    || ["robots.txt", "sitemap.xml", "CNAME"].includes(publicPath)
+    || /^(?:plugins|chrome-extension)\/[\w-]+\/(?:manifest|plugin|mcp)\.json$/.test(publicPath)
+    || /^\.well-known\/acme-challenge\/[\w-]+$/.test(publicPath);
+  if (!publicFile || !safeAbsolutePath.startsWith(rootDir + path.sep) || (publicPath.toLowerCase().startsWith("admin/") && !adminAuthorized)) {
+    response.writeHead(404);
+    response.end("Not found");
     return;
   }
 

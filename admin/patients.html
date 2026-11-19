@@ -367,6 +367,7 @@
           <p class="modal-title" id="threadTitle">Message threads</p>
           <button class="btn" id="closeThreadBtn" type="button">Close</button>
         </div>
+        <label id="threadAddressLabel" hidden>Conversation address <select id="threadAddress"></select></label>
         <div class="channel-tabs" aria-label="Message channels">
           <button class="btn channel-tab active" type="button" data-channel="web">Web</button>
           <button class="btn channel-tab" type="button" data-channel="instagram">Instagram DM</button>
@@ -397,6 +398,11 @@
     <script>
       let allPatients = [];
       let currentThread = [];
+      let directoryRequest = 0;
+      const channelDrafts = new Map();
+      let viewVersion = 0;
+      let refreshVersion = 0;
+      let markingReadVersion = -1;
       let currentChannel = "web";
       let currentThreadEmail = "";
       let currentReservationId = "";
@@ -465,6 +471,8 @@
           phone: patient.phone || "",
           realEmail: patient.realEmail || "",
           updatedAt: patient.updatedAt || "",
+          appointments: patient.reservations?.map(row => [row.id, row.date, row.time, row.status, row.concerns]),
+          addresses: patient.threadEmails,
           latestUpdatedAt: patient.latestReservation?.updatedAt || patient.latestReservation?.createdAt || "",
           reservationIds: Array.isArray(patient.reservationIds) ? patient.reservationIds.join("|") : "",
         })));
@@ -516,6 +524,7 @@
         const button = document.getElementById("aiAssistBtn");
         const body = document.getElementById("aiAssistBody");
         if (!currentThreadEmail) return;
+        const view = viewVersion;
         button.disabled = true;
         button.textContent = "Generating...";
         body.classList.add("open");
@@ -527,13 +536,14 @@
             body: JSON.stringify({ channel: currentChannel }),
           });
           const data = await res.json().catch(() => ({}));
+          if (view !== viewVersion) return;
           if (!res.ok) {
             body.innerHTML = `<p class="reply-status">${esc(data.message || "Failed to generate AI assist.")}</p>`;
             return;
           }
           renderAiAssist(data.assist || {}, data.model || "");
         } catch {
-          body.innerHTML = '<p class="reply-status">Failed to generate AI assist.</p>';
+          if (view === viewVersion) body.innerHTML = '<p class="reply-status">Failed to generate AI assist.</p>';
         } finally {
           button.disabled = false;
           button.textContent = "Generate draft";
@@ -554,7 +564,7 @@
         const replyStatus = document.getElementById("threadReplyStatus");
         const replyInput = document.getElementById("threadReplyInput");
         const filtered = currentThread.filter(message => getMessageChannel(message) === currentChannel);
-        const canReply = (currentChannel === "web" || currentChannel === "email") && currentThreadEmail;
+        const canReply = currentThreadEmail && (currentChannel === "web" || (currentChannel === "email" && !currentThreadEmail.endsWith(".lofi.internal")));
         replyForm.classList.toggle("hidden", !canReply);
         replyInput.placeholder = currentChannel === "email" ? "Reply by email" : "Reply to this web consult";
         if (currentChannel === "instagram") replyStatus.textContent = "Replies are currently enabled for Web and Email threads.";
@@ -588,17 +598,19 @@
       async function refreshCurrentThread({ showLoading = false, markRead = false } = {}) {
         const email = currentThreadEmail;
         if (!email) return;
+        const version = ++refreshVersion;
         const content = document.getElementById("threadContent");
         if (showLoading) content.innerHTML = '<p class="empty">Loading message threads…</p>';
 
         try {
           const res = await fetch(`/api/admin/email-thread/${encodeURIComponent(email)}`, { headers: { Accept: "application/json" } });
-          if (email !== currentThreadEmail) return;
+          if (version !== refreshVersion || email !== currentThreadEmail) return;
           if (!res.ok) {
-            if (showLoading) content.innerHTML = '<p class="empty">Failed to load message threads.</p>';
+            if (version === refreshVersion && showLoading) content.innerHTML = '<p class="empty">Failed to load message threads.</p>';
             return;
           }
           const data = await res.json();
+          if (version !== refreshVersion || email !== currentThreadEmail) return;
           const nextThread = Array.isArray(data.thread) ? data.thread : [];
           const nextSignature = getThreadSignature(nextThread);
           currentReservationId = data.reservationId || currentReservationId;
@@ -609,7 +621,7 @@
           }
           if (markRead && currentChannel === "web") markCurrentWebThreadRead();
         } catch {
-          if (showLoading) content.innerHTML = '<p class="empty">Failed to load message threads.</p>';
+          if (version === refreshVersion && showLoading) content.innerHTML = '<p class="empty">Failed to load message threads.</p>';
         }
       }
 
@@ -629,6 +641,7 @@
 
       async function deleteThreadMessage(messageIndex) {
         if (!currentThreadEmail || !Number.isInteger(messageIndex) || messageIndex < 0) return;
+        const view = viewVersion;
         const message = currentThread[messageIndex];
         const label = threadLabel(message).toLowerCase();
         if (!confirm(`Delete this ${label} message?`)) return;
@@ -639,39 +652,43 @@
             headers: { Accept: "application/json" },
           });
           const data = await res.json().catch(() => ({}));
+          if (view !== viewVersion) return;
           if (!res.ok) {
             alert(data.message || "Failed to delete message.");
             return;
           }
-          currentThread = Array.isArray(data.thread) ? data.thread : [];
-          renderThreadChannel();
+          await refreshCurrentThread();
         } catch {
           alert("Failed to delete message.");
         }
       }
 
       async function markCurrentWebThreadRead() {
-        if (!currentThreadEmail || currentChannel !== "web") return;
+        const view = viewVersion;
+        if (!currentThreadEmail || currentChannel !== "web" || markingReadVersion === view) return;
+        if (!currentThread.some(message => message.type === "customer-reply" && getMessageChannel(message) === "web" && !message.adminReadAt)) return;
+        markingReadVersion = view;
         try {
           const res = await fetch(`/api/admin/email-thread/${encodeURIComponent(currentThreadEmail)}/read`, {
             method: "POST",
             headers: { Accept: "application/json", "Content-Type": "application/json" },
             body: JSON.stringify({ channel: "web" }),
           });
-          if (!res.ok) return;
-          const data = await res.json().catch(() => ({}));
-          if (Array.isArray(data.thread)) {
-            currentThread = data.thread;
-            lastRenderedThreadSignature = getThreadSignature(currentThread);
-            renderThreadChannel();
-          }
+          if (res.ok && view === viewVersion) await refreshCurrentThread();
         } catch {
-          // Keep the admin thread usable even if the read receipt update fails.
+          // The next refresh retries outstanding receipts.
+        } finally {
+          if (view === markingReadVersion) markingReadVersion = -1;
         }
       }
 
       function setChannel(channel) {
+        if (currentChannel === channel) return;
+        channelDrafts.set(currentChannel, document.getElementById("threadReplyInput").value);
+        viewVersion++;
         currentChannel = channel;
+        document.getElementById("threadReplyInput").value = channelDrafts.get(channel) || "";
+        document.getElementById("threadReplyStatus").textContent = "";
         document.querySelectorAll(".channel-tab").forEach(button => {
           button.classList.toggle("active", button.dataset.channel === channel);
         });
@@ -680,7 +697,15 @@
         if (channel === "web") markCurrentWebThreadRead();
       }
 
-      async function openThread(email) {
+      async function openThread(email, addresses = [email]) {
+        stopThreadPolling();
+        const address = document.getElementById("threadAddress");
+        address.replaceChildren(...addresses.map(value => new Option(value, value)));
+        address.value = email;
+        document.getElementById("threadAddressLabel").hidden = addresses.length < 2;
+        viewVersion++;
+        currentThread = [];
+        channelDrafts.clear();
         const modal = document.getElementById("threadModal");
         const content = document.getElementById("threadContent");
         const replyStatus = document.getElementById("threadReplyStatus");
@@ -696,11 +721,20 @@
         document.querySelectorAll(".channel-tab").forEach(button => {
           button.classList.toggle("active", button.dataset.channel === "web");
         });
-        await refreshCurrentThread({ showLoading: true, markRead: true });
+        renderThreadChannel();
         startThreadPolling();
+        await refreshCurrentThread({ showLoading: true, markRead: true });
       }
 
+      document.getElementById("threadAddress").addEventListener("change", event => {
+        const select = event.currentTarget;
+        openThread(select.value, Array.from(select.options, option => option.value));
+      });
+
       function closeThread() {
+        viewVersion++;
+        refreshVersion++;
+        channelDrafts.clear();
         stopThreadPolling();
         document.getElementById("threadModal").classList.remove("open");
         document.getElementById("threadContent").innerHTML = "";
@@ -721,6 +755,8 @@
         const content = String(retryContent || input.value).trim();
         if (!content || !currentThreadEmail || !["web", "email"].includes(currentChannel)) return;
 
+        if (button.disabled) return;
+        const view = viewVersion;
         button.disabled = true;
         status.className = "reply-status";
         status.textContent = "Sending...";
@@ -731,27 +767,25 @@
             body: JSON.stringify({ content, channel: currentChannel, reservationId: currentReservationId }),
           });
           const data = await res.json().catch(() => ({}));
+          if (view !== viewVersion) return;
           if (!res.ok) {
             status.className = "reply-status failed";
             status.textContent = data.message || "Failed to send reply.";
-            if (data.threadMessage) currentThread.push(data.threadMessage);
-            lastRenderedThreadSignature = getThreadSignature(currentThread);
-            renderThreadChannel();
+            if (data.threadMessage) await refreshCurrentThread();
             return;
           }
-          if (!retryContent) input.value = "";
+          if (!retryContent && input.value.trim() === content) input.value = "";
           status.className = "reply-status sent";
           status.textContent = data.delivered === "email" ? "Sent." : "Sent to web chat.";
           currentReservationId = data.reservationId || currentReservationId;
-          if (data.message) currentThread.push(data.message);
-          lastRenderedThreadSignature = getThreadSignature(currentThread);
-          renderThreadChannel();
+          await refreshCurrentThread();
         } catch {
+          if (view !== viewVersion) return;
           status.className = "reply-status failed";
           status.textContent = "Failed to send reply.";
         } finally {
           button.disabled = false;
-          input.focus();
+          if (view === viewVersion) input.focus();
         }
       }
 
@@ -770,12 +804,14 @@
       function render(patients) {
         const list = document.getElementById("patientList");
         if (!patients.length) {
+          if (document.getElementById("searchInput").value.trim()) { list.innerHTML = '<p class="empty">No matching patients.</p>'; return; }
           list.innerHTML = '<p class="empty">No patients yet. New reservations will be saved here automatically.</p>';
           return;
         }
 
         list.innerHTML = patients.map(p => {
-          const actionEmail = getPatientActionEmail(p);
+          const addresses = patientAddresses(p);
+          const actionEmail = p.email || addresses[0] || "";
           const reservations = Array.isArray(p.reservations) ? [...p.reservations] : [];
           reservations.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
           const latestReservation = p.latestReservation || (reservations.length ? reservations[0] : null);
@@ -786,7 +822,7 @@
           const reservationRows = reservations.map((reservation) => {
             const when = reservation.date && reservation.time ? `${reservation.date} ${reservation.time}` : (reservation.date || reservation.time || "Reservation");
             const source = reservation.source === "consult-chat" ? "Web consult" : reservation.source === "instagram-dm" ? "Instagram DM" : "Reservation";
-            return `<div class="reservation-row"><strong>${esc(when)}</strong><span>${esc(source)}</span></div>`;
+            return `<div class="reservation-row"><strong>${esc(when)}</strong><span>${esc(source)}${reservation.status === "cancelled" ? " · Cancelled" : ""}</span></div>`;
           }).join("");
 
           return `
@@ -795,14 +831,14 @@
               <div class="patient-name-row">
                 <p class="patient-name" data-email="${esc(actionEmail)}" data-name="${esc(p.name || "")}" title="Right-click to edit">${p.name ? esc(p.name) : '<span class="no-name">Name unknown</span>'}</p>
                 <div class="patient-actions">
-                  <button class="message-icon" type="button" data-email="${esc(actionEmail)}" aria-label="Open message threads for ${esc(p.name || "this patient")}">💬</button>
+                  <button class="message-icon" type="button" data-addresses="${esc(JSON.stringify(addresses))}" data-email="${esc(actionEmail)}" aria-label="Open message threads for ${esc(p.name || "this patient")}">💬</button>
                   <button class="delete-patient-btn" type="button" data-email="${esc(actionEmail)}" data-name="${esc(p.name || p.realEmail || actionEmail || "this patient")}" aria-label="Delete ${esc(p.name || "this patient")}">×</button>
                 </div>
               </div>
               <div class="patient-meta">
                 ${p.phone ? `<span class="chip phone">&#128222; ${esc(p.phone)}</span>` : ""}
                 ${p.realEmail ? `<span class="chip email">&#9993; ${esc(p.realEmail)}</span>` : ""}
-                ${appointment ? `<span class="chip date">Reservation: ${esc(appointment)}</span>` : ""}
+                ${appointment ? `<span class="chip date">${latestReservation.status === "cancelled" ? "Cancelled" : "Reservation"}: ${esc(appointment)}</span>` : ""}
                 <span class="chip date">First seen: ${esc(fmtDate(p.firstSeen))}</span>
                 ${p.reservationIds && p.reservationIds.length ? `<span class="chip">${p.reservationIds.length} reservation${p.reservationIds.length > 1 ? "s" : ""}</span>` : ""}
               </div>
@@ -819,7 +855,7 @@
           });
         });
         list.querySelectorAll(".message-icon").forEach((button) => {
-          button.addEventListener("click", () => openThread(button.dataset.email || ""));
+          button.addEventListener("click", () => openThread(button.dataset.email || "", JSON.parse(button.dataset.addresses)));
         });
         list.querySelectorAll(".delete-patient-btn").forEach((button) => {
           button.addEventListener("click", () => deletePatient(button.dataset.email || "", button.dataset.name || "this patient", button));
@@ -861,7 +897,7 @@
         return emails.some((value) => String(value || "").toLowerCase() === normalizedEmail);
       }
 
-      function getPatientActionEmail(patient) {
+      function patientAddresses(patient) {
         const emails = [
           patient?.email,
           patient?.realEmail,
@@ -869,7 +905,7 @@
           ...(Array.isArray(patient?.threadEmails) ? patient.threadEmails : []),
           ...(Array.isArray(patient?.reservations) ? patient.reservations.map((reservation) => reservation?.email) : []),
         ].map((value) => String(value || "").trim()).filter(Boolean);
-        return emails.find((email) => !email.endsWith(".lofi.internal")) || emails[0] || "";
+        return [...new Set(emails.map(email => email.toLowerCase()))];
       }
 
       async function deletePatient(email, name, button = null) {
@@ -962,7 +998,9 @@
             return;
           }
           const patient = data.patient;
-          allPatients = allPatients.map((item) => String(item.email || "").toLowerCase() === String(email || "").toLowerCase() ? { ...item, ...patient } : item);
+          allPatients = allPatients.map((item) => patientHasEmail(item, email) ? { ...item, ...patient } : item);
+          directoryRequest++;
+          lastRenderedPatientSignature = getPatientsSignature(allPatients);
           applySearch();
         } catch {
           alert("Failed to update patient name.");
@@ -971,6 +1009,7 @@
       }
 
       async function load(options = {}) {
+        const version = ++directoryRequest;
         const silent = Boolean(options.silent);
         if (!silent) document.getElementById("patientList").innerHTML = '<p class="empty">Loading…</p>';
         try {
@@ -980,6 +1019,7 @@
             return;
           }
           const data = await res.json();
+          if (version !== directoryRequest || (silent && document.querySelector(".patient-name.editing"))) return;
           const nextPatients = Array.isArray(data.patients) ? data.patients : [];
           nextPatients.sort((a, b) => new Date(b.latestReservation?.updatedAt || b.latestReservation?.createdAt || b.updatedAt || b.firstSeen || 0) - new Date(a.latestReservation?.updatedAt || a.latestReservation?.createdAt || a.updatedAt || a.firstSeen || 0));
           const nextSignature = getPatientsSignature(nextPatients);
@@ -988,7 +1028,7 @@
           lastRenderedPatientSignature = nextSignature;
           applySearch();
         } catch {
-          if (silent) return;
+          if (silent || version !== directoryRequest) return;
           document.getElementById("patientList").innerHTML = '<p class="empty">Failed to load patients.</p>';
         }
       }
@@ -1006,8 +1046,7 @@
         const filtered = q
           ? allPatients.filter(p =>
               (p.name || "").toLowerCase().includes(q) ||
-              (p.email || "").toLowerCase().includes(q) ||
-              (p.realEmail || "").toLowerCase().includes(q) ||
+              patientAddresses(p).some(email => email.includes(q)) ||
               (p.phone || "").toLowerCase().includes(q) ||
               (p.latestReservation?.concerns || "").toLowerCase().includes(q))
           : allPatients;

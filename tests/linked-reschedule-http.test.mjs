@@ -12,6 +12,7 @@ function matches(row,filter) {
     if(key==='$and')return value.every(f=>matches(row,f));
     if(key==='$or')return value.some(f=>matches(row,f));
     if(value && typeof value==='object' && !Array.isArray(value)) {
+      if('$exists' in value)return Object.hasOwn(row,key)===value.$exists;
       if('$ne' in value)return row[key]!==value.$ne;
       if('$lt' in value)return row[key]<value.$lt;
       if('$in' in value)return value.$in.includes(row[key]);

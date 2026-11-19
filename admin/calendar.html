@@ -436,6 +436,7 @@
         font-weight: 900;
       }
 
+      .detail-actions[hidden] { display: none; }
       .detail-actions {
         display: flex;
         justify-content: flex-end;
@@ -1100,6 +1101,7 @@
         <p class="detail-subtitle" id="detailSubtitle"></p>
         <div class="detail-actions" style="justify-content:flex-start;margin-bottom:12px;">
           <button class="detail-action" type="button" id="scheduleAiBtn">AI schedule summary</button>
+          <button class="detail-action" type="button" id="dayAdd">Add reservation</button>
         </div>
         <div class="detail-ai-panel" id="scheduleAiPanel" aria-live="polite"></div>
         <div class="detail-list" id="detailList"></div>
@@ -1319,6 +1321,7 @@
       let viewYear = today.getFullYear();
       let viewMonth = today.getMonth();
       let allReservations = [];
+      let calendarVersion = 0;
       let currentDetailDateKey = null;
       let menuReservationId = null;
       let menuCreateDateKey = null;
@@ -1539,31 +1542,25 @@
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.message || "Could not save Dentweb status.");
         const index = allReservations.findIndex((record) => String(record.id) === String(id));
-        if (index >= 0 && data.record) allReservations[index] = data.record;
+        if (index >= 0 && data.record) upsertLocalReservation(data.record);
         if (currentDetailDateKey) renderDetailList(currentDetailDateKey);
         return data.record;
       }
 
       let dentwebStatusRefreshing = false;
       async function refreshDentwebStatuses() {
-        if (dentwebStatusRefreshing || document.hidden || !allReservations.length) return;
+        if (dentwebStatusRefreshing || document.hidden || editOverlay.classList.contains('open') || createOverlay.classList.contains('open')) return;
+        const version = calendarVersion;
         dentwebStatusRefreshing = true;
         try {
           const response = await fetch('/api/admin/messages', { headers: { Accept: 'application/json' }, cache: 'no-store' });
           if (!response.ok) return;
           const data = await response.json();
-          const latest = new Map((data.messages || []).map(record => [String(record.id), record]));
-          let changed = false;
-          for (const record of allReservations) {
-            const fresh = latest.get(String(record.id));
-            if (!fresh || fresh.dentwebSyncUpdatedAt === record.dentwebSyncUpdatedAt) continue;
-            for (const key of ['dentwebSyncStatus','dentwebSyncUpdatedAt','dentwebSyncError','dentwebQueuedAt','dentwebProcessingAt','dentwebSyncedAt','dentwebReservationId','cancelledAt','status','dentwebAction','cancellationRequestedAt']) record[key] = fresh[key];
-            changed = true;
-          }
-          if (changed && !document.activeElement?.matches('input,textarea,select')) {
-            renderCalendar();
-            if (currentDetailDateKey) renderDetailList(currentDetailDateKey);
-          }
+          if (version !== calendarVersion || !Array.isArray(data.messages)) return;
+          if (JSON.stringify(data.messages) === JSON.stringify(allReservations)) return;
+          allReservations = data.messages;
+          renderCalendar();
+          if (currentDetailDateKey) renderDetailList(currentDetailDateKey);
         } catch { /* Preserve the last known status while offline. */ }
         finally { dentwebStatusRefreshing = false; }
       }
@@ -1867,6 +1864,7 @@
 
       function upsertLocalReservation(record) {
         const idx = allReservations.findIndex((r) => r.id === record.id);
+        calendarVersion++;
         if (idx >= 0) {
           allReservations[idx] = record;
         } else {
@@ -1892,6 +1890,7 @@
 
       async function loadReservations() {
         statusMsg.style.display = "block";
+        const version = ++calendarVersion;
         statusMsg.textContent = "Loading reservations...";
         try {
           const res = await fetch("/api/admin/messages", { headers: { Accept: "application/json" } });
@@ -1900,6 +1899,7 @@
             return;
           }
           const data = await res.json();
+          if (version !== calendarVersion) return;
           allReservations = Array.isArray(data.messages) ? data.messages : [];
           statusMsg.style.display = "none";
           renderCalendar();
@@ -1942,6 +1942,8 @@
       }
 
       function showReservationMenu(event, reservationId) {
+        const record = getReservationById(reservationId);
+        if (!record || record.cancelledAt || record.status === "cancelled" || record.dentwebAction === "cancel") return;
         menuReservationId = reservationId;
         reservationMenu.classList.add("open");
         const padding = 8;
@@ -2017,6 +2019,9 @@
           return;
         }
 
+        const save = document.getElementById("createSave");
+        if (save.disabled) return;
+        save.disabled = true;
         try {
           const res = await fetch("/api/admin/reservations", {
             method: "POST",
@@ -2047,6 +2052,8 @@
           }
         } catch {
           alert("Failed to create reservation.");
+        } finally {
+          save.disabled = false;
         }
       }
 
@@ -2212,6 +2219,7 @@
 
       async function generateScheduleAiAssist() {
         if (!currentDetailDateKey) return;
+        const requestedDate = currentDetailDateKey;
         const originalText = scheduleAiBtn.textContent;
         scheduleAiBtn.disabled = true;
         scheduleAiBtn.textContent = "AI working...";
@@ -2226,8 +2234,9 @@
           });
           const data = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(data.message || "Failed to generate schedule summary.");
-          renderScheduleAiAssist(data.assist || {});
+          if (requestedDate === currentDetailDateKey) renderScheduleAiAssist(data.assist || {});
         } catch (error) {
+          if (requestedDate !== currentDetailDateKey) return;
           scheduleAiPanel.classList.add("open");
           scheduleAiPanel.innerHTML = `<span class="detail-ai-title">AI schedule summary</span>${escHtml(error.message || "Failed to generate schedule summary.")}`;
         } finally {
@@ -2363,6 +2372,9 @@
           updatedAt: new Date().toISOString(),
         };
 
+        const save = document.getElementById("editSave");
+        if (save.disabled) return;
+        save.disabled = true;
         try {
           const saved = await upsertReservation(updated);
           upsertLocalReservation(saved);
@@ -2379,6 +2391,8 @@
           }
         } catch (error) {
           alert(error.message || "Failed to update reservation.");
+        } finally {
+          save.disabled = false;
         }
       }
 
@@ -2432,6 +2446,7 @@
             return;
           }
 
+          calendarVersion++;
           allReservations = allReservations.filter((r) => r.id !== id);
           selectedReservationIds.delete(String(id));
           if (trackUndo) {
@@ -2503,6 +2518,7 @@
             if (!createdId) return;
             const res = await fetch(`/api/admin/reservations/${encodeURIComponent(createdId)}`, { method: "DELETE" });
             if (!res.ok) throw new Error("Failed to undo create");
+            calendarVersion++;
             allReservations = allReservations.filter((r) => String(r.id) !== createdId);
             selectedReservationIds.delete(createdId);
             renderCalendar();
@@ -2525,6 +2541,7 @@
         await deleteReservation(menuReservationId, dateKey);
       });
 
+      document.getElementById("dayAdd").addEventListener("click", () => openCreateModal(currentDetailDateKey));
       document.getElementById("menuAddReservation").addEventListener("click", () => {
         if (!menuCreateDateKey) return;
         openCreateModal(menuCreateDateKey);
