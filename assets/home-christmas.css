@@ -1,39 +1,58 @@
 body[data-home-preserved] {
-  --editorial-ink: #213e34;
-  --editorial-muted: #53635b;
-  --editorial-line: #d7ccb5;
+  --editorial-ink: #203b50;
+  --editorial-muted: #435a6b;
+  --editorial-line: #b8cad4;
   --cranberry: #892e43;
-  background: #fbf8f0;
-  border-top: 4px solid var(--cranberry);
+  --snow: #edf3f5;
+  --winter-depth: clamp(590px, 45vw, 720px);
+  background-color: var(--snow);
+  background-image:
+    linear-gradient(to bottom, rgba(246,249,250,.44), transparent 38%, transparent 74%, var(--snow)),
+    linear-gradient(102deg, rgba(249,249,244,.95) 2%, rgba(237,245,248,.83) 39%, rgba(229,240,248,.41) 79%, rgba(241,246,247,.60)),
+    url("/assets/fi-winter-postcard.webp"),
+    linear-gradient(to bottom, var(--snow), rgba(235,243,246,.82)),
+    url("/assets/fi-winter-postcard.webp");
+  background-size: 100% var(--winter-depth), 100% var(--winter-depth), max(100%, calc(3 * var(--winter-depth))) var(--winter-depth), 100% 230px, max(100%, 690px) 230px;
+  background-position: top center, top center, right top, bottom center, right bottom;
+  background-repeat: no-repeat;
 }
 
-[data-home-preserved] .hero-main { display: block; }
+[data-home-preserved] .hero-main { display: block; backdrop-filter: none; }
+[data-home-preserved] .topbar { border-color: rgba(48,78,100,.24); }
+[data-home-preserved] .opening-banner strong,
+[data-home-preserved] .opening-banner span { color: var(--editorial-ink); }
+[data-home-preserved] .doctors-nav .lang-toggle,
+[data-home-preserved] .contact-phone,
+[data-home-preserved] .map-link {
+  background-color: rgba(250,253,254,.78);
+  border-color: #afc1cd;
+}
 .christmas-card {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   align-items: center;
   gap: clamp(16px, 4vw, 54px);
-  padding: clamp(24px, 2.8vw, 42px) clamp(28px, 4.5vw, 68px);
-  color: #fff9ec;
-  background: #0a2b54 url("/assets/fi-winter-postcard.webp") center / cover no-repeat;
-  outline: 1px solid #a59b6c;
-  outline-offset: -9px;
+  padding: clamp(16px, 2vw, 32px) 0;
+  color: var(--editorial-ink);
 }
 [data-home-preserved] .christmas-card .hero-eyebrow {
   margin: 0 0 14px;
-  color: #ffdf9c;
+  color: #344e62;
   font: italic clamp(23px, 2.4vw, 36px)/1.2 Georgia, serif;
   letter-spacing: -.025em;
   text-transform: none;
 }
-[data-home-preserved] .christmas-card h1 { margin: 0; color: #fff9ec; }
-[data-home-preserved] .christmas-card .quote-line:last-child { color: #f1dcb5; }
-[data-home-preserved] .christmas-card .hero-lead { color: #e9eadd; margin: 16px 0 0; }
+[data-home-preserved] .christmas-card h1 { margin: 0; color: var(--editorial-ink); }
+[data-home-preserved] .christmas-card .quote-line:last-child { color: #395972; }
+[data-home-preserved] .christmas-card .hero-lead { color: var(--editorial-muted); margin: 16px 0 0; }
 .christmas-greeting {
   display: grid;
   justify-items: center;
 }
-.christmas-greeting img { width: min(100%, 248px); height: auto; }
+.christmas-greeting img {
+  width: min(100%, 248px); height: auto;
+  mask-image: linear-gradient(to bottom, black 89%, transparent);
+}
 [data-home-preserved] .hero-main .btn-book,
 body[data-home-preserved].lofi-floating-ctas .sticky-appointment {
   background: var(--cranberry);
@@ -42,22 +61,30 @@ body[data-home-preserved].lofi-floating-ctas .sticky-appointment {
 }
 [data-home-preserved] .hero-main .btn-book:hover,
 body[data-home-preserved].lofi-floating-ctas .sticky-appointment:hover { background: #6e2133; color: white; }
-[data-home-preserved] .hero-main .btn-before-after { color: var(--editorial-ink); border-color: #9dada2; }
-[data-home-preserved] .hero-results { background: #e9eee7; border-color: #c3d1c7; }
-[data-home-preserved] .hero-result { background: #f7f8f1; }
+[data-home-preserved] .hero-main .btn-before-after { color: var(--editorial-ink); background: #f7fafb; border-color: #9eafbc; }
+[data-home-preserved] .hero-results { background: #dce8ee; border-color: #b6cbd6; }
+[data-home-preserved] .hero-result { background: #f6f9fa; }
+[data-home-preserved] .results-heading span,
+[data-home-preserved] .hero-result figcaption,
+[data-home-preserved] .results-footer p { color: var(--editorial-muted); }
+[data-home-preserved] .section { border-color: var(--editorial-line); }
+[data-home-preserved] .journal-card { border-color: #9bb1bf; }
+[data-home-preserved] .journal-card:hover { background: #e0ebf1; }
+[data-home-preserved] .distance-button { background: #284b61; }
+[data-home-preserved] .clinic-map-button { color: var(--editorial-ink); background: #dae7ed; }
 [data-home-preserved] .results-heading h2,
 [data-home-preserved] .treatment-name { color: var(--editorial-ink); }
 [data-home-preserved] .section-label,
 [data-home-preserved] .doctor-role { color: var(--cranberry); }
 
 @media (max-width: 760px) {
+  body[data-home-preserved] { --winter-depth: 705px; background-position: top center, top center, 77% top, bottom center, right bottom; }
   .christmas-card {
     grid-template-columns: 1fr;
     gap: 8px;
-    padding: 26px 24px 20px;
-    background-position: 74% center;
+    padding: 10px 0 12px;
   }
-  .christmas-greeting { justify-self: end; }
+  .christmas-greeting { justify-self: end; margin-right: 5%; }
   .christmas-greeting img { width: clamp(116px, 31vw, 170px); }
   [data-home-preserved] .christmas-card .hero-eyebrow { margin-bottom: 12px; }
   [data-home-preserved] .christmas-card .hero-lead { margin-top: 10px; }
