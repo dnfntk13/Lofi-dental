@@ -13,26 +13,40 @@ body[data-home-preserved] {
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   align-items: center;
   gap: clamp(16px, 4vw, 54px);
-  padding: clamp(28px, 4.5vw, 68px);
+  padding: clamp(24px, 2.8vw, 42px) clamp(28px, 4.5vw, 68px);
   color: #fff9ec;
-  background: radial-gradient(ellipse at 74% 12%, #385849, transparent 62%), #1d3d32;
+  background: #0a2b54 url("/assets/fi-winter-postcard.webp") center / cover no-repeat;
   outline: 1px solid #a59b6c;
   outline-offset: -9px;
 }
-[data-home-preserved] .christmas-card .hero-eyebrow { color: #e4d5ad; margin: 0 0 16px; }
+[data-home-preserved] .christmas-card .hero-eyebrow {
+  margin: 0 0 14px;
+  color: #ffdf9c;
+  font: italic clamp(23px, 2.4vw, 36px)/1.2 Georgia, serif;
+  letter-spacing: -.025em;
+  text-transform: none;
+}
 [data-home-preserved] .christmas-card h1 { margin: 0; color: #fff9ec; }
 [data-home-preserved] .christmas-card .quote-line:last-child { color: #f1dcb5; }
 [data-home-preserved] .christmas-card .hero-lead { color: #e9eadd; margin: 16px 0 0; }
 .christmas-greeting {
   display: grid;
   justify-items: center;
-  gap: 7px;
+  gap: 0;
   color: #f6e5c7;
   text-align: center;
-  font: italic clamp(24px, 2.8vw, 46px)/1.15 Georgia, serif;
+  font: italic clamp(16px, 1.6vw, 23px)/1.2 Georgia, serif;
 }
-.christmas-greeting img { width: min(100%, 310px); height: auto; }
-html:lang(ko) .christmas-greeting { font: 500 clamp(18px, 2vw, 30px)/1.4 'Noto Serif KR', Batang, serif; }
+.christmas-greeting img { width: min(100%, 248px); height: auto; }
+.christmas-greeting span {
+  padding: 5px 20px 7px;
+  color: #fff7de;
+  background: #853045;
+  border-radius: 50% / 12%;
+  transform: rotate(-3deg);
+}
+.christmas-greeting b { font: bold italic 1.35em/1 Georgia, serif; }
+html:lang(ko) .christmas-greeting { font: 500 clamp(14px, 1.3vw, 18px)/1.35 Batang, serif; }
 [data-home-preserved] .hero-main .btn-book,
 body[data-home-preserved].lofi-floating-ctas .sticky-appointment {
   background: var(--cranberry);
@@ -50,9 +64,15 @@ body[data-home-preserved].lofi-floating-ctas .sticky-appointment:hover { backgro
 [data-home-preserved] .doctor-role { color: var(--cranberry); }
 
 @media (max-width: 760px) {
-  .christmas-card { grid-template-columns: 1fr; gap: 16px; padding: 27px 22px 20px; }
-  .christmas-greeting { display: flex; align-items: center; justify-content: flex-start; gap: 10px; font-size: 23px; }
-  .christmas-greeting img { width: 68px; }
+  .christmas-card {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 26px 24px 20px;
+    background-position: 74% center;
+  }
+  .christmas-greeting { justify-self: end; }
+  .christmas-greeting img { width: clamp(116px, 31vw, 170px); }
+  .christmas-greeting span { padding: 3px 15px 5px; }
   [data-home-preserved] .christmas-card .hero-eyebrow { margin-bottom: 12px; }
   [data-home-preserved] .christmas-card .hero-lead { margin-top: 10px; }
 }

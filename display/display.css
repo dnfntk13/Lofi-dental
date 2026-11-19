@@ -26,10 +26,13 @@ body::after {
 .display-greeting {
   position: absolute; left: 21%; right: 21%; top: 0; height: 100%;
   display: flex; align-items: center; justify-content: center;
-  color: #8b2838; white-space: nowrap;
+  color: #fff8e9; white-space: nowrap; text-align: center;
+  background: #10325b url('/display/winter-postcard.jpg') center 42% / cover no-repeat;
+  border: 1px solid #bba367; border-radius: 1vh;
   font: italic 4.6vh/1 Georgia, 'Times New Roman', serif;
 }
-.display-greeting img { width: 14vh; max-height: 88%; object-fit: contain; margin-right: 1.5vh; }
+.display-greeting img { height: 96%; width: auto; margin-right: 1.4vh; }
+.display-greeting small { display: block; color: #ffe4a5; font-size: .52em; margin-top: .15em; }
 .display-time { position: absolute; right: 0; top: 50%; transform: translateY(-50%); text-align: right; }
 #displayClock { display: block; font-size: 4vh; line-height: 1.1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
 #displayDate { display: block; font-size: 1.65vh; margin-top: .45vh; color: #526455; }
@@ -45,8 +48,8 @@ body::after {
 .display-standby.is-hidden { visibility: hidden; }
 @media (max-aspect-ratio: 1/1) {
   .display-logo { width: 23%; }
-  .display-greeting { left: 24%; right: 24%; flex-direction: column; font-size: 4.8vw; }
-  .display-greeting img { width: 20vw; height: 52%; margin: 0 0 .25vh; }
+  .display-greeting { left: 24%; right: 24%; font-size: 3.9vw; }
+  .display-greeting img { width: 15vw; height: auto; max-height: 95%; object-fit: contain; margin-right: .5vw; }
   #displayClock { font-size: 5.9vw; }
   #displayDate { font-size: 2.1vw; }
 }
