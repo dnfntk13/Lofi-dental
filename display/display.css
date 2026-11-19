@@ -31,10 +31,9 @@ body::before {
 .display-greeting img {
   height: 86%; width: auto; margin-right: 1vh;
   opacity: .92;
-  -webkit-mask-image: linear-gradient(to bottom, black 74%, transparent);
-  mask-image: linear-gradient(to bottom, black 74%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, black 89%, transparent);
+  mask-image: linear-gradient(to bottom, black 89%, transparent);
 }
-.display-greeting small { display: block; color: #516777; font-size: .52em; margin-top: .22em; }
 .display-time { position: absolute; right: 0; top: 50%; transform: translateY(-50%); text-align: right; }
 #displayClock { display: block; font-size: 4vh; line-height: 1.1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
 #displayDate { display: block; font-size: 1.65vh; margin-top: .45vh; color: #465d6c; }

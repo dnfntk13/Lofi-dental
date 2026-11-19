@@ -32,21 +32,8 @@ body[data-home-preserved] {
 .christmas-greeting {
   display: grid;
   justify-items: center;
-  gap: 0;
-  color: #f6e5c7;
-  text-align: center;
-  font: italic clamp(16px, 1.6vw, 23px)/1.2 Georgia, serif;
 }
 .christmas-greeting img { width: min(100%, 248px); height: auto; }
-.christmas-greeting span {
-  padding: 5px 20px 7px;
-  color: #fff7de;
-  background: #853045;
-  border-radius: 50% / 12%;
-  transform: rotate(-3deg);
-}
-.christmas-greeting b { font: bold italic 1.35em/1 Georgia, serif; }
-html:lang(ko) .christmas-greeting { font: 500 clamp(14px, 1.3vw, 18px)/1.35 Batang, serif; }
 [data-home-preserved] .hero-main .btn-book,
 body[data-home-preserved].lofi-floating-ctas .sticky-appointment {
   background: var(--cranberry);
@@ -72,7 +59,6 @@ body[data-home-preserved].lofi-floating-ctas .sticky-appointment:hover { backgro
   }
   .christmas-greeting { justify-self: end; }
   .christmas-greeting img { width: clamp(116px, 31vw, 170px); }
-  .christmas-greeting span { padding: 3px 15px 5px; }
   [data-home-preserved] .christmas-card .hero-eyebrow { margin-bottom: 12px; }
   [data-home-preserved] .christmas-card .hero-lead { margin-top: 10px; }
 }
