@@ -8,38 +8,40 @@
 * { box-sizing: border-box; }
 html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
 body {
-  color: #234a3c;
+  color: #263e50;
   font: 600 16px Pretendard, 'Malgun Gothic', sans-serif;
-  background: #faf4e6;
-  background: radial-gradient(ellipse at 45% 0%, #fffcf3, transparent 75%), #f5eddc;
+  background: #e9eff1;
 }
 body::before {
-  content: ''; position: absolute; inset: 0; top: 0; right: 0; bottom: 0; left: 0;
-  border: .55vmin solid #234a3c; pointer-events: none;
-}
-body::after {
-  content: ''; position: absolute; left: 1.1vmin; right: 1.1vmin; top: 1.1vmin; bottom: 1.1vmin;
-  border: 1px solid #bba367; pointer-events: none;
+  content: ''; position: absolute; top: 0; right: 0; left: 0; height: 21%;
+  background:
+    linear-gradient(to bottom, transparent 48%, #e9eff1 100%),
+    linear-gradient(100deg, rgba(250,249,243,.96) 3%, rgba(240,245,246,.78) 48%, rgba(239,245,247,.58) 78%, rgba(246,247,243,.88)),
+    url('/display/winter-postcard.jpg') center 84% / cover no-repeat;
+  pointer-events: none;
 }
 .display-header { position: absolute; left: 3%; right: 3%; top: 2%; height: 10%; }
 .display-logo { display: block; width: 16%; height: 100%; object-fit: contain; object-position: left center; }
 .display-greeting {
   position: absolute; left: 21%; right: 21%; top: 0; height: 100%;
   display: flex; align-items: center; justify-content: center;
-  color: #fff8e9; white-space: nowrap; text-align: center;
-  background: #10325b url('/display/winter-postcard.jpg') center 42% / cover no-repeat;
-  border: 1px solid #bba367; border-radius: 1vh;
-  font: italic 4.6vh/1 Georgia, 'Times New Roman', serif;
+  color: #344e62; white-space: nowrap; text-align: left;
+  font: italic 4vh/1 Georgia, 'Times New Roman', serif;
 }
-.display-greeting img { height: 96%; width: auto; margin-right: 1.4vh; }
-.display-greeting small { display: block; color: #ffe4a5; font-size: .52em; margin-top: .15em; }
+.display-greeting img {
+  height: 86%; width: auto; margin-right: 1vh;
+  opacity: .92;
+  -webkit-mask-image: linear-gradient(to bottom, black 74%, transparent);
+  mask-image: linear-gradient(to bottom, black 74%, transparent);
+}
+.display-greeting small { display: block; color: #516777; font-size: .52em; margin-top: .22em; }
 .display-time { position: absolute; right: 0; top: 50%; transform: translateY(-50%); text-align: right; }
 #displayClock { display: block; font-size: 4vh; line-height: 1.1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
-#displayDate { display: block; font-size: 1.65vh; margin-top: .45vh; color: #526455; }
+#displayDate { display: block; font-size: 1.65vh; margin-top: .45vh; color: #465d6c; }
 .display-stage {
   position: absolute; left: 3%; right: 3%; top: 14%; bottom: 3%;
   overflow: hidden; border-radius: 2vh; background: #100e18;
-  box-shadow: 0 0 0 1px #a68a51, 0 .6vh 1.4vh rgba(48,63,45,.18);
+  box-shadow: 0 .4vh 1.2vh rgba(34,51,64,.12);
 }
 .display-video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; border: 0; background: #100e18; visibility: hidden; z-index: 0; pointer-events: none; }
 .display-video.is-active { visibility: visible; z-index: 1; }
@@ -48,8 +50,8 @@ body::after {
 .display-standby.is-hidden { visibility: hidden; }
 @media (max-aspect-ratio: 1/1) {
   .display-logo { width: 23%; }
-  .display-greeting { left: 24%; right: 24%; font-size: 3.9vw; }
-  .display-greeting img { width: 15vw; height: auto; max-height: 95%; object-fit: contain; margin-right: .5vw; }
+  .display-greeting { left: 24%; right: 24%; font-size: 3.7vw; }
+  .display-greeting img { width: 14vw; height: auto; max-height: 86%; object-fit: contain; margin-right: .7vw; }
   #displayClock { font-size: 5.9vw; }
   #displayDate { font-size: 2.1vw; }
 }
