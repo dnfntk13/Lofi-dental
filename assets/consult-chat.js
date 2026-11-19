@@ -515,7 +515,9 @@
   }
 
   function addStarterOptions() {
-    const message = addMessage("How can I help you?", "system");
+    const message = document.createElement("div");
+    message.className = "consult-chat-options-start";
+    log.appendChild(message);
     const options = document.createElement("div");
     options.className = "consult-chat-options";
     starterOptions.forEach((option, index) => {
@@ -750,11 +752,6 @@
       displayName = data.displayName || displayName;
       saveSession();
       setMessageStatus(message, "Sent");
-      if (data.aiReply?.content) {
-        addMessage(data.aiReply.content, "system", [], data.aiReply.aiAssist?.quickActions || [], data.aiReply.aiAssist?.suggestedQuestions || []);
-      } else if (data.aiConfigured === false) {
-        addMessage("Your message was saved for the lofi esthetic dentistry team. AI replies are not configured yet, so staff will follow up after review.", "system");
-      }
     } catch {
       setMessageStatus(message, "Not sent");
     } finally {

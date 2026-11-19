@@ -43,7 +43,7 @@ test('missing key, provider errors, refusal and malformed/truncated JSON fail cl
 test('reservation endpoint requires auth and confirmation, saves edited fields and serializes duplicate submissions', async () => {
   const source = await readFile(new URL('../server.mjs', import.meta.url), 'utf8');
   const start = source.indexOf('  if (pathname === "/api/admin/ai-screenshot/reservation"');
-  const end = source.indexOf('  if (pathname === "/api/admin/ai-console"', start);
+  const end = source.indexOf('  if (pathname.startsWith("/api/admin/email-thread/")', start);
   const records = [];
   let saveCount = 0;
   const context = vm.createContext({
