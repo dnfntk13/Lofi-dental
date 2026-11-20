@@ -30,9 +30,11 @@ body::before {
 }
 .display-greeting img {
   height: 86%; width: auto; margin-right: 1vh;
-  opacity: .92;
-  -webkit-mask-image: linear-gradient(to bottom, black 89%, transparent);
-  mask-image: linear-gradient(to bottom, black 89%, transparent);
+  opacity: .78;
+  filter: saturate(.78) contrast(.9);
+  mix-blend-mode: multiply;
+  -webkit-mask-image: linear-gradient(to bottom, black 70%, rgba(0,0,0,.88) 88%, transparent);
+  mask-image: linear-gradient(to bottom, black 70%, rgba(0,0,0,.88) 88%, transparent);
 }
 .display-time { position: absolute; right: 0; top: 50%; transform: translateY(-50%); text-align: right; }
 #displayClock { display: block; font-size: 4vh; line-height: 1.1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
