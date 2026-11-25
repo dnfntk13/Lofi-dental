@@ -135,7 +135,7 @@ async function updateDentwebJob(id, status, details = {}) {
 
 async function claimDentwebJob() {
   const response = await fetch(`${serverUrl}/api/admin/dentweb/jobs/next`, {
-    headers: { Authorization: adminAuthHeader(), Accept: "application/json", "X-Dentweb-Cancellation": "1", "X-Dentweb-Provisional": "1", "X-Dentweb-Reservation-Operations": "4", "X-Dentweb-Shared-Phone": "1", "X-Dentweb-Patient-Reschedule": "1",
+    headers: { Authorization: adminAuthHeader(), Accept: "application/json", "X-Dentweb-Cancellation": "1", "X-Dentweb-Provisional": "1", "X-Dentweb-Named-Contact": "1", "X-Dentweb-Reservation-Operations": "4", "X-Dentweb-Shared-Phone": "1", "X-Dentweb-Patient-Reschedule": "1",
       ...(process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED === "1" ? { "X-Dentweb-Linked-Reschedule": "1" } : {}),
     },
   });
@@ -202,7 +202,7 @@ $appointmentAt = ($date -replace '-', '') + ($time -replace ':', '')
 $name = ([string]$job.name).Trim()
 $phoneDigits = ([string]$job.phone) -replace '[^0-9]', ''
 if ($phoneDigits -match '^82(1[016789]\\d{7,8})$') { $phoneDigits = '0' + $matches[1] }
-if (-not $name -or (-not $phoneDigits -and -not $job.provisional)) { throw 'Dentweb requires identity or a verified web provisional key' }
+if (-not $name -or (-not $phoneDigits -and -not $job.provisional -and -not $job.namedContact)) { throw 'Dentweb requires identity or a verified web provisional key' }
 if ($name.Length -gt 40) { $name = $name.Substring(0, 40) }
 if ($phoneDigits -match '^(01[016789])(\\d{3,4})(\\d{4})$') { $phone = "$($matches[1])-$($matches[2])-$($matches[3])" } else { $phone = $phoneDigits }
 $memo = ([string]$job.concerns).Trim()
@@ -223,7 +223,11 @@ BEGIN
     THROW 51008, 'Cancellation requires an existing linked reservation.', 1;
   DECLARE @cancelStatus int, @cancelVerified bit = 0;
   SELECT @cancelStatus=a.n이행현황,
-    @cancelVerified=CASE WHEN ${cancellationGuardSql} THEN 1 ELSE 0 END
+    @cancelVerified=CASE WHEN (
+      (${cancellationGuardSql}) AND (@phone<>'' OR (a.n환자ID<0 AND @identityMarker<>'' AND CHARINDEX(@identityMarker,ISNULL(a.sz메모,''))>0))
+    ) OR (a.n환자ID<0 AND a.n이행현황 IN (0,2) AND a.sz예약시각=@appointmentAt
+      AND a.sz이름 LIKE N'가예약 %' AND @identityMarker<>'' AND CHARINDEX(@identityMarker,ISNULL(a.sz메모,''))>0)
+    THEN 1 ELSE 0 END
   FROM dbo.TB_예약목록 a WITH (UPDLOCK, HOLDLOCK)
   LEFT JOIN dbo.TB_환자정보 p WITH (UPDLOCK, HOLDLOCK) ON p.n환자ID=a.n환자ID AND a.n환자ID>0
   WHERE a.nID=@linkedReservationId;
@@ -243,10 +247,10 @@ IF @requestedDuration IS NOT NULL AND (@requestedDuration < 1 OR @requestedDurat
 DECLARE @phoneKey varchar(30) = REPLACE(REPLACE(REPLACE(@phone, '-', ''), ' ', ''), '+', '');
 DECLARE @patientId int, @phoneMatches int, @identityMatches int;
 SELECT @phoneMatches = COUNT(*) FROM dbo.TB_환자정보 WITH (UPDLOCK, HOLDLOCK)
-WHERE @provisional=0 AND n환자ID > 0 AND REPLACE(REPLACE(REPLACE(sz휴대폰번호, '-', ''), ' ', ''), '+', '') = @phoneKey;
+WHERE @provisional=0 AND @phoneKey<>'' AND n환자ID > 0 AND REPLACE(REPLACE(REPLACE(sz휴대폰번호, '-', ''), ' ', ''), '+', '') = @phoneKey;
 SELECT @identityMatches = COUNT(*), @patientId = MIN(p.n환자ID)
 FROM dbo.TB_환자정보 p WITH (UPDLOCK, HOLDLOCK)
-WHERE @provisional=0 AND p.n환자ID > 0
+WHERE @provisional=0 AND @phoneKey<>'' AND p.n환자ID > 0
   AND REPLACE(REPLACE(REPLACE(p.sz휴대폰번호, '-', ''), ' ', ''), '+', '') = @phoneKey
   AND (LTRIM(RTRIM(p.sz이름)) = @name OR EXISTS (
     SELECT 1 FROM dbo.TB_예약목록 a WITH (UPDLOCK, HOLDLOCK)
@@ -277,8 +281,8 @@ BEGIN
   FROM dbo.TB_예약목록 WITH (UPDLOCK, HOLDLOCK) WHERE nID = @linkedReservationId;
   IF @linkedPatientId IS NULL OR @linkedPatientId = 0 OR ISNULL(@linkedStatus, 255) <> 0
     THROW 51002, 'Linked reservation is missing or is no longer active; refusing to replace it.', 1;
-  IF @provisional=1 AND NOT EXISTS(SELECT 1 FROM dbo.TB_예약목록 WHERE nID=@linkedReservationId
-    AND n환자ID<0 AND CHARINDEX(@identityMarker,ISNULL(sz메모,''))>0)
+  IF @phoneKey='' AND NOT EXISTS(SELECT 1 FROM dbo.TB_예약목록 WHERE nID=@linkedReservationId
+    AND n환자ID<0 AND @identityMarker<>'' AND CHARINDEX(@identityMarker,ISNULL(sz메모,''))>0)
     THROW 51010,'Provisional booking identity marker mismatch.',1;
   IF (@linkedPatientId > 0 AND (@patientId IS NULL OR @patientId <> @linkedPatientId))
     OR (@linkedPatientId < 0 AND (@patientId IS NOT NULL OR LTRIM(RTRIM(ISNULL(@linkedName, ''))) <> @name
@@ -290,6 +294,8 @@ BEGIN
         AND REPLACE(REPLACE(REPLACE(sz전화, '-', ''), ' ', ''), '+', '') = @phoneKey)))
     THROW 51004, 'Another reservation already exists for this patient and time.', 1;
 
+  IF @phoneKey='' AND @provisional=0
+    SET @memo = @clinicalMemo;
   UPDATE dbo.TB_예약목록
   SET sz예약시각 = @appointmentAt, sz이름 = @name, sz전화 = @phone,
       n소요시간 = COALESCE(@requestedDuration, n소요시간),
@@ -307,7 +313,14 @@ SELECT @existingId = MIN(nID), @existingCount = COUNT(*), @existingStatus = MIN(
 FROM dbo.TB_예약목록 WITH (UPDLOCK, HOLDLOCK)
 WHERE sz예약시각 = @appointmentAt AND
   ((@patientId IS NOT NULL AND n환자ID = @patientId) OR
-   (@provisional=0 AND LTRIM(RTRIM(sz이름)) = @name AND REPLACE(REPLACE(REPLACE(sz전화, '-', ''), ' ', ''), '+', '') = @phoneKey));
+   (@provisional=0 AND @phoneKey<>'' AND LTRIM(RTRIM(sz이름)) = @name AND REPLACE(REPLACE(REPLACE(sz전화, '-', ''), ' ', ''), '+', '') = @phoneKey));
+-- A matching name at the same time is a review case, never a patient key.
+IF @phoneKey='' AND @provisional=0 AND EXISTS (
+  SELECT 1 FROM dbo.TB_예약목록 a WITH (UPDLOCK,HOLDLOCK)
+  LEFT JOIN dbo.TB_환자정보 p ON p.n환자ID=a.n환자ID AND a.n환자ID>0
+  WHERE a.sz예약시각=@appointmentAt AND a.n이행현황=0
+    AND (LTRIM(RTRIM(a.sz이름))=@name OR LTRIM(RTRIM(p.sz이름))=@name))
+  THROW 51005,'Review possible same-slot booking before registration.',1;
 IF @existingCount > 1 OR (@existingId IS NOT NULL AND (ISNULL(@existingStatus, 255) <> 0
   OR (@patientId IS NOT NULL AND @existingPatientId <> @patientId)
   OR (@patientId IS NULL AND @existingPatientId >= 0)))
@@ -370,6 +383,8 @@ SELECT @reservationId AS reservationId, CAST(0 AS bit) AS duplicate;
   [void]$command.Parameters.Add('@phone', [Data.SqlDbType]::VarChar, 30)
   [void]$command.Parameters.Add('@appointmentAt', [Data.SqlDbType]::VarChar, 12)
   [void]$command.Parameters.Add('@createdAt', [Data.SqlDbType]::VarChar, 14)
+  [void]$command.Parameters.Add('@clinicalMemo', [Data.SqlDbType]::NVarChar, -1)
+  $command.Parameters['@clinicalMemo'].Value = [string]$job.clinicalMemo
   [void]$command.Parameters.Add('@memo', [Data.SqlDbType]::NVarChar, -1)
   [void]$command.Parameters.Add('@linkedReservationId', [Data.SqlDbType]::Int)
   [void]$command.Parameters.Add('@requestedDuration', [Data.SqlDbType]::Int)
@@ -1302,7 +1317,8 @@ async function startDaemon() {
         reservationOperationsVersion: 4,
         patientRescheduleVersion: 1,
         durableResultOutbox: true,
-        identityReadinessVersion: 2,
+        identityReadinessVersion: 3,
+        namedContactBookingSupported: true,
         provisionalBookingSupported: true,
         cancellationSupported: true,
         cancellationIdentityVersion: 2,

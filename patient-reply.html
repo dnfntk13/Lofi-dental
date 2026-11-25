@@ -213,8 +213,8 @@
               <input class="field-input" type="text" id="visitingFrom" name="visitingFrom" placeholder="e.g. Seoul, Hong Kong, Los Angeles…" required />
             </div>
             <div class="field">
-              <label class="field-label" for="phone" id="phoneLabel">Phone number</label>
-              <input class="field-input" type="tel" id="phone" name="phone" placeholder="+1 555-000-0000" autocomplete="tel" required />
+              <label class="field-label" for="phone" id="phoneLabel">Phone number (optional with verified booking email)</label>
+              <input class="field-input" type="tel" id="phone" name="phone" placeholder="+1 555-000-0000" autocomplete="tel" />
             </div>
             <button class="btn-primary" type="submit" id="submitBtn">Submit</button>
           </form>
@@ -252,7 +252,7 @@
         document.getElementById("name").placeholder = "홍길동";
         document.getElementById("visitingFromLabel").textContent = "어디서 오시나요?";
         document.getElementById("visitingFrom").placeholder = "예: 서울, 홍콩, 로스앤젤레스…";
-        document.getElementById("phoneLabel").textContent = "전화번호";
+        document.getElementById("phoneLabel").textContent = "전화번호 (예약 이메일 인증 시 선택)";
         document.getElementById("phone").placeholder = "+82 10-0000-0000";
         document.getElementById("submitBtn").textContent = "제출하기";
         document.getElementById("successTitle").textContent = "감사합니다!";

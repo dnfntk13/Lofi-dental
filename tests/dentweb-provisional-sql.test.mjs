@@ -41,7 +41,7 @@ $setup=$connection.CreateCommand();$setup.CommandText=[Text.Encoding]::UTF8.GetS
 $sql=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${Buffer.from(sql).toString('base64')}'))
 function Run([int]$link,[bool]$provisional,[string]$name,[string]$phone,[bool]$cancel,[string]$marker,[string]$familyIds='',[int]$familyCount=0) {
   $cmd=$connection.CreateCommand();$cmd.CommandText=$sql
-  $values=@{name=$name;phone=$phone;appointmentAt='203001071100';createdAt='20261030210000';memo=$marker;linkedReservationId=$link;requestedDuration=30;cancel=$cancel;provisional=$provisional;identityMarker=$marker;sharedPhonePatientIds=$familyIds;sharedPhoneCount=$familyCount}
+  $values=@{name=$name;phone=$phone;appointmentAt='203001071100';createdAt='20261030210000';memo=$marker;clinicalMemo='';linkedReservationId=$link;requestedDuration=30;cancel=$cancel;provisional=$provisional;identityMarker=$marker;sharedPhonePatientIds=$familyIds;sharedPhoneCount=$familyCount}
   foreach($key in $values.Keys){[void]$cmd.Parameters.AddWithValue('@'+$key,$values[$key])}
   $reader=$cmd.ExecuteReader();[void]$reader.Read();$id=$reader.GetInt32(0);$reader.Close();return $id
 }
@@ -50,6 +50,14 @@ $id=Run 0 $true '가예약 test@example.com' '' $false $marker
 if($id -ne 2){throw 'Unexpected new reservation'}
 if((Run 0 $true '가예약 test@example.com' '' $false $marker) -ne $id){throw 'Retry duplicated reservation'}
 try {Run $id $true '가예약 test@example.com' '' $false '[wrong]'|Out-Null;throw 'Wrong marker accepted'}catch{if($_.Exception.Message -notmatch 'marker mismatch'){throw}}
+$check=$connection.CreateCommand()
+$check.CommandText="INSERT INTO #TB_환자정보 VALUES(9,N'Verified Patient','')";[void]$check.ExecuteNonQuery()
+if((Run $id $false 'Verified Patient' '' $false $marker) -ne $id){throw 'Named email upgrade changed link'}
+$check.CommandText="SELECT COUNT(*) FROM #TB_예약목록 WHERE nID=2 AND n환자ID=-1 AND sz이름='Verified Patient' AND sz전화='' AND sz예약시각='203001071100' AND sz메모 LIKE '%lofi-web:%'"
+if($check.ExecuteScalar() -ne 1){throw 'Name, empty phone, marker or time lost'}
+if((Run 0 $false 'Verified Patient' '' $false $marker) -ne $id){throw 'Named contact retry duplicated'}
+try {Run $id $false 'Verified Patient' '' $false '[unrelated]'|Out-Null;throw 'Wrong contact was linked'}catch{if($_.Exception.Message -notmatch 'marker mismatch'){throw}}
+try {Run 0 $false 'Verified Patient' '' $false '[unrelated]'|Out-Null;throw 'Same-name patient was merged'}catch{if($_.Exception.Message -notmatch 'same-slot'){throw}}
 if((Run $id $false 'Verified Patient' '01055550123' $false $marker) -ne $id){throw 'Upgrade changed ID'}
 $check=$connection.CreateCommand();$check.CommandText="SELECT COUNT(*) FROM #TB_예약목록 WHERE nID=2 AND sz이름='Verified Patient' AND sz전화='01055550123' AND n환자ID=-1";if($check.ExecuteScalar() -ne 1){throw 'Upgrade not saved'}
 $check.CommandText="SELECT COUNT(*) FROM #TB_신환예약자정보 WHERE nID=1 AND sz이름='Verified Patient' AND sz휴대폰번호='01055550123'";if($check.ExecuteScalar() -ne 1){throw 'Temporary identity not upgraded'}
@@ -77,6 +85,11 @@ $check.CommandText='DELETE #TB_예약목록보관';[void]$check.ExecuteNonQuery(
 [void](Run $shared $false 'Distinct Member' '01055559999' $true '' '10,20' 2)
 Reject {Run 0 $false 'Distinct Member' '01055559999' $false '' '10,20' 2} 'conflicting identity or status'
 $check.CommandText='SELECT COUNT(*) FROM #TB_신환예약자정보';if($check.ExecuteScalar() -ne 2){throw 'Shared tests created extra patients'}
+$fresh=Run 0 $false 'Message Patient' '' $false '[message-key]'
+if((Run 0 $false 'Message Patient' '' $false '[message-key]') -ne $fresh){throw 'Messaging booking retry duplicated'}
+[void](Run $fresh $false 'Message Patient' '' $true '[message-key]')
+$check.CommandText="SELECT COUNT(*) FROM #TB_예약목록 WHERE nID=$fresh AND n이행현황=2 AND sz이름='Message Patient' AND sz전화=''"
+if($check.ExecuteScalar() -ne 1){throw 'Named contact cancellation failed'}
 Write-Output 'TEMP_TABLE_TESTS_PASSED'
 
 } finally {$connection.Dispose()}

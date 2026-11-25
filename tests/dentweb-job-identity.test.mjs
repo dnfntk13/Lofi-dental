@@ -51,7 +51,7 @@ test('public request queues email provisional then upgrades the same linked rese
   const job=handler('  if (pathname === "/api/admin/dentweb/jobs/next"','  if (pathname.startsWith("/api/admin/reservations/") && request.method === "PUT")');
   const retry=handler('  const dentwebSyncMatch =','  if (pathname === "/api/admin/dentweb/jobs/next"');
   async function call(route,path,body,method='POST') {
-    const result={};await route(path,{method,body,headers:{'x-dentweb-provisional':'1'}},{writeHead:s=>result.status=s,end:b=>result.body=JSON.parse(b)});return result;
+    const result={};await route(path,{method,body,headers:{'x-dentweb-provisional':'1','x-dentweb-named-contact':'1'}},{writeHead:s=>result.status=s,end:b=>result.body=JSON.parse(b)});return result;
   }
   assert.equal((await call(create,'/api/reservations',{date:'2030-01-07',time:'11:00 AM',email:'person@example.com',concerns:'Consultation'})).status,201);
   const id=saved.id;
@@ -61,6 +61,14 @@ test('public request queues email provisional then upgrades the same linked rese
   const prepared=prepareDentwebIdentity(initial.body.job);
   assert.equal(prepared.provisional,true);assert.equal(prepared.phone,'');
   saved={...saved,dentwebSyncStatus:'completed',dentwebReservationId:123};
+  assert.equal((await call(reply,'/api/patient-reply',{id,name:'Case Patient'})).status,200);
+  assert.equal(saved.dentwebSyncStatus,'pending');
+  const emailOnly=prepareDentwebIdentity((await call(job,'/api/admin/dentweb/jobs/next',{},'GET')).body.job);
+  assert.equal(emailOnly.name,'Case Patient');
+  assert.equal(emailOnly.phone,'');
+  assert.equal(emailOnly.identityMarker,prepared.identityMarker);
+  assert.equal(emailOnly.dentwebReservationId,123);
+  saved={...saved,dentwebSyncStatus:'completed'};
   // The same public reply path that previously left the premature failure stuck.
   assert.equal((await call(reply,'/api/patient-reply',{id,name:'Case Patient',phone:'+12025550123'})).status,200);
   assert.equal(saved.id,id);assert.equal(saved.dentwebSyncStatus,'pending');

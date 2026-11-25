@@ -29,7 +29,7 @@ import { getAdminAiModel, adminAiRequestOptions, parseAdminAiJson } from "./lib/
 import { createAdminAiUsage } from "./lib/admin-ai-usage.mjs";
 import { instagramBookingRules, validatedInstagramExtraction, currentKoreanClock } from "./lib/instagram-booking-rules.mjs";
 import { autoQueueDentweb } from "./lib/dentweb-auto-queue.mjs";
-import { assertDentwebJobIdentity } from "./lib/dentweb-job-identity.mjs";
+import { assertDentwebJobIdentity, adminContactFields } from "./lib/dentweb-job-identity.mjs";
 import { validateSharedPhoneIdentity } from './lib/dentweb-shared-phone.mjs';
 import { provisionalConflict, supersedeProvisional } from "./lib/dentweb-provisional.mjs";
 import { queueCancellation, isCancelledReservation } from "./lib/reservation-cancellation.mjs";
@@ -4215,6 +4215,7 @@ createServer(async (request, response) => {
         phone: "",
         concerns,
         acquisition: isTrafficOptedOut(request) || isExcludedTrafficIp(request) ? null : normalizeBookingAttribution(payload.acquisition),
+        confirmedSlot: {date, time},
         measurement: { event: "booking_request", version: 1, googleReportingConsent: false },
         createdAt: new Date().toISOString(),
       };
@@ -4431,9 +4432,9 @@ createServer(async (request, response) => {
       const visitingFrom = String(payload.visitingFrom || "").trim();
       const phone = String(payload.phone || "").trim();
 
-      if (!id || !name || !phone) {
+      if (!id || !name) {
         response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
-        response.end(JSON.stringify({ message: "id, name, and phone are required" }));
+        response.end(JSON.stringify({ message: "id and name are required" }));
         return;
       }
 
@@ -4446,6 +4447,11 @@ createServer(async (request, response) => {
         return;
       }
 
+      if (!phone && !record.phone && !(record.confirmedSlot?.date === record.date && record.confirmedSlot?.time === record.time && isValidEmail(record.email || "") && !record.email.endsWith(".lofi.internal"))) {
+        response.writeHead(400, {"Content-Type":"application/json"});
+        response.end(JSON.stringify({message:"A contact number is required for this booking."}));
+        return;
+      }
       const content = [
         `Name: ${name}`,
         `Visiting from: ${visitingFrom}`,
@@ -4453,7 +4459,7 @@ createServer(async (request, response) => {
       ].join("\n");
 
       record.name = name;
-      record.phone = phone;
+      if (phone) record.phone = phone;
       record.visitingFrom = visitingFrom;
       record.updatedAt = new Date().toISOString();
 
@@ -5108,6 +5114,13 @@ createServer(async (request, response) => {
       if (phone) record.phone = phone;
       if (visitingFrom) record.visitingFrom = visitingFrom;
       if (durationMinutes !== undefined) record.durationMinutes = durationMinutes;
+      if (payload.scheduleConfirmed !== undefined || payload.verifiedMessagingContact !== undefined) {
+        try { Object.assign(record, adminContactFields(payload, date, time)); }
+        catch (error) {
+          response.writeHead(400, {"Content-Type":"application/json"});
+          response.end(JSON.stringify({message:error.message})); return;
+        }
+      }
 
       try { if (payload.sharedPhoneIdentity !== undefined) record.sharedPhoneIdentity = validateSharedPhoneIdentity(payload.sharedPhoneIdentity, record); }
       catch (error) { response.writeHead(400, { 'Content-Type': 'application/json' }); response.end(JSON.stringify({message:error.message})); return; }
@@ -5345,6 +5358,7 @@ createServer(async (request, response) => {
             // Complete the explicit web request, never copy native schedule fields back.
             syncFields.date = existing.dentwebReschedule.target.date;
             syncFields.time = existing.dentwebReschedule.target.time;
+            if (existing.confirmedSlot !== undefined) syncFields.confirmedSlot = {date:syncFields.date, time:syncFields.time};
             syncFields.updatedAt = now;
           }
         }
@@ -5389,7 +5403,7 @@ createServer(async (request, response) => {
   if (pathname === "/api/admin/dentweb/capabilities" && request.method === "GET") {
     if (!adminAuthorized) { requestAuth(response); return; }
     response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
-    response.end(JSON.stringify({ identityReadinessVersion: 2, provisionalBookingSupported: true, provisionalDuplicateResolution: true, sharedPhoneIdentityVersion: 1 }));
+    response.end(JSON.stringify({ identityReadinessVersion: 3, namedContactBookingSupported: true, provisionalBookingSupported: true, provisionalDuplicateResolution: true, sharedPhoneIdentityVersion: 1 }));
     return;
   }
 
@@ -5425,6 +5439,7 @@ createServer(async (request, response) => {
         record = await collection.findOneAndUpdate(
           {
             $and: [
+              ...(request.headers['x-dentweb-named-contact'] === '1' ? [] : [{confirmedSlot: {$exists:false}}, {verifiedMessagingContact: {$exists:false}}]),
               ...(request.headers['x-dentweb-shared-phone'] === '1' ? [] : [{ sharedPhoneIdentity: { $exists: false } }]),
               { $or: [{ source: { $ne: "dentweb" } }, { dentwebAction: "cancel" }, { dentwebAction: "linked-reschedule" }] },
               ...(process.env.DENTWEB_LINKED_RESCHEDULE_ENABLED === "1" && request.headers["x-dentweb-linked-reschedule"] === "1"
@@ -5442,6 +5457,7 @@ createServer(async (request, response) => {
       } else {
         const inbox = await readInbox();
         const index = inbox.findIndex((item) => (item.source !== "dentweb" || item.dentwebAction === "cancel")
+          && (request.headers['x-dentweb-named-contact'] === '1' || (item.confirmedSlot === undefined && !item.verifiedMessagingContact))
           && (!item.sharedPhoneIdentity || request.headers['x-dentweb-shared-phone'] === '1')
           && item.dentwebAction !== "linked-reschedule"
           && (item.dentwebAction !== "cancel" || request.headers["x-dentweb-cancellation"] === "1") && (
@@ -5489,6 +5505,8 @@ createServer(async (request, response) => {
           dentwebReservationId: record.dentwebReservationId,
           durationMinutes: record.durationMinutes,
           sharedPhoneIdentity: record.sharedPhoneIdentity,
+          confirmedSlot: record.confirmedSlot,
+          verifiedMessagingContact: record.verifiedMessagingContact,
           action: record.dentwebAction || "upsert",
           reschedule: record.dentwebReschedule,
         } : null,
@@ -5554,6 +5572,13 @@ createServer(async (request, response) => {
       if (phone) nextRecord.phone = phone;
       if (visitingFrom) nextRecord.visitingFrom = visitingFrom;
       if (durationMinutes !== undefined) nextRecord.durationMinutes = durationMinutes;
+      if (payload.scheduleConfirmed !== undefined || payload.verifiedMessagingContact !== undefined) {
+        try { Object.assign(nextRecord, adminContactFields(payload, date, time)); }
+        catch (error) {
+          response.writeHead(400, {"Content-Type":"application/json"});
+          response.end(JSON.stringify({message:error.message})); return;
+        }
+      }
 
       const collection = await getInboxCollection();
       if (collection) {
@@ -5566,6 +5591,7 @@ createServer(async (request, response) => {
           id,
           createdAt: existing?.createdAt || nextRecord.createdAt,
         };
+        if (existing?.dentwebSyncStatus === 'processing') throw new Error('Reservation sync in progress; retry after completion');
         const existingName = String(existing?.name || "").trim();
         const existingEmail = String(existing?.email || "").trim();
         const dentwebIdentityUpdated = Number(existing?.dentwebReservationId) > 0 && (
@@ -5584,7 +5610,7 @@ createServer(async (request, response) => {
           };
         }
         Object.assign(merged, autoQueueDentweb(merged, { previous: existing, date: normalizeReservationDate(merged.date), time: normalizeReservationTime(merged.time) }));
-        const replaced = await collection.replaceOne({ id, dentwebReschedule: null }, merged, { upsert: !existing });
+        const replaced = await collection.replaceOne({ id, dentwebReschedule: null, ...(existing ? {dentwebSyncStatus: existing.dentwebSyncStatus ?? null, updatedAt: existing.updatedAt ?? null} : {}) }, merged, { upsert: !existing });
         if (!replaced.matchedCount && existing) throw new Error("Reservation changed during update");
         try {
           await saveOrUpdatePatient(merged, { name: merged.name || null, phone: merged.phone || null });
@@ -5607,6 +5633,7 @@ createServer(async (request, response) => {
           id,
           createdAt: existing.createdAt || nextRecord.createdAt,
         };
+        if (existing.dentwebSyncStatus === 'processing') throw new Error('Reservation sync in progress; retry after completion');
         const existingName = String(existing.name || "").trim();
         const existingEmail = String(existing.email || "").trim();
         const dentwebIdentityUpdated = Number(existing.dentwebReservationId) > 0 && (

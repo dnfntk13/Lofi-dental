@@ -1178,6 +1178,7 @@
           <textarea class="edit-input" id="createConcerns" rows="4" placeholder="Patient concerns" style="resize:vertical;"></textarea>
         </div>
         <div class="edit-actions">
+          <label><input type="checkbox" id="createAgreed" /> Patient confirmed this date and time</label>
           <button class="btn-small" type="button" id="createCancel">Cancel</button>
           <button class="btn-small primary" type="button" id="createSave">Create</button>
         </div>
@@ -1993,6 +1994,7 @@
         createEmail.value = "";
         createName.value = "";
         createPhone.value = "";
+        document.getElementById("createAgreed").checked = false;
         createConcerns.value = "";
         createOverlay.classList.add("open");
         createTime.focus();
@@ -2009,6 +2011,7 @@
           time: String(createTime.value || "").trim(),
           email: String(createEmail.value || "").trim().toLowerCase(),
           name: String(createName.value || "").trim(),
+          scheduleConfirmed: document.getElementById("createAgreed").checked,
           phone: String(createPhone.value || "").trim(),
           concerns: String(createConcerns.value || "").trim(),
           ...(createDuration.value !== "" ? { durationMinutes: Number(createDuration.value) } : {}),
